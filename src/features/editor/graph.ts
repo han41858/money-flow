@@ -1,3 +1,4 @@
+import type { NodeTotal } from '../nodes/sizing';
 import { type Node, type Edge } from '@xyflow/react';
 import { amountLabel, exactAmount, sum } from '../edges/money';
 import { portFraction } from '../edges/geometry';
@@ -12,7 +13,7 @@ export type FlowNode = Node<
     appearance: ReturnType<typeof describe>;
     inputs: string[];
     outputs: string[];
-    totals: { label: string; description: string }[];
+    totals: NodeTotal[];
     readOnly?: boolean;
   },
   'money'
@@ -71,15 +72,17 @@ export function buildGraph(diagram: Diagram) {
     const parent = node.groupId ? byGroupId.get(node.groupId) : undefined;
     const inputs = incoming.get(node.id)!;
     const outputs = outgoing.get(node.id)!;
-    const totals = [
-      { direction: '들어온 합계', edges: inputs },
-      { direction: '나간 합계', edges: outputs },
-    ].flatMap(({ direction, edges }) => {
+    const directions = [
+      { direction: '들어온 합계', edges: inputs, side: 'left' },
+      { direction: '나간 합계', edges: outputs, side: 'right' },
+    ] as const;
+    const totals = directions.flatMap(({ direction, edges, side }) => {
       if (edges.length < 2) return [];
       const total = sum(edges);
       return [
         {
-          label: direction + ' ' + amountLabel(total.min, total.max),
+          side,
+          label: amountLabel(total.min, total.max),
           description: direction + ' ' + exactAmount(total),
         },
       ];

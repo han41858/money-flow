@@ -26,12 +26,11 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   const nodeSizes = new Map(
     ordered.map((node) => {
       const size = sizes.get(node.id) ?? cardSize(node.name);
-      const lines =
-        Number(indegree.get(node.id)! >= 2) +
-        Number(outgoing.get(node.id)!.length >= 2);
+      const hasTotal =
+        indegree.get(node.id)! >= 2 || outgoing.get(node.id)!.length >= 2;
       return [
         node.id,
-        { ...size, height: size.height + lines * totalLineHeight },
+        { ...size, height: size.height + (hasTotal ? totalLineHeight : 0) },
       ];
     }),
   );

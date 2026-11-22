@@ -233,7 +233,7 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const [left, second, middle, right, saving, region] = await transforms();
   expect(left.e).toBe(second.e);
   expect(left.f).not.toBe(second.f);
-  const middleCenter = middle.f + nodeHeight / 2 + totalLineHeight;
+  const middleCenter = middle.f + (nodeHeight + totalLineHeight) / 2;
   expect(middleCenter).toBeCloseTo((left.f + second.f + nodeHeight) / 2, 3);
   expect(right.e).toBe(saving.e);
   expect((right.f + saving.f + nodeHeight) / 2).toBeCloseTo(middleCenter, 3);
@@ -290,7 +290,12 @@ test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번
 test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다', async ({ page }) => {
   await page.goto('/');
   const totals = page.locator('[data-id="joint"] .node-totals text');
-  await expect(totals).toHaveText(['들어온 합계 560만', '나간 합계 228~258만']);
+  await expect(totals).toHaveText(['560만', '228~258만']);
+  await expect(totals.first()).toHaveAttribute('text-anchor', 'start');
+  await expect(totals.last()).toHaveAttribute('text-anchor', 'end');
+  expect(await totals.first().getAttribute('y')).toBe(
+    await totals.last().getAttribute('y'),
+  );
   await expect(page.locator('[data-id="income-a"] .node-totals')).toHaveCount(
     0,
   );
@@ -306,7 +311,7 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
     name: '800,000원 ~ 900,000원 금액 수정',
   });
   await expect(button).toBeFocused();
-  await expect(totals.first()).toHaveText('들어온 합계 320~330만');
+  await expect(totals.first()).toHaveText('320~330만');
   await button.click();
   await input.fill('1234');
   await input.press('Escape');

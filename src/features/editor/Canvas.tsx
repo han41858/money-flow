@@ -198,6 +198,7 @@ export function Canvas({
       </div>
       <div
         className="flow-area"
+        data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
         onPointerDownCapture={trackView}
         onWheelCapture={trackView}
         onKeyDownCapture={(e) => {
@@ -233,10 +234,10 @@ export function Canvas({
                 data: { ...n.data, readOnly },
                 selected: selected.nodes.includes(n.id),
                 className:
-                  source &&
-                  source !== n.id &&
-                  !canConnect(diagram, source, n.id)
-                    ? 'invalid-target'
+                  source && source !== n.id
+                    ? canConnect(diagram, source, n.id)
+                      ? 'valid-target'
+                      : 'invalid-target'
                     : '',
               })),
             ]}
@@ -252,6 +253,8 @@ export function Canvas({
             onEdgeClick={openInspector}
             onConnectStart={(_, p) => setSource(p.nodeId)}
             onConnectEnd={() => setSource(null)}
+            onClickConnectStart={(_, p) => setSource(p.nodeId)}
+            onClickConnectEnd={() => setSource(null)}
             isValidConnection={(c) => canConnect(diagram, c.source, c.target)}
             onConnect={(c) => {
               if (readOnly) return;

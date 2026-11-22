@@ -6,6 +6,7 @@ export async function point(locator: Locator) {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 }
 export async function connect(page: Page, source: Locator, target: Locator) {
+  await source.hover();
   const from = await point(source.locator('.source').first());
   const to = await point(target.locator('.target').first());
   await page.mouse.move(from.x, from.y);

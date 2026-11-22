@@ -400,11 +400,22 @@ h1 {
   outline: 3px solid #285d48;
   outline-offset: 4px;
 }
-.money-node .react-flow__handle {
+.flow-area .money-node .react-flow__handle {
   background: white;
   width: 12px;
   height: 12px;
   border: 2px solid var(--outline);
+  opacity: 0;
+  pointer-events: none;
+}
+[data-port-mode='idle'] .money-node:hover .source.connectionindicator,
+[data-port-mode='idle']
+  .react-flow__node:focus-visible
+  .source.connectionindicator,
+[data-port-mode='connecting'] .valid-target .target.connectionindicator,
+[data-port-mode='connecting'] .money-node .connectingfrom,
+[data-port-mode='connecting'] .money-node .clickconnecting {
+  opacity: 1;
   pointer-events: all;
   cursor: crosshair;
 }
@@ -1012,10 +1023,6 @@ footer span {
 .shared-page .flow-area {
   flex: 1;
   min-height: 0;
-}
-.shared-page .react-flow__handle {
-  opacity: 0;
-  pointer-events: none;
 }
 .shared-page .group-title {
   cursor: pointer;

@@ -202,3 +202,41 @@ test('카드에서 이름과 유형을 편집하고 연결 제한과 실행 취�
   await name.press('Tab');
   await expect(node).toHaveAttribute('aria-label', '포커스를 벗어나 저장');
 });
+
+test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에 되돌릴 수 있다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 960 });
+  await page.goto('/');
+  const income = page.locator('[data-id="income-a"]');
+  const partner = page.locator('[data-id="income-b"]');
+  const account = page.locator('[data-id="joint"]');
+  const card = page.locator('[data-id="card"]');
+  const group = page.locator('[data-id="group:joint-area"]');
+  const transforms = () =>
+    Promise.all(
+      [income, partner, account, card, group].map((node) =>
+        node.evaluate((element) =>
+          new DOMMatrixReadOnly(getComputedStyle(element).transform).toJSON(),
+        ),
+      ),
+    );
+  await expect(group).toBeVisible();
+  const before = await transforms();
+  const arrange = page.getByRole('button', { name: '자동 정렬' });
+  await arrange.click();
+  await expect.poll(transforms).not.toEqual(before);
+  const [left, second, middle, right, region] = await transforms();
+  expect(left.e).toBe(second.e);
+  expect(left.f).not.toBe(second.f);
+  expect(left.e).toBeLessThan(middle.e);
+  expect(middle.e).toBeLessThan(right.e);
+  expect(middle.e).toBeGreaterThan(region.e);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(6);
+  await selectNode(account);
+  await expect(
+    page.locator('.property').filter({ hasText: '소속 그룹' }),
+  ).toContainText('공동 자금');
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect.poll(transforms).toEqual(before);
+});

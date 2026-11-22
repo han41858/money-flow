@@ -11,6 +11,7 @@ import {
 import { canConnect } from '../edges/connections';
 import { kindNames } from '../nodes/presentation';
 import { institutions } from '../../lib/brands/registry';
+import { arrangeDiagram } from './arrange';
 
 import {
   absoluteFrom,
@@ -224,6 +225,28 @@ export function createEditor(initial: Diagram) {
       commit({ groups, nodes });
   }
 
+  function autoArrange(sizes: NodeSizes) {
+    const diagram = current();
+    if (!diagram.nodes.length) return;
+    const arranged = arrangeDiagram(diagram, sizes);
+    const moved = (next: Position, previous: Position) =>
+      next.x !== previous.x || next.y !== previous.y;
+    if (
+      arranged.nodes.some((node, i) =>
+        moved(node.position, diagram.nodes[i].position),
+      ) ||
+      arranged.groups.some((group, i) => {
+        const previous = diagram.groups[i];
+        return (
+          moved(group.position, previous.position) ||
+          group.width !== previous.width ||
+          group.height !== previous.height
+        );
+      })
+    )
+      commit(arranged);
+  }
+
   function remove(selected: Selection) {
     const d = current();
     const groups = d.groups.filter((g) => !selected.groups.includes(g.id));
@@ -274,6 +297,7 @@ export function createEditor(initial: Diagram) {
     editGroup,
     resizeGroup,
     move,
+    autoArrange,
     remove,
     newDiagram,
     load,

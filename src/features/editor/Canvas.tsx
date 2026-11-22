@@ -17,7 +17,14 @@ import {
   type NodeSelectionChange,
   type XYPosition,
 } from '@xyflow/react';
-import { Grid2X2, Maximize, Minus, Plus, Workflow } from 'lucide-react';
+import {
+  Grid2X2,
+  Maximize,
+  Minus,
+  Plus,
+  WandSparkles,
+  Workflow,
+} from 'lucide-react';
 import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
 import { TransferEdge } from '../edges/TransferEdge';
@@ -315,6 +322,22 @@ export function Canvas({
               >
                 <Maximize size={15} />
               </button>
+              {!readOnly && (
+                <button
+                  aria-label="자동 정렬"
+                  title="자동 정렬"
+                  disabled={!graph.nodes.length}
+                  onClick={() => {
+                    trackView();
+                    editor.autoArrange(
+                      measuredSizes(diagram.nodes, getInternalNode),
+                    );
+                    requestAnimationFrame(() => void fitView(fitOptions));
+                  }}
+                >
+                  <WandSparkles size={15} />
+                </button>
+              )}
               <button
                 aria-label="격자 표시"
                 title="격자 표시"

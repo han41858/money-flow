@@ -18,6 +18,7 @@ export function TransferEdge({
     coords.targetX,
     coords.targetY,
     stroke,
+    data.targetPortCount,
   );
   const title = exactAmount(edge);
   return (

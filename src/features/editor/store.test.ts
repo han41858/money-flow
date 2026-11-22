@@ -51,6 +51,24 @@ describe('편집 이력', () => {
     ed.connect('card', 'joint');
     expect(diagramSchema.safeParse(ed.current()).success).toBe(true);
   });
+  it('순환 연결과 그룹을 보존하며 자동 정렬을 반복해도 이력을 추가하지 않는다', () => {
+    const ed = createEditor(example);
+    ed.connect('card', 'joint');
+    const before = ed.current();
+    ed.autoArrange(new Map());
+    const arranged = ed.current();
+    expect(arranged.edges).toBe(before.edges);
+    expect(arranged.nodes.map((n) => n.groupId)).toEqual(
+      before.nodes.map((n) => n.groupId),
+    );
+    expect(arranged.nodes.map((n) => n.position)).not.toEqual(
+      before.nodes.map((n) => n.position),
+    );
+    ed.autoArrange(new Map());
+    expect(ed.current()).toBe(arranged);
+    ed.history.getState().undo();
+    expect(ed.current()).toBe(before);
+  });
   it('금융사 등록과 노드 적용을 한 번에 취소한다', () => {
     const ed = createEditor(example);
     expect(ed.addInstitution('joint', '지역 은행', '#216443')).toBe(true);

@@ -141,6 +141,7 @@ function edgeShape(
     to.x,
     to.y,
     stroke,
+    flow.data!.targetPortCount,
   );
   bounds.path(path, stroke / 2);
   bounds.path(arrow, 0);

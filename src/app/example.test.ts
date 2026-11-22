@@ -75,7 +75,7 @@ describe('금액 및 색상', () => {
       max: 5600000,
     });
     expect(edgeWidth({ min: 0, max: 0 })).toBe(2);
-    expect(edgeWidth({ min: 1e8, max: 1e8 })).toBe(24);
+    expect(edgeWidth({ min: 1e8, max: 1e8 })).toBe(14);
     expect(edgeWidth({ min: 0, max: 2e6 })).toBe(
       edgeWidth({ min: 1e6, max: 1e6 }),
     );

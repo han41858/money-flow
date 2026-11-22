@@ -22,6 +22,7 @@ export type FlowEdge = Edge<
     sourcePort: number;
     targetPort: number;
     targetPortCount: number;
+    readOnly?: boolean;
   },
   'transfer'
 >;

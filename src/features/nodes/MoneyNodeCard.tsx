@@ -15,9 +15,9 @@ import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
-import { NodeArtwork, browserTextWidth, cardLabel } from './artwork';
+import { NodeArtwork } from './artwork';
+import { browserTextWidth, cardLabel, cardSize } from './sizing';
 import { kindNames } from './presentation';
-import { defaultNodeSize } from '../groups/geometry';
 
 function Port({ outgoing = false }: { outgoing?: boolean }) {
   return (
@@ -125,18 +125,18 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         trigger.current?.focus({ preventScroll: true }),
       );
   }
-  const width = defaultNodeSize.width;
-  const label = useMemo(
-    () => cardLabel(node.name, width, browserTextWidth),
-    [node.name, width],
+  const size = useMemo(
+    () => cardSize(node.name, browserTextWidth),
+    [node.name],
   );
   const update = useUpdateNodeInternals();
-  const lastType = useRef(node.type);
+  const layout = `${node.type}:${size.width}`;
+  const lastLayout = useRef(layout);
   useLayoutEffect(() => {
-    if (lastType.current === node.type) return;
-    lastType.current = node.type;
+    if (lastLayout.current === layout) return;
+    lastLayout.current = layout;
     update(node.id);
-  }, [node.id, node.type, update]);
+  }, [node.id, layout, update]);
   return (
     <div
       className={'money-node' + (selected ? ' active' : '')}
@@ -146,8 +146,8 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       <NodeArtwork
         decorative
         data={data}
-        label={label}
-        size={{ width, height: defaultNodeSize.height }}
+        label={cardLabel(node.name)}
+        size={size}
         hideName={editing !== null}
         hideIcon={editing === 'kind'}
       />

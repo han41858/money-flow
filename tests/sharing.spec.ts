@@ -9,7 +9,7 @@ async function share(page: Page) {
   await expect(dialog.getByText(/3,200,000원/)).toBeVisible();
   await dialog.getByRole('button', { name: '공유 링크 만들기' }).click();
   const output = dialog.getByLabel('읽기 전용 주소');
-  await expect(output).toHaveValue(/#share=1\./);
+  await expect(output).toHaveValue(/#share=2\./);
   return output.inputValue();
 }
 test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시적 복사만 독립된 흐름을 저장한다', async ({
@@ -26,7 +26,10 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   const viewer = await guest.newPage();
   await viewer.goto(url);
   await expect(viewer.getByText('Money Flow · 읽기 전용')).toBeVisible();
-  await viewer.locator('[data-id="income-a"]').click();
+  await viewer
+    .locator('.react-flow__node-money')
+    .filter({ hasText: '장현의 급여' })
+    .click();
   await expect(viewer.getByRole('region', { name: '선택 상세' })).toContainText(
     '장현의 급여',
   );

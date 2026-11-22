@@ -21,6 +21,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { ResponsivePanel } from './ResponsivePanel';
 import { ShareDialog } from '../features/sharing/ShareDialog';
 import { Share2 } from 'lucide-react';
 import { Canvas } from '../features/editor/Canvas';
@@ -194,9 +195,11 @@ function Workspace() {
       }),
     );
   }
-  const mobileOpen = mobile === 'tools' || (mobile === 'details' && count > 0);
   return (
     <div className="workspace" inert={busy}>
+      <a className="skip-link" href="#editor-main">
+        캔버스로 건너뛰기
+      </a>
       <header className="topbar">
         <div className="brand">
           <span className="brand-icon">
@@ -247,114 +250,116 @@ function Workspace() {
         <StorageNotice />
       )}
       <div className="workspace-body">
-        {mobileOpen && (
-          <button
-            className="scrim"
-            aria-label="패널 닫기"
-            onClick={() => setMobile(null)}
-          />
-        )}
-        <aside
-          className={'sidebar' + (mobile === 'tools' ? ' open' : '')}
-          aria-label="다이어그램 탐색"
+        <ResponsivePanel
+          open={mobile === 'tools'}
+          side="left"
+          label="편집 도구"
+          close={() => setMobile(null)}
         >
-          <div className="side-head">
-            <span>
-              <Layers2 size={16} />
-              편집 도구
-            </span>
-            <button
-              className="mobile-only"
-              aria-label="탐색 닫기"
-              onClick={() => setMobile(null)}
-            >
-              <X size={16} />
-            </button>
-          </div>
-          <div className="add-tools">
-            {(Object.keys(kindNames) as Kind[]).map((type) => {
-              const Icon = kindIcons[type];
-              return (
-                <button
-                  key={type}
-                  onClick={() => add(type)}
-                  aria-label={kindNames[type] + ' 추가'}
-                >
-                  <Icon size={16} />
-                  {kindNames[type]}
-                  <Plus size={13} />
-                </button>
-              );
-            })}
-          </div>
-          <button className="add-region" onClick={addGroup}>
-            <Frame size={15} />
-            그룹 추가
-            <Plus size={13} />
-          </button>
-          <div className="side-content">
+          <aside
+            className={'sidebar' + (mobile === 'tools' ? ' open' : '')}
+            aria-label="다이어그램 탐색"
+          >
             <div className="side-head">
               <span>
-                <ListTree size={16} />
-                노드 목록
+                <Layers2 size={16} />
+                편집 도구
               </span>
-              <b>{nodes.length}</b>
+              <button
+                className="mobile-only"
+                aria-label="탐색 닫기"
+                onClick={() => setMobile(null)}
+              >
+                <X size={16} />
+              </button>
             </div>
-            {(Object.keys(kindNames) as Kind[])
-              .filter((type) => nodes.some((n) => n.type === type))
-              .map((type) => (
-                <section key={type} className="node-group">
-                  <h3>{kindNames[type]}</h3>
-                  {nodes
-                    .filter((n) => n.type === type)
-                    .map((n) => {
-                      const { Icon, color } = describe(n, diagram);
-                      return (
-                        <button
-                          className="node-row"
-                          key={n.id}
-                          onClick={() =>
-                            select({ groups: [], nodes: [n.id], edges: [] })
-                          }
-                        >
-                          <span
-                            style={{
-                              background:
-                                'color-mix(in srgb, ' + color + ' 12%, white)',
-                            }}
-                          >
-                            <Icon size={14} />
-                          </span>
-                          {n.name}
-                          <ChevronRight size={13} />
-                        </button>
-                      );
-                    })}
-                </section>
-              ))}
-            {diagram.groups.length > 0 && (
-              <section className="node-group">
-                <h3>그룹</h3>
-                {diagram.groups.map((g) => (
+            <div className="add-tools">
+              {(Object.keys(kindNames) as Kind[]).map((type) => {
+                const Icon = kindIcons[type];
+                return (
                   <button
-                    className="node-row"
-                    key={g.id}
-                    onClick={() =>
-                      select({ groups: [g.id], nodes: [], edges: [] })
-                    }
+                    key={type}
+                    onClick={() => add(type)}
+                    aria-label={kindNames[type] + ' 추가'}
                   >
-                    <span style={{ background: g.color + '33' }}>
-                      <Frame size={14} />
-                    </span>
-                    {g.name}
-                    <ChevronRight size={13} />
+                    <Icon size={16} />
+                    {kindNames[type]}
+                    <Plus size={13} />
                   </button>
+                );
+              })}
+            </div>
+            <button className="add-region" onClick={addGroup}>
+              <Frame size={15} />
+              그룹 추가
+              <Plus size={13} />
+            </button>
+            <div className="side-content">
+              <div className="side-head">
+                <span>
+                  <ListTree size={16} />
+                  노드 목록
+                </span>
+                <b>{nodes.length}</b>
+              </div>
+              {(Object.keys(kindNames) as Kind[])
+                .filter((type) => nodes.some((n) => n.type === type))
+                .map((type) => (
+                  <section key={type} className="node-group">
+                    <h3>{kindNames[type]}</h3>
+                    {nodes
+                      .filter((n) => n.type === type)
+                      .map((n) => {
+                        const { Icon, color } = describe(n, diagram);
+                        return (
+                          <button
+                            className="node-row"
+                            key={n.id}
+                            onClick={() =>
+                              select({ groups: [], nodes: [n.id], edges: [] })
+                            }
+                          >
+                            <span
+                              style={{
+                                background:
+                                  'color-mix(in srgb, ' +
+                                  color +
+                                  ' 12%, white)',
+                              }}
+                            >
+                              <Icon size={14} />
+                            </span>
+                            {n.name}
+                            <ChevronRight size={13} />
+                          </button>
+                        );
+                      })}
+                  </section>
                 ))}
-              </section>
-            )}
-          </div>
-        </aside>
-        <main>
+              {diagram.groups.length > 0 && (
+                <section className="node-group">
+                  <h3>그룹</h3>
+                  {diagram.groups.map((g) => (
+                    <button
+                      className="node-row"
+                      key={g.id}
+                      onClick={() =>
+                        select({ groups: [g.id], nodes: [], edges: [] })
+                      }
+                    >
+                      <span style={{ background: g.color + '33' }}>
+                        <Frame size={14} />
+                      </span>
+                      {g.name}
+                      <ChevronRight size={13} />
+                    </button>
+                  ))}
+                </section>
+              )}
+            </div>
+          </aside>
+        </ResponsivePanel>
+        <main id="editor-main" tabIndex={-1}>
           <div className="page-head">
             <div className="breadcrumb">
               <Network size={14} />
@@ -371,7 +376,10 @@ function Workspace() {
                 <PanelLeftOpen />
               </button>
             </div>
-            <p>노드의 오른쪽 점을 다음 노드의 왼쪽 점으로 끌어 연결하세요.</p>
+            <p>
+              노드의 연결점을 끌거나 출발 노드의 속성에서 연결할 노드를
+              선택하세요.
+            </p>
           </div>
           <div className="metrics">
             <Summary
@@ -404,20 +412,27 @@ function Workspace() {
               openInspector={() => setMobile('details')}
             />
             {count > 0 && (
-              <div
-                className={
-                  'detail-wrap' + (mobile === 'details' ? ' open' : '')
-                }
+              <ResponsivePanel
+                open={mobile === 'details'}
+                side="right"
+                label="선택한 객체 속성"
+                close={close}
               >
-                <Inspector
-                  key={JSON.stringify(selected)}
-                  diagram={diagram}
-                  selected={selected}
-                  select={select}
-                  remove={remove}
-                  close={close}
-                />
-              </div>
+                <div
+                  className={
+                    'detail-wrap' + (mobile === 'details' ? ' open' : '')
+                  }
+                >
+                  <Inspector
+                    key={JSON.stringify(selected)}
+                    diagram={diagram}
+                    selected={selected}
+                    select={select}
+                    remove={remove}
+                    close={close}
+                  />
+                </div>
+              </ResponsivePanel>
             )}
           </div>
           <footer>

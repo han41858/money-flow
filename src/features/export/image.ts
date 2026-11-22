@@ -111,7 +111,7 @@ export function renderSvg(diagram: Diagram, sizes: NodeSizes) {
     markers.push(`<marker id="arrow${i}" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
       <path d="M0 0 L10 5 L0 10 Z" fill="${color}"/></marker>`);
     lines.push(
-      `<path d="${path}" fill="none" stroke="${color}" stroke-width="${stroke}" opacity=".52" marker-end="url(#arrow${i})"/>`,
+      `<path d="${path}" fill="none" stroke="${color}" stroke-width="${stroke}" marker-end="url(#arrow${i})"/>`,
     );
     const value = amountLabel(edge.min, edge.max),
       width = textWidth(value, 13) + 18;

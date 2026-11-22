@@ -18,6 +18,7 @@ import {
   type XYPosition,
 } from '@xyflow/react';
 import { Grid2X2, Maximize, Minus, Plus, Workflow } from 'lucide-react';
+import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
 import { TransferEdge } from '../edges/TransferEdge';
 import { buildGraph, type FlowNode, type FlowEdge } from './graph';
@@ -57,6 +58,7 @@ export function Canvas({
   const [positions, setPositions] = useState<Map<string, XYPosition>>(
     new Map(),
   );
+  const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
   const graph = useMemo(() => buildGraph(diagram), [diagram]);
   const regions = useMemo(
     () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
@@ -177,10 +179,19 @@ export function Canvas({
         className="flow-area"
         onPointerDownCapture={trackView}
         onWheelCapture={trackView}
-        onKeyDownCapture={trackView}
+        onKeyDownCapture={(e) => {
+          trackView();
+          if (
+            (e.key === 'Enter' || e.key === ' ') &&
+            e.target instanceof Element &&
+            e.target.matches('.react-flow__node, .react-flow__edge')
+          )
+            openInspector();
+        }}
       >
         <div className="absolute inset-0">
           <ReactFlow<CanvasNode, FlowEdge>
+            ariaLabelConfig={labels}
             zIndexMode="manual"
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}

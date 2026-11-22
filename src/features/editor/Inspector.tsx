@@ -1,3 +1,4 @@
+import { OutgoingConnection } from './OutgoingConnection';
 import { useReactFlow } from '@xyflow/react';
 import { minGroupSize, measuredSizes } from '../groups/geometry';
 import { useState } from 'react';
@@ -241,6 +242,11 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
               <option key={o} value={o} />
             ))}
           </datalist>
+          <OutgoingConnection
+            diagram={diagram}
+            source={node}
+            selectEdge={(id) => select({ nodes: [], groups: [], edges: [id] })}
+          />
           <dl>
             <div className="property">
               <dt>소속 그룹</dt>

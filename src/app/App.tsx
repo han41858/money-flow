@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowDownLeft,
   ArrowUpRight,
+  Coins,
   ChevronRight,
   Frame,
   FilePlus2,
@@ -195,7 +196,7 @@ function Workspace() {
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
 
-  function expense(category: 'consumption' | 'saving') {
+  function expense(category: 'consumption' | 'saving' | 'loan') {
     return sum(
       edges.filter((e) => {
         const n = byId.get(e.target);
@@ -411,6 +412,16 @@ function Workspace() {
               label="월 저축·투자"
               value={expense('saving')}
             />
+            {nodes.some(
+              (n) => n.type === 'expense' && n.category === 'loan',
+            ) && (
+              <Summary
+                icon={Coins}
+                theme="loan"
+                label="월 대출 상환"
+                value={expense('loan')}
+              />
+            )}
           </div>
           <div className="editor-area">
             <Canvas

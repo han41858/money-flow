@@ -88,3 +88,10 @@ describe('금액 및 색상', () => {
       ).toBeGreaterThanOrEqual(3);
   });
 });
+
+it('억 경계를 넘는 범위는 양 끝을 각각 읽을 수 있게 표기한다', () => {
+  expect(amountLabel(100000000, 200000000)).toBe('1억~2억');
+  expect(amountLabel(10000, 120000000)).toBe('1만~1억 2,000만');
+  expect(amountLabel(99999999, 100000000)).toBe('99,999,999~1억');
+  expect(amountLabel(100000000, 100000001)).toBe('1억~100,000,001');
+});

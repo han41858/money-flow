@@ -56,3 +56,26 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
     ),
   ).toBeTruthy();
 });
+
+test('억 단위 수입 범위와 대출 상환을 월간 요약과 연결선에 반영한다', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.locator('.edge-label').filter({ hasText: '320만' }).click();
+  await page.getByLabel('금액 방식').selectOption('range');
+  await page.getByLabel('월 최소 금액').fill('100000000');
+  await page.getByLabel('월 최대 금액').fill('200000000');
+  await page.getByLabel('월 최대 금액').press('Enter');
+  await expect(
+    page.locator('.edge-label').filter({ hasText: '1억~2억' }),
+  ).toBeVisible();
+  await expect(page.locator('.metric.income')).toContainText(
+    '1억 240만~2억 240만원',
+  );
+  await page.getByRole('button', { name: '정기 적금', exact: true }).click();
+  await page.getByRole('combobox', { name: /^분류/ }).selectOption('loan');
+  await expect(page.locator('.metric.loan')).toContainText('100만원');
+  await expect(page.locator('.metric.save')).toContainText('0원');
+  await page.getByRole('combobox', { name: /^분류/ }).selectOption('saving');
+  await expect(page.locator('.metric.loan')).toHaveCount(0);
+});

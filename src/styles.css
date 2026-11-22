@@ -218,6 +218,21 @@ h1 {
   gap: 13px;
   margin: 21px 0;
 }
+.metrics:has(.loan) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.loan .metric-icon {
+  background: #e7edf6;
+  color: #3f628a;
+}
+.metric strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .metrics:has(.loan) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .metric {
   border: 1px solid #dce2d9;
   border-radius: 12px;

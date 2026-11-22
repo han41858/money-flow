@@ -16,6 +16,8 @@ export function exactAmount({ min, max }: Pick<MoneyEdge, 'min' | 'max'>) {
 }
 
 export function amountLabel(min: number, max = min): string {
+  if (min !== max && max >= 100000000)
+    return amountLabel(min) + '~' + amountLabel(max);
   if (min !== max) {
     return min % 10000 === 0 && max % 10000 === 0
       ? comma.format(min / 10000) + '~' + comma.format(max / 10000) + '만'

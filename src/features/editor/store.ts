@@ -9,7 +9,7 @@ import {
   type MoneyEdge,
 } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { kindNames } from '../nodes/presentation';
+import { newNodeName } from '../nodes/presentation';
 import { institutions } from '../../lib/brands/registry';
 import { arrangeDiagram } from './arrange';
 
@@ -70,7 +70,7 @@ export function createEditor(initial: Diagram) {
   function addNode(type: Kind, position: Position) {
     const node = nodeOfType(type, {
       id: crypto.randomUUID(),
-      name: '새 ' + kindNames[type],
+      name: newNodeName(type),
       position,
     });
     const diagram = current();

@@ -1,5 +1,5 @@
 import { getBezierPath, Position } from '@xyflow/react';
-import { defaultNodeSize } from '../groups/geometry';
+import { nodeHeight } from '../nodes/sizing';
 
 export function portFraction(index: number, count: number) {
   return (index + 0.5) / count;
@@ -14,7 +14,7 @@ export function transferGeometry(
   targetPortCount: number,
 ) {
   const tip = targetX - 7;
-  const pitch = defaultNodeSize.height / targetPortCount;
+  const pitch = nodeHeight / targetPortCount;
   const half = Math.max(2, Math.min(width / 2 + 5, pitch / 2 - 1));
   const distance = Math.hypot(targetX - sourceX, targetY - sourceY);
   const desiredLength = Math.min(34, Math.max(22, width * 2, distance * 0.045));

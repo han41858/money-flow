@@ -10,6 +10,13 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const nodes = page.locator('.react-flow__node-money');
   const edges = page.locator('.react-flow__edge');
   await expect(nodes).toHaveCount(7);
+  await expect(nodes.filter({ hasText: '급여 A' })).toBeVisible();
+  await expect(nodes.filter({ hasText: '급여 B' })).toBeVisible();
+  await expect(page.locator('.react-flow__node-region')).toHaveText([
+    '개인 A',
+    '개인 B',
+    '공동 자금',
+  ]);
   await expect(edges).toHaveCount(6);
   for (const node of await nodes.all()) await expect(node).toBeInViewport();
   await selectNode(nodes.filter({ hasText: '공동 생활비 통장' }));

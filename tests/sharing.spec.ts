@@ -5,7 +5,7 @@ async function share(page: Page) {
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
   await page.getByText('공유할 이름과 금액 확인').click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('장현의 급여', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('급여 A', { exact: true })).toBeVisible();
   await expect(dialog.getByText(/3,200,000원/)).toBeVisible();
   await dialog.getByRole('button', { name: '공유 링크 만들기' }).click();
   const output = dialog.getByLabel('읽기 전용 주소');
@@ -34,10 +34,10 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   ).toHaveCount(0);
   await viewer
     .locator('.react-flow__node-money')
-    .filter({ hasText: '장현의 급여' })
+    .filter({ hasText: '급여 A' })
     .click();
   await expect(viewer.getByRole('region', { name: '선택 상세' })).toContainText(
-    '장현의 급여',
+    '급여 A',
   );
   await viewer.locator('.edge-label').filter({ hasText: '320만' }).click();
   await expect(viewer.getByRole('region', { name: '선택 상세' })).toContainText(

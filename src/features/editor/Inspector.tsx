@@ -6,6 +6,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ChevronRight,
+  Copy,
   Trash2,
   X,
 } from 'lucide-react';
@@ -88,9 +89,17 @@ type Props = {
   select: (s: Selection) => void;
   close: () => void;
   remove: () => void;
+  copy: () => void;
 };
 
-export function Inspector({ diagram, selected, select, close, remove }: Props) {
+export function Inspector({
+  diagram,
+  selected,
+  select,
+  close,
+  remove,
+  copy,
+}: Props) {
   const [error, setError] = useState('');
   const { nodes, edges } = diagram;
   const { getInternalNode } = useReactFlow();
@@ -324,6 +333,11 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
             }}
           />
         </>
+      )}
+      {selected.nodes.length > 0 && (
+        <button className="copy-nodes" onClick={copy} title="복사 (Ctrl/⌘ C)">
+          <Copy size={15} /> 선택 노드 복사
+        </button>
       )}
       <button className="delete-objects" onClick={remove}>
         <Trash2 size={15} />

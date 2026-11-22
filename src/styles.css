@@ -692,3 +692,131 @@ footer span {
     display: flex;
   }
 }
+.library-dialog {
+  margin: auto;
+  width: min(460px, calc(100vw - 28px));
+  max-height: 85dvh;
+  overflow: auto;
+  border: 1px solid #d5dfd7;
+  border-radius: 14px;
+  background: #fff;
+  color: #20332e;
+  padding: 22px;
+  box-shadow: 0 16px 60px #122d2433;
+}
+.library-dialog::backdrop {
+  background: #142b225c;
+}
+.library-top,
+.library-top h2,
+.library-list button,
+.library-actions,
+.library-actions button,
+.document-actions form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.library-top,
+.library-list button {
+  justify-content: space-between;
+}
+.library-top h2 {
+  font-size: 21px;
+  font-weight: 700;
+}
+.backup-note {
+  font-size: 13px;
+  color: #57685d;
+  margin: 12px 0 16px;
+}
+.library-list {
+  border: 1px solid #dce4dd;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 28vh;
+}
+.library-list button {
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+}
+.library-list button span:first-child {
+  overflow-wrap: anywhere;
+}
+.library-list button[aria-current] {
+  background: #e8f2e6;
+  color: #275c3e;
+  font-weight: 650;
+}
+.library-list button span:nth-child(2) {
+  font-size: 12px;
+}
+.library-actions {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.library-actions button,
+.document-actions form button,
+.storage-notice button,
+.library-start button {
+  border: 1px solid #cad8ce;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+}
+.library-actions svg {
+  width: 14px;
+  height: 14px;
+}
+.document-actions {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #dce4dd;
+}
+.document-actions h3 {
+  font-weight: 650;
+  font-size: 14px;
+}
+.document-actions form {
+  align-items: flex-end;
+}
+.document-actions form .field {
+  flex: 1;
+  margin-bottom: 0;
+}
+.document-actions button:disabled {
+  opacity: 0.45;
+}
+.danger {
+  color: #923c30;
+}
+.storage-notice {
+  padding: 10px 16px;
+  background: #fff4d9;
+  color: #594822;
+  font-size: 13px;
+}
+.storage-notice button {
+  margin: 6px 6px 0 0;
+}
+.library-start {
+  max-width: 40rem;
+  margin: 10vh auto;
+  align-items: flex-start;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .topbar {
+    gap: 6px;
+    padding: 0 9px;
+  }
+  .history-tools .fresh {
+    margin-left: 2px;
+  }
+  .history-tools button {
+    padding: 5px;
+  }
+}

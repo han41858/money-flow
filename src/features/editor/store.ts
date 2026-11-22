@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
+import { blankDiagram } from '../../lib/storage/format';
 import { example } from '../../app/example';
 import {
   edgeSchema,
@@ -131,23 +132,16 @@ export function createEditor(initial: Diagram) {
     if (nodes.length !== d.nodes.length || edges.length !== d.edges.length)
       commit({ nodes, edges });
   }
-  function newDiagram() {
-    const now = new Date().toISOString();
-    useDiagram.setState({
-      diagram: {
-        id: crypto.randomUUID(),
-        schemaVersion: 1,
-        name: '새 자금 흐름',
-        createdAt: now,
-        updatedAt: now,
-        nodes: [],
-        edges: [],
-        groups: [],
-        customInstitutions: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      },
-    });
+  function load(diagram: Diagram) {
+    useDiagram.setState({ diagram });
     useDiagram.temporal.getState().clear();
+  }
+  function newDiagram() {
+    load(blankDiagram());
+  }
+  function rename(name: string) {
+    if (name.trim() && name.trim() !== current().name)
+      commit({ name: name.trim() });
   }
   return {
     useDiagram,
@@ -160,6 +154,8 @@ export function createEditor(initial: Diagram) {
     move,
     remove,
     newDiagram,
+    load,
+    rename,
     history: useDiagram.temporal,
   };
 }

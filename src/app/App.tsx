@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { example } from './example';
+import { FlowName } from '../features/diagrams/FlowName';
 import { ResponsivePanel } from './ResponsivePanel';
 import { ShareDialog } from '../features/sharing/ShareDialog';
 import { Share2 } from 'lucide-react';
@@ -265,7 +266,7 @@ function Workspace({
           Money Flow
         </div>
         <span className="header-divider" />
-        <span className="workspace-title">자금 흐름</span>
+        <FlowName key={diagram.id} name={diagram.name} />
         <div className="history-tools">
           <button
             aria-label="실행 취소"

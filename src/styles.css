@@ -46,6 +46,8 @@ button:focus-visible {
   align-items: center;
 }
 .brand {
+  flex: none;
+  white-space: nowrap;
   gap: 10px;
   font-size: 22px;
   font-weight: 750;
@@ -60,6 +62,7 @@ button:focus-visible {
   justify-content: center;
 }
 .header-divider {
+  flex: none;
   height: 19px;
   width: 1px;
   background: #49665c;
@@ -67,6 +70,28 @@ button:focus-visible {
 .workspace-title {
   font-size: 13px;
   color: #dde9df;
+  width: min(100%, 22rem);
+  min-width: 0;
+}
+.workspace-title > :is(button, input) {
+  max-width: 100%;
+  padding: 3px 6px;
+  border-radius: 5px;
+}
+.workspace-title button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.workspace-title button:hover {
+  background: #34584b;
+}
+.workspace-title input {
+  width: 100%;
+  background: #fff;
+  color: #20332e;
+  outline: 2px solid #bdedb9;
 }
 .view-mode {
   margin-left: auto;
@@ -335,6 +360,7 @@ h1 {
   border-radius: 5px;
 }
 .card-kinds {
+  z-index: 1;
   top: 9px;
   inset-inline: 12px;
   display: grid;
@@ -735,7 +761,6 @@ h1 {
   .history-tools .fresh {
     font-size: 11px;
   }
-  .workspace-title,
   .header-divider {
     display: none;
   }
@@ -856,10 +881,20 @@ h1 {
   align-items: flex-start;
   gap: 12px;
 }
-@media (max-width: 480px) {
+@media (max-width: 560px) {
   .topbar {
-    gap: 6px;
-    padding: 0 9px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 82px;
+    gap: 0 6px;
+    padding: 4px 9px;
+  }
+  .topbar .workspace-title {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .workspace-body main {
+    min-height: calc(100dvh - 82px);
   }
   .history-tools .fresh {
     margin-left: 2px;

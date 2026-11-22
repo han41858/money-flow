@@ -212,10 +212,11 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const partner = page.locator('[data-id="income-b"]');
   const account = page.locator('[data-id="joint"]');
   const card = page.locator('[data-id="card"]');
+  const savings = page.locator('[data-id="savings"]');
   const group = page.locator('[data-id="group:joint-area"]');
   const transforms = () =>
     Promise.all(
-      [income, partner, account, card, group].map((node) =>
+      [income, partner, account, card, savings, group].map((node) =>
         node.evaluate((element) =>
           new DOMMatrixReadOnly(getComputedStyle(element).transform).toJSON(),
         ),
@@ -226,9 +227,12 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const arrange = page.getByRole('button', { name: '자동 정렬' });
   await arrange.click();
   await expect.poll(transforms).not.toEqual(before);
-  const [left, second, middle, right, region] = await transforms();
+  const [left, second, middle, right, saving, region] = await transforms();
   expect(left.e).toBe(second.e);
   expect(left.f).not.toBe(second.f);
+  expect(middle.f).toBeCloseTo((left.f + second.f) / 2, 3);
+  expect(right.e).toBe(saving.e);
+  expect((right.f + saving.f) / 2).toBeCloseTo(middle.f, 3);
   expect(left.e).toBeLessThan(middle.e);
   expect(middle.e).toBeLessThan(right.e);
   expect(middle.e).toBeGreaterThan(region.e);

@@ -16,11 +16,16 @@ describe('버전 1 다이어그램', () => {
     for (const e of graph.edges) {
       expect(
         graph.nodes.find((n) => n.id === e.source)?.data.outputs,
-      ).toContain(e.sourceHandle);
+      ).toContain(e.id);
       expect(graph.nodes.find((n) => n.id === e.target)?.data.inputs).toContain(
-        e.targetHandle,
+        e.id,
       );
     }
+    expect(
+      graph.edges.find((edge) => edge.id === 'salary-a')?.data?.targetPort,
+    ).toBeLessThan(
+      graph.edges.find((edge) => edge.id === 'salary-b')!.data!.targetPort,
+    );
     expect(graph.nodes.find((n) => n.id === 'joint')?.data.inputs).toEqual([
       'salary-a',
       'salary-b',

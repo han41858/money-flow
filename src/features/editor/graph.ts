@@ -1,4 +1,5 @@
 import { type Node, type Edge } from '@xyflow/react';
+import { portFraction } from '../edges/geometry';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
@@ -18,6 +19,8 @@ export type FlowEdge = Edge<
   {
     edge: MoneyEdge;
     color: string;
+    sourcePort: number;
+    targetPort: number;
     targetPortCount: number;
     readOnly?: boolean;
   },
@@ -73,17 +76,23 @@ export function buildGraph(diagram: Diagram) {
       },
     };
   });
-  const inputCounts = new Map(nodes.map((n) => [n.id, n.data.inputs.length]));
+  const byNodeId = new Map(nodes.map((n) => [n.id, n.data]));
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
+    const outputs = byNodeId.get(edge.source)!.outputs;
+    const inputs = byNodeId.get(edge.target)!.inputs;
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle: edge.id,
-      targetHandle: edge.id,
       type: 'transfer',
-      data: { edge, color, targetPortCount: inputCounts.get(edge.target)! },
+      data: {
+        edge,
+        color,
+        sourcePort: portFraction(outputs.indexOf(edge.id), outputs.length),
+        targetPort: portFraction(inputs.indexOf(edge.id), inputs.length),
+        targetPortCount: inputs.length,
+      },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,
     };

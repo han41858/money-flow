@@ -18,27 +18,16 @@ import type { MoneyNode } from '../../types/diagram';
 import { NodeArtwork } from './artwork';
 import { browserTextWidth, cardLabel, cardSize } from './sizing';
 import { kindNames } from './presentation';
-import { portFraction } from '../edges/geometry';
 
-function Ports({
-  ids,
-  outgoing = false,
-}: {
-  ids: string[];
-  outgoing?: boolean;
-}) {
-  const ports = ids.length ? ids : [outgoing ? 'new-out' : 'new-in'];
-  return ports.map((id, i) => (
+function Port({ outgoing = false }: { outgoing?: boolean }) {
+  return (
     <Handle
-      key={id}
-      id={id}
       type={outgoing ? 'source' : 'target'}
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
-      style={{ top: portFraction(i, ports.length) * 100 + '%' }}
     />
-  ));
+  );
 }
 
 function CardNameInput({
@@ -141,12 +130,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
     [node.name],
   );
   const update = useUpdateNodeInternals();
-  const layout = JSON.stringify([
-    node.type,
-    size.width,
-    data.inputs,
-    data.outputs,
-  ]);
+  const layout = `${node.type}:${size.width}`;
   const lastLayout = useRef(layout);
   useLayoutEffect(() => {
     if (lastLayout.current === layout) return;
@@ -158,7 +142,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       className={'money-node' + (selected ? ' active' : '')}
       style={{ '--outline': strokeColor(appearance.color) } as CSSProperties}
     >
-      {node.type !== 'income' && <Ports ids={data.inputs} />}
+      {node.type !== 'income' && <Port />}
       <NodeArtwork
         decorative
         data={data}
@@ -208,7 +192,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
           )}
         </>
       )}
-      {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
+      {node.type !== 'expense' && <Port outgoing />}
     </div>
   );
 }

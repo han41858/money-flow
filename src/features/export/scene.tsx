@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Diagram } from '../../types/diagram';
 import { buildGraph, type FlowNode, type FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth } from '../edges/money';
-import { transferGeometry, portFraction } from '../edges/geometry';
-import { type NodeSizes, type Group } from '../groups/geometry';
+import { transferGeometry } from '../edges/geometry';
+import type { NodeSizes, Group } from '../groups/geometry';
 import {
   cardLabel,
   cardSize,
@@ -107,7 +107,7 @@ function nodeShape(
 
 function anchor(
   node: FlowNode,
-  id: string,
+  fraction: number,
   outgoing: boolean,
   sizes: NodeSizes,
   measure: MeasureText,
@@ -115,10 +115,9 @@ function anchor(
   const { x, y } = node.data.node.position;
   const { width, height } =
     sizes.get(node.id) ?? cardSize(node.data.node.name, measure);
-  const ports = outgoing ? node.data.outputs : node.data.inputs;
   return {
     x: x + (outgoing ? width : 0),
-    y: y + height * portFraction(ports.indexOf(id), ports.length),
+    y: y + height * fraction,
   };
 }
 
@@ -129,9 +128,15 @@ function edgeShape(
   bounds: Bounds,
   measure: MeasureText,
 ) {
-  const { edge, color } = flow.data!;
-  const from = anchor(nodes.get(flow.source)!, flow.id, true, sizes, measure);
-  const to = anchor(nodes.get(flow.target)!, flow.id, false, sizes, measure);
+  const { edge, color, sourcePort, targetPort, targetPortCount } = flow.data!;
+  const from = anchor(
+    nodes.get(flow.source)!,
+    sourcePort,
+    true,
+    sizes,
+    measure,
+  );
+  const to = anchor(nodes.get(flow.target)!, targetPort, false, sizes, measure);
   const stroke = edgeWidth(edge);
   const { path, arrow, x, y } = transferGeometry(
     from.x,
@@ -139,7 +144,7 @@ function edgeShape(
     to.x,
     to.y,
     stroke,
-    flow.data!.targetPortCount,
+    targetPortCount,
   );
   bounds.path(path, stroke / 2);
   bounds.path(arrow, 0);

@@ -116,7 +116,9 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   const income = page.locator('[data-id="income-a"]');
   const account = page.locator('[data-id="joint"]');
   const sourcePort = income.locator('.source');
-  const accountPort = account.locator('.target').first();
+  await expect(account.locator('.target')).toHaveCount(1);
+  await expect(account.locator('.source')).toHaveCount(1);
+  const accountPort = account.locator('.target');
   const cardPort = page.locator('[data-id="card"] .target').first();
   await expect(sourcePort).toHaveCSS('opacity', '0');
   await expect(sourcePort).toHaveCSS('pointer-events', 'none');

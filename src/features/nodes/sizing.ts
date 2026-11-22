@@ -21,6 +21,8 @@ export const estimatedTextWidth: MeasureText = (value, size) =>
   );
 
 export const nodeHeight = 48;
+export const totalFontSize = 11;
+export const totalLineHeight = 12;
 export const nameX = 38;
 export const nameFontSize = 15;
 

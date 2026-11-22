@@ -158,6 +158,10 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
           r.getAttribute('stroke'),
         ]),
         textCount: node.querySelectorAll(':scope > text').length,
+        totals: Array.from(
+          node.querySelectorAll('.node-totals text'),
+          (t) => t.textContent,
+        ),
         icon: node.querySelector('svg')?.getAttribute('class'),
         arrow: Array.from(xml.querySelectorAll('path'))
           .find((p) => p.getAttribute('d')?.endsWith(' Z'))
@@ -170,6 +174,7 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   expect(result.width).toBe(width);
   expect(result.background).toEqual([[fill, null]]);
   expect(result.textCount).toBe(1);
+  expect(result.totals).toEqual(['들어온 합계 560만', '나간 합계 228~258만']);
   expect(result.icon).toBe(icon);
   const coords = (d: string) => d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   const expected = coords(liveArrow!);

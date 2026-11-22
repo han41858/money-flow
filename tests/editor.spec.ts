@@ -286,6 +286,11 @@ test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번
 
 test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다', async ({ page }) => {
   await page.goto('/');
+  const totals = page.locator('[data-id="joint"] .node-totals text');
+  await expect(totals).toHaveText(['들어온 합계 560만', '나간 합계 228~258만']);
+  await expect(page.locator('[data-id="income-a"] .node-totals')).toHaveCount(
+    0,
+  );
   await page.getByRole('button', { name: '3,200,000원 금액 수정' }).click();
   const input = page.getByRole('textbox', { name: '연결선 금액 (원)' });
   await expect(input).toHaveValue('3200000');
@@ -298,6 +303,7 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
     name: '800,000원 ~ 900,000원 금액 수정',
   });
   await expect(button).toBeFocused();
+  await expect(totals.first()).toHaveText('들어온 합계 320~330만');
   await button.click();
   await input.fill('1234');
   await input.press('Escape');

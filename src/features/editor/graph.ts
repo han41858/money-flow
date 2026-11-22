@@ -1,4 +1,5 @@
 import { type Node, type Edge } from '@xyflow/react';
+import { amountLabel, exactAmount, sum } from '../edges/money';
 import { portFraction } from '../edges/geometry';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
@@ -11,6 +12,7 @@ export type FlowNode = Node<
     appearance: ReturnType<typeof describe>;
     inputs: string[];
     outputs: string[];
+    totals: { label: string; description: string }[];
     readOnly?: boolean;
   },
   'money'
@@ -45,20 +47,43 @@ export function buildGraph(diagram: Diagram) {
   const byGroupId = new Map(groupNodes.map((n) => [n.data.group.id, n]));
   const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
 
-  function sortedPorts(node: MoneyNode, outgoing: boolean) {
-    const end = outgoing ? 'source' : 'target';
-    const other = outgoing ? 'target' : 'source';
-    return diagram.edges
-      .filter((e) => e[end] === node.id)
+  const incoming = new Map(
+    diagram.nodes.map(({ id }) => [id, [] as MoneyEdge[]]),
+  );
+  const outgoing = new Map(
+    diagram.nodes.map(({ id }) => [id, [] as MoneyEdge[]]),
+  );
+  for (const edge of diagram.edges) {
+    incoming.get(edge.target)!.push(edge);
+    outgoing.get(edge.source)!.push(edge);
+  }
+
+  function sortedPorts(edges: MoneyEdge[], other: 'source' | 'target') {
+    return edges
       .sort(
         (a, b) =>
           byId.get(a[other])!.position.y - byId.get(b[other])!.position.y,
       )
-      .map((e) => e.id);
+      .map((edge) => edge.id);
   }
 
   const nodes: FlowNode[] = diagram.nodes.map((node) => {
     const parent = node.groupId ? byGroupId.get(node.groupId) : undefined;
+    const inputs = incoming.get(node.id)!;
+    const outputs = outgoing.get(node.id)!;
+    const totals = [
+      { direction: '들어온 합계', edges: inputs },
+      { direction: '나간 합계', edges: outputs },
+    ].flatMap(({ direction, edges }) => {
+      if (edges.length < 2) return [];
+      const total = sum(edges);
+      return [
+        {
+          label: direction + ' ' + amountLabel(total.min, total.max),
+          description: direction + ' ' + exactAmount(total),
+        },
+      ];
+    });
     return {
       id: node.id,
       type: 'money',
@@ -67,12 +92,17 @@ export function buildGraph(diagram: Diagram) {
         : node.position,
       parentId: parent?.id,
       ariaLabel: node.name,
+      domAttributes: {
+        'aria-description':
+          totals.map(({ description }) => description).join(', ') || undefined,
+      },
       zIndex: 2,
       data: {
         node,
         appearance: describe(node, diagram),
-        inputs: sortedPorts(node, false),
-        outputs: sortedPorts(node, true),
+        inputs: sortedPorts(inputs, 'source'),
+        outputs: sortedPorts(outputs, 'target'),
+        totals,
       },
     };
   });

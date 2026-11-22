@@ -6,6 +6,8 @@ import { transferGeometry } from '../edges/geometry';
 import type { NodeSizes, Group } from '../groups/geometry';
 import {
   cardLabel,
+  totalFontSize,
+  totalLineHeight,
   cardSize,
   cardFont,
   estimatedTextWidth,
@@ -93,6 +95,15 @@ function nodeShape(
   const { width, height } = sizes.get(node.id) ?? cardSize(name, measure);
   const label = cardLabel(name);
   bounds.include(x - 1, y - 1, width + 2, height + 2);
+  for (const { label } of node.data.totals) {
+    const labelWidth = measure(label, totalFontSize) + 2;
+    bounds.include(
+      x + (width - labelWidth) / 2,
+      y + height,
+      labelWidth,
+      node.data.totals.length * totalLineHeight,
+    );
+  }
   return (
     <NodeArtwork
       key={node.id}

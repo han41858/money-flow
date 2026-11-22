@@ -1,17 +1,39 @@
 import { test, expect } from '@playwright/test';
+import { selectNode } from './gestures';
 test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
+  await expect(page.locator('.workspace-title')).toHaveText('자금 흐름');
+  const main = page.getByRole('main', { name: '우리 집 자금 흐름' });
+  await expect(main).toBeVisible();
+  await expect(main.getByText('월간 계획', { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole('heading', { name: '우리 집 자금 흐름' }),
-  ).toBeVisible();
+    main.getByText('우리 집 자금 흐름', { exact: true }),
+  ).toHaveCount(0);
+  const navigation = page.getByRole('complementary', {
+    name: '다이어그램 탐색',
+  });
+  await expect(navigation.getByText('노드 7개 · 연결 6개')).toBeVisible();
+  await expect(navigation.getByRole('status')).toHaveText(
+    '이 브라우저에 저장됨',
+  );
+  await expect(
+    main.getByText(/노드의 연결점을 끌거나|노드 7개|이 브라우저에 저장됨/),
+  ).toHaveCount(0);
   const nodes = page.locator('.react-flow__node-money');
   const edges = page.locator('.react-flow__edge');
   await expect(nodes).toHaveCount(7);
+  await expect(nodes.filter({ hasText: '급여 A' })).toBeVisible();
+  await expect(nodes.filter({ hasText: '급여 B' })).toBeVisible();
+  await expect(page.locator('.react-flow__node-region')).toHaveText([
+    '개인 A',
+    '개인 B',
+    '공동 자금',
+  ]);
   await expect(edges).toHaveCount(6);
   for (const node of await nodes.all()) await expect(node).toBeInViewport();
-  await nodes.filter({ hasText: '공동 생활비 통장' }).click();
+  await selectNode(nodes.filter({ hasText: '공동 생활비 통장' }));
   const sidebar = page.getByRole('complementary', { name: '속성 패널' });
   await expect(sidebar.getByText('5,600,000원')).toBeVisible();
   await sidebar.getByRole('button', { name: '생활비 카드' }).click();
@@ -38,13 +60,16 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
     .locator('.react-flow__node-money')
     .filter({ hasText: '공동 생활비 통장' });
   await expect(account).toBeInViewport();
-  await account.click({ timeout: 5000 });
+  await selectNode(account);
   await expect(
     page.getByRole('heading', { name: '공동 생활비 통장' }),
   ).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
   await page.getByRole('button', { name: '노드 목록 열기' }).click();
-  await page.getByRole('button', { name: '정기 적금' }).click();
+  const tools = page.getByRole('dialog', { name: '편집 도구' });
+  await expect(tools.getByText('노드 7개 · 연결 6개')).toBeVisible();
+  await expect(tools.getByRole('status')).toHaveText('이 브라우저에 저장됨');
+  await page.getByRole('button', { name: '정기 적금', exact: true }).click();
   await expect(page.getByRole('heading', { name: '정기 적금' })).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
   await expect(

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { useStore } from 'zustand';
 import {
-  Activity,
   ArrowDownLeft,
   ArrowUpRight,
   Coins,
@@ -12,7 +11,6 @@ import {
   FolderOpen,
   Layers2,
   ListTree,
-  Network,
   PanelLeftOpen,
   Plus,
   Redo2,
@@ -49,7 +47,11 @@ import {
   open as openDiagram,
 } from '../features/diagrams/library';
 
-import { measuredSizes, newGroupBounds } from '../features/groups/geometry';
+import {
+  defaultNodeSize,
+  measuredSizes,
+  newGroupBounds,
+} from '../features/groups/geometry';
 
 function Summary({
   icon: Icon,
@@ -183,8 +185,14 @@ function Workspace() {
         .getBoundingClientRect();
       const top = flowToScreenPosition(point);
       const viewport = getViewport();
-      const dx = Math.min(0, area.right - 10 - top.x - 185 * viewport.zoom);
-      const dy = Math.min(0, area.bottom - 10 - top.y - 105 * viewport.zoom);
+      const dx = Math.min(
+        0,
+        area.right - 10 - top.x - defaultNodeSize.width * viewport.zoom,
+      );
+      const dy = Math.min(
+        0,
+        area.bottom - 10 - top.y - defaultNodeSize.height * viewport.zoom,
+      );
       if (dx || dy)
         void setViewport({
           ...viewport,
@@ -218,7 +226,7 @@ function Workspace() {
           Money Flow
         </div>
         <span className="header-divider" />
-        <span className="workspace-title">워크스페이스</span>
+        <span className="workspace-title">자금 흐름</span>
         <div className="history-tools">
           <button
             aria-label="실행 취소"
@@ -310,7 +318,20 @@ function Workspace() {
                   <ListTree size={16} />
                   노드 목록
                 </span>
-                <b>{nodes.length}</b>
+              </div>
+              <div className="sidebar-summary">
+                <p>
+                  노드 {nodes.length}개 · 연결 {edges.length}개
+                </p>
+                <p role="status">
+                  {conflict
+                    ? '자동 저장 일시 중지'
+                    : dirty
+                      ? error
+                        ? '저장되지 않은 변경 사항'
+                        : '저장 중…'
+                      : '이 브라우저에 저장됨'}
+                </p>
               </div>
               {(Object.keys(kindNames) as Kind[])
                 .filter((type) => nodes.some((n) => n.type === type))
@@ -369,28 +390,14 @@ function Workspace() {
             </div>
           </aside>
         </ResponsivePanel>
-        <main id="editor-main" tabIndex={-1}>
-          <div className="page-head">
-            <div className="breadcrumb">
-              <Network size={14} />
-              다이어그램 <ChevronRight size={13} />
-              <span>월간 계획</span>
-            </div>
-            <div className="title-row">
-              <h1>{diagram.name}</h1>
-              <button
-                className="mobile-only"
-                aria-label="노드 목록 열기"
-                onClick={() => setMobile('tools')}
-              >
-                <PanelLeftOpen />
-              </button>
-            </div>
-            <p>
-              노드의 연결점을 끌거나 출발 노드의 속성에서 연결할 노드를
-              선택하세요.
-            </p>
-          </div>
+        <main id="editor-main" tabIndex={-1} aria-label={diagram.name}>
+          <button
+            className="mobile-only node-list-toggle"
+            aria-label="노드 목록 열기"
+            onClick={() => setMobile('tools')}
+          >
+            <PanelLeftOpen size={17} />
+          </button>
           <div className="metrics">
             <Summary
               icon={ArrowDownLeft}
@@ -455,21 +462,6 @@ function Workspace() {
               </ResponsivePanel>
             )}
           </div>
-          <footer>
-            <span>
-              <Activity size={14} />
-              노드 {nodes.length}개 <i /> 연결 {edges.length}개
-            </span>
-            <span role="status">
-              {conflict
-                ? '자동 저장 일시 중지'
-                : dirty
-                  ? error
-                    ? '저장되지 않은 변경 사항'
-                    : '저장 중…'
-                  : '이 브라우저에 저장됨'}
-            </span>
-          </footer>
         </main>
       </div>
     </div>

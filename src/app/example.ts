@@ -9,19 +9,19 @@ export const example = diagramSchema.parse({
   updatedAt: '2026-11-01T00:00:00Z',
   nodes: [
     {
-      groupId: 'self',
+      groupId: 'personal-a',
       id: 'income-a',
       type: 'income',
-      name: '본인의 급여',
-      owner: '본인',
+      name: '급여 A',
+      owner: '개인 A',
       position: { x: 0, y: 60 },
     },
     {
-      groupId: 'partner',
+      groupId: 'personal-b',
       id: 'income-b',
       type: 'income',
-      name: '배우자의 급여',
-      owner: '배우자',
+      name: '급여 B',
+      owner: '개인 B',
       position: { x: 0, y: 270 },
     },
     {
@@ -105,16 +105,16 @@ export const example = diagramSchema.parse({
   ],
   groups: [
     {
-      id: 'self',
-      name: '본인',
+      id: 'personal-a',
+      name: '개인 A',
       position: { x: -24, y: 14 },
       width: 233,
       height: 172,
       color: '#92ab86',
     },
     {
-      id: 'partner',
-      name: '배우자',
+      id: 'personal-b',
+      name: '개인 B',
       position: { x: -24, y: 224 },
       width: 233,
       height: 172,

@@ -10,7 +10,7 @@ import {
 } from '../groups/geometry';
 import {
   NodeArtwork,
-  cardLayout,
+  cardLabel,
   cardFont,
   estimatedTextWidth,
   type MeasureText,
@@ -90,12 +90,11 @@ function nodeShape(
   sizes: NodeSizes,
   bounds: Bounds,
   measure: MeasureText,
-  index: number,
 ) {
   const { x, y } = node.data.node.position;
   const width = sizes.get(node.id)?.width ?? defaultNodeSize.width;
-  const layout = cardLayout(node.data, width, measure);
-  const height = sizes.get(node.id)?.height ?? layout.height;
+  const label = cardLabel(node.data.node.name, width, measure);
+  const height = sizes.get(node.id)?.height ?? defaultNodeSize.height;
   bounds.include(x - 1, y - 1, width + 2, height + 2);
   return (
     <NodeArtwork
@@ -103,9 +102,8 @@ function nodeShape(
       x={x}
       y={y}
       data={node.data}
-      layout={layout}
+      label={label}
       size={{ width, height }}
-      gradientId={'card-' + index}
     />
   );
 }
@@ -115,12 +113,10 @@ function anchor(
   id: string,
   outgoing: boolean,
   sizes: NodeSizes,
-  measure: MeasureText,
 ) {
   const { x, y } = node.data.node.position;
   const width = sizes.get(node.id)?.width ?? defaultNodeSize.width;
-  const height =
-    sizes.get(node.id)?.height ?? cardLayout(node.data, width, measure).height;
+  const height = sizes.get(node.id)?.height ?? defaultNodeSize.height;
   const ports = outgoing ? node.data.outputs : node.data.inputs;
   return {
     x: x + (outgoing ? width : 0),
@@ -136,8 +132,8 @@ function edgeShape(
   measure: MeasureText,
 ) {
   const { edge, color } = flow.data!;
-  const from = anchor(nodes.get(flow.source)!, flow.id, true, sizes, measure);
-  const to = anchor(nodes.get(flow.target)!, flow.id, false, sizes, measure);
+  const from = anchor(nodes.get(flow.source)!, flow.id, true, sizes);
+  const to = anchor(nodes.get(flow.target)!, flow.id, false, sizes);
   const stroke = edgeWidth(edge);
   const { path, arrow, x, y } = transferGeometry(
     from.x,
@@ -145,6 +141,7 @@ function edgeShape(
     to.x,
     to.y,
     stroke,
+    flow.data!.targetPortCount,
   );
   bounds.path(path, stroke / 2);
   bounds.path(arrow, 0);
@@ -189,9 +186,7 @@ export function renderSvg(
   const edges = graph.edges.map((e) =>
     edgeShape(e, nodes, sizes, bounds, measure),
   );
-  const cards = graph.nodes.map((n, i) =>
-    nodeShape(n, sizes, bounds, measure, i),
-  );
+  const cards = graph.nodes.map((n) => nodeShape(n, sizes, bounds, measure));
   const frame = bounds.frame();
   const svg = renderToStaticMarkup(
     <svg

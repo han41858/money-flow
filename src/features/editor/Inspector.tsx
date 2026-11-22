@@ -29,7 +29,7 @@ function BrandField({ node, diagram }: { node: MoneyNode; diagram: Diagram }) {
         key={node.institutionId}
         label="금융사"
         list="institutions"
-        placeholder="미지정 · 금융사 선택"
+        placeholder="금융사 이름 검색"
         value={brand?.name ?? ''}
         commit={(value) => {
           const entry = brands.find((b) => b.name === value);

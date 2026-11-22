@@ -17,7 +17,14 @@ import {
   type NodeSelectionChange,
   type XYPosition,
 } from '@xyflow/react';
-import { Grid2X2, Maximize, Minus, Plus, Workflow } from 'lucide-react';
+import {
+  Grid2X2,
+  Maximize,
+  Minus,
+  Plus,
+  WandSparkles,
+  Workflow,
+} from 'lucide-react';
 import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
 import { TransferEdge } from '../edges/TransferEdge';
@@ -198,6 +205,7 @@ export function Canvas({
       </div>
       <div
         className="flow-area"
+        data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
         onPointerDownCapture={trackView}
         onWheelCapture={trackView}
         onKeyDownCapture={(e) => {
@@ -230,12 +238,13 @@ export function Canvas({
                 ...n,
                 position: positions.get(n.id) ?? n.position,
                 measured: measurements.get(n.id),
+                data: { ...n.data, readOnly },
                 selected: selected.nodes.includes(n.id),
                 className:
-                  source &&
-                  source !== n.id &&
-                  !canConnect(diagram, source, n.id)
-                    ? 'invalid-target'
+                  source && source !== n.id
+                    ? canConnect(diagram, source, n.id)
+                      ? 'valid-target'
+                      : 'invalid-target'
                     : '',
               })),
             ]}
@@ -251,6 +260,8 @@ export function Canvas({
             onEdgeClick={openInspector}
             onConnectStart={(_, p) => setSource(p.nodeId)}
             onConnectEnd={() => setSource(null)}
+            onClickConnectStart={(_, p) => setSource(p.nodeId)}
+            onClickConnectEnd={() => setSource(null)}
             isValidConnection={(c) => canConnect(diagram, c.source, c.target)}
             onConnect={(c) => {
               if (readOnly) return;
@@ -311,6 +322,22 @@ export function Canvas({
               >
                 <Maximize size={15} />
               </button>
+              {!readOnly && (
+                <button
+                  aria-label="자동 정렬"
+                  title="자동 정렬"
+                  disabled={!graph.nodes.length}
+                  onClick={() => {
+                    trackView();
+                    editor.autoArrange(
+                      measuredSizes(diagram.nodes, getInternalNode),
+                    );
+                    requestAnimationFrame(() => void fitView(fitOptions));
+                  }}
+                >
+                  <WandSparkles size={15} />
+                </button>
+              )}
               <button
                 aria-label="격자 표시"
                 title="격자 표시"

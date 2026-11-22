@@ -5,7 +5,7 @@ async function share(page: Page) {
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
   await page.getByText('공유할 이름과 금액 확인').click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('본인의 급여', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('급여 A', { exact: true })).toBeVisible();
   await expect(dialog.getByText(/3,200,000원/)).toBeVisible();
   await dialog.getByRole('button', { name: '공유 링크 만들기' }).click();
   const output = dialog.getByLabel('읽기 전용 주소');
@@ -26,12 +26,18 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   const viewer = await guest.newPage();
   await viewer.goto(url);
   await expect(viewer.getByText('Money Flow · 읽기 전용')).toBeVisible();
+  await expect(viewer.getByRole('button', { name: '자동 정렬' })).toHaveCount(
+    0,
+  );
+  await expect(
+    viewer.getByRole('button', { name: /이름 수정$|유형 수정$/ }),
+  ).toHaveCount(0);
   await viewer
     .locator('.react-flow__node-money')
-    .filter({ hasText: '본인의 급여' })
+    .filter({ hasText: '급여 A' })
     .click();
   await expect(viewer.getByRole('region', { name: '선택 상세' })).toContainText(
-    '본인의 급여',
+    '급여 A',
   );
   await viewer.locator('.edge-label').filter({ hasText: '320만' }).click();
   await expect(viewer.getByRole('region', { name: '선택 상세' })).toContainText(
@@ -43,7 +49,7 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   expect(await viewer.evaluate(() => indexedDB.databases())).toEqual([]);
   await viewer.getByRole('button', { name: '내 다이어그램으로 복사' }).click();
   await expect(
-    viewer.getByRole('heading', { name: '우리 집 자금 흐름 복사본' }),
+    viewer.getByRole('main', { name: '우리 집 자금 흐름 복사본' }),
   ).toBeVisible();
   await viewer.getByRole('button', { name: '내 흐름', exact: true }).click();
   await expect(viewer.locator('.library-list button')).toHaveCount(1);
@@ -85,7 +91,7 @@ test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다
   expect(png.readUInt32BE(20)).toBe(Number(height) * 2);
 });
 
-test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
+test('긴 이름의 말줄임·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
   page,
 }) => {
   await page.goto('/');
@@ -98,13 +104,22 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
   await page.getByLabel('이름', { exact: true }).fill(name);
   await page.getByLabel('이름', { exact: true }).press('Enter');
   const card = page.locator('[data-id="joint"] .money-node > svg');
-  const lines = await card
-    .locator('text[font-size="18"] tspan')
-    .allTextContents();
-  expect(lines.length).toBeGreaterThan(1);
-  const colors = await card
-    .locator('stop')
-    .evaluateAll((stops) => stops.map((s) => s.getAttribute('stop-color')));
+  const text = card.locator(':scope > text');
+  const iconBox = (await card.locator('svg').boundingBox())!;
+  const textBox = (await text.boundingBox())!;
+  expect(textBox.x).toBeGreaterThan(iconBox.x + iconBox.width);
+  expect(
+    Math.abs(textBox.y + textBox.height / 2 - iconBox.y - iconBox.height / 2),
+  ).toBeLessThan(4);
+  const label = await text.textContent();
+  expect(label).toMatch(/…$/);
+  expect(label!.length).toBeLessThan(name.length);
+  const background = card.locator(':scope > rect');
+  await expect(background).toHaveCount(1);
+  expect(await background.getAttribute('stroke')).toBeNull();
+  const fill = await background.getAttribute('fill');
+  expect(fill).toMatch(/^#/);
+  await expect(card.locator(':scope > text')).toHaveCount(1);
   const icon = await card.locator('svg').getAttribute('class');
   const liveArrow = await page
     .locator('[data-id="salary-a"] .transfer-arrow')
@@ -120,13 +135,12 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
         (n) => n.getAttribute('aria-label') === name,
       )!;
       return {
-        lines: Array.from(
-          node.querySelectorAll('text[font-size="18"] tspan'),
-          (s) => s.textContent,
-        ),
-        colors: Array.from(node.querySelectorAll('stop'), (s) =>
-          s.getAttribute('stop-color'),
-        ),
+        label: node.querySelector(':scope > text')?.textContent,
+        background: Array.from(node.querySelectorAll(':scope > rect'), (r) => [
+          r.getAttribute('fill'),
+          r.getAttribute('stroke'),
+        ]),
+        textCount: node.querySelectorAll(':scope > text').length,
         icon: node.querySelector('svg')?.getAttribute('class'),
         arrow: Array.from(xml.querySelectorAll('path'))
           .find((p) => p.getAttribute('d')?.endsWith(' Z'))
@@ -135,8 +149,9 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
     },
     { svg, name },
   );
-  expect(result.lines).toEqual(lines);
-  expect(result.colors).toEqual(colors);
+  expect(result.label).toBe(label);
+  expect(result.background).toEqual([[fill, null]]);
+  expect(result.textCount).toBe(1);
   expect(result.icon).toBe(icon);
   const coords = (d: string) => d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   const expected = coords(liveArrow!);

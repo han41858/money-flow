@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { selectNode } from './gestures';
 async function drag(page: Page, handle: Locator, dx: number, dy: number) {
   const b = (await handle.boundingBox())!;
   const x = b.x + b.width / 2;
@@ -14,7 +15,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('/');
   const income = page.locator('[data-id="income-a"]');
-  await income.click();
+  await selectNode(income);
   await page.getByRole('button', { name: '그룹 추가' }).click();
   await page.getByLabel('그룹 이름').fill('급여 영역');
   await page.getByLabel('그룹 이름').press('Enter');
@@ -50,11 +51,11 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   await expect
     .poll(async () => Math.round((await income.boundingBox())!.x - pos.x))
     .toBe(0);
-  await income.click();
+  await selectNode(income);
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
   ).toContainText('없음');
-  await expect(page.getByLabel('소유자')).toHaveValue('본인');
+  await expect(page.getByLabel('소유자')).toHaveValue('개인 A');
   await page.locator('.edge-label').filter({ hasText: '320만' }).click();
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
@@ -85,7 +86,8 @@ test('그룹 안에 만든 계좌가 즉시 함께 이동하고 금융사 선택
   await bank.fill('');
   await bank.press('Enter');
   const account = page.locator('.react-flow__node-money');
-  await expect(account).toContainText('금융사 미지정');
+  await expect(bank).toHaveValue('');
+  await expect(account).not.toContainText('금융사 미지정');
   const group = page.locator('.group-title');
   const before = (await account.boundingBox())!;
   await drag(page, group, 55, 25);

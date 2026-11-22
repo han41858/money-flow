@@ -10,10 +10,14 @@ export type FlowNode = Node<
     appearance: ReturnType<typeof describe>;
     inputs: string[];
     outputs: string[];
+    readOnly?: boolean;
   },
   'money'
 >;
-export type FlowEdge = Edge<{ edge: MoneyEdge; color: string }, 'transfer'>;
+export type FlowEdge = Edge<
+  { edge: MoneyEdge; color: string; targetPortCount: number },
+  'transfer'
+>;
 
 export function buildGraph(diagram: Diagram) {
   let prefix = 'group:';
@@ -64,6 +68,7 @@ export function buildGraph(diagram: Diagram) {
       },
     };
   });
+  const inputCounts = new Map(nodes.map((n) => [n.id, n.data.inputs.length]));
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     return {
@@ -73,7 +78,7 @@ export function buildGraph(diagram: Diagram) {
       sourceHandle: edge.id,
       targetHandle: edge.id,
       type: 'transfer',
-      data: { edge, color },
+      data: { edge, color, targetPortCount: inputCounts.get(edge.target)! },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,
     };

@@ -16,12 +16,12 @@ const node: MoneyNode = {
   type: 'account',
   name: '생활비',
   institutionId: 'kakao',
-  owner: '장현',
+  owner: '본인',
   position: { x: -40, y: 10 },
 };
 const sizes = new Map([['n', { width: 200, height: 140 }]]);
 const box = { position: { x: 55, y: 70 }, width: 100, height: 80 };
-const first: Group = { ...box, id: 'g', name: '장현', color: '#abc123' };
+const first: Group = { ...box, id: 'g', name: '본인', color: '#abc123' };
 const getEditor = () => createEditor({ ...blankDiagram(), nodes: [node] });
 
 it('실측 중심점이 경계에 있어도 포함하고 겹친 영역에서는 최근 그룹이 우선한다', () => {
@@ -55,7 +55,7 @@ it('부모·자식을 함께 이동해도 한 번만 이동하고 겹쳐진 외�
   const d = ed.current();
   expect(d.nodes[0]).toMatchObject({
     position: { x: 310, y: 60 },
-    owner: '장현',
+    owner: '본인',
     groupId: group,
   });
   expect(d.nodes.find((n) => n.id === outsider)?.groupId).toBeUndefined();

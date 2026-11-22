@@ -54,7 +54,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
   ).toContainText('없음');
-  await expect(page.getByLabel('소유자')).toHaveValue('장현');
+  await expect(page.getByLabel('소유자')).toHaveValue('본인');
   await page.locator('.edge-label').filter({ hasText: '320만' }).click();
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),

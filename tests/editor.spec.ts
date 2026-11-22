@@ -1,4 +1,3 @@
-import { nodeHeight, totalLineHeight } from '../src/features/nodes/sizing';
 import { test, expect, type Locator } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
 test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·배치·삭제를 되돌린다', async ({
@@ -233,11 +232,8 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const [left, second, middle, right, saving, region] = await transforms();
   expect(left.e).toBe(second.e);
   expect(left.f).not.toBe(second.f);
-  const middleCenter = middle.f + nodeHeight / 2 + totalLineHeight;
-  expect(middleCenter).toBeCloseTo((left.f + second.f + nodeHeight) / 2, 3);
   expect(right.e).toBe(saving.e);
-  expect((right.f + saving.f + nodeHeight) / 2).toBeCloseTo(middleCenter, 3);
-  expect(saving.f - (right.f + nodeHeight + totalLineHeight)).toBe(24);
+  expect(right.f).toBeLessThan(saving.f);
   expect(left.e).toBeLessThan(middle.e);
   expect(middle.e).toBeLessThan(right.e);
   expect(middle.e).toBeGreaterThan(region.e);

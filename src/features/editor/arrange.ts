@@ -1,5 +1,10 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
-import { newGroupBounds, type Group, type NodeSizes } from '../groups/geometry';
+import {
+  newGroupBounds,
+  nodeBounds,
+  type Group,
+  type NodeSizes,
+} from '../groups/geometry';
 import { cardSize, totalLineHeight } from '../nodes/sizing';
 
 const columnGap = 96;
@@ -17,10 +22,14 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   const ordered = [...diagram.nodes].sort(byPosition);
   const outgoing = new Map(ordered.map((n) => [n.id, [] as string[]]));
   const indegree = new Map(ordered.map((n) => [n.id, 0]));
+  const soleParent = new Map<string, string>();
   const ranks = new Map(ordered.map((n) => [n.id, 0]));
   for (const { source, target } of diagram.edges) {
     outgoing.get(source)!.push(target);
-    indegree.set(target, indegree.get(target)! + 1);
+    const count = indegree.get(target)! + 1;
+    indegree.set(target, count);
+    if (count === 1) soleParent.set(target, source);
+    else soleParent.delete(target);
   }
 
   const nodeSizes = new Map(
@@ -64,6 +73,84 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     (group || ungrouped).push(node);
   }
 
+  // Use forward links within each group. Merge points and cycle back-edges
+  // remain independent so no node belongs to multiple branches.
+  const byId = new Map(ordered.map((node) => [node.id, node]));
+  const parents = new Map<string, string>();
+  const children = new Map(ordered.map((node) => [node.id, [] as MoneyNode[]]));
+  for (const node of ordered) {
+    const parent = byId.get(soleParent.get(node.id) ?? '');
+    if (
+      parent &&
+      parent.groupId === node.groupId &&
+      ranks.get(parent.id)! + 1 === ranks.get(node.id)
+    ) {
+      parents.set(node.id, parent.id);
+      children.get(parent.id)!.push(node);
+    }
+  }
+  const rankOrder = [...ordered].sort(
+    (a, b) => ranks.get(a.id)! - ranks.get(b.id)!,
+  );
+  const roots = new Map<string, string>();
+  const splitRoots = new Set<string>();
+  for (const { id } of rankOrder) {
+    const parent = parents.get(id);
+    const root = parent ? roots.get(parent)! : id;
+    roots.set(id, root);
+    if (children.get(id)!.length > 1) splitRoots.add(root);
+  }
+  const treeHeights = new Map<string, number>();
+  const childrenHeights = new Map<string, number>();
+  const heightOf = (id: string) => nodeSizes.get(id)!.height;
+  for (const { id } of rankOrder.reverse()) {
+    const branches = children.get(id)!;
+    const childHeight = branches.reduce(
+      (height, child) => height + treeHeights.get(child.id)!,
+      Math.max(0, branches.length - 1) * rowGap,
+    );
+    childrenHeights.set(id, childHeight);
+    treeHeights.set(id, Math.max(heightOf(id), childHeight));
+  }
+
+  function arrangeBranches(contents: MoneyNode[]) {
+    const rootNodes = contents.filter(({ id }) => !parents.has(id));
+    const height = rootNodes.reduce(
+      (sum, { id }) => sum + treeHeights.get(id)!,
+      (rootNodes.length - 1) * rowGap,
+    );
+    let top = -height / 2;
+    const queue = rootNodes.map((node) => {
+      const branchTop = top;
+      top += treeHeights.get(node.id)! + rowGap;
+      return { node, top: branchTop };
+    });
+    const nodes: MoneyNode[] = [];
+    for (let index = 0; index < queue.length; index++) {
+      const { node, top } = queue[index];
+      const center = top + treeHeights.get(node.id)! / 2;
+      nodes.push({
+        ...node,
+        position: { x: columnX(node.id), y: center - heightOf(node.id) / 2 },
+      });
+      let childTop = center - childrenHeights.get(node.id)! / 2;
+      for (const child of children.get(node.id)!) {
+        queue.push({ node: child, top: childTop });
+        childTop += treeHeights.get(child.id)! + rowGap;
+      }
+    }
+    return nodes;
+  }
+
+  const looseRegions = new Map<string, MoneyNode[]>();
+  for (const node of ungrouped) {
+    const root = roots.get(node.id)!;
+    const id = splitRoots.has(root) ? root : node.id;
+    const region = looseRegions.get(id) ?? [];
+    region.push(node);
+    looseRegions.set(id, region);
+  }
+
   type Bounds = Pick<Group, 'position' | 'width' | 'height'>;
   const placed: Array<Bounds & { nodeIds: string[] }> = [];
   function pack(bounds: Bounds, nodeIds: string[]) {
@@ -83,7 +170,6 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   }
 
   const positions = new Map<string, MoneyNode['position']>();
-  const heightOf = (id: string) => nodeSizes.get(id)!.height;
   const groupBounds = new Map<string, Bounds>();
   const regions = [
     ...diagram.groups.map((group) => ({
@@ -91,14 +177,14 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       position: group.position,
       contents: members.get(group.id)!,
     })),
-    ...ungrouped.map((node) => ({
+    ...Array.from(looseRegions, ([root, contents]) => ({
       group: undefined,
-      position: node.position,
-      contents: [node],
+      position: byId.get(root)!.position,
+      contents,
     })),
   ].sort(byPosition);
   for (const { group, contents } of regions) {
-    if (!group) {
+    if (!group && contents.length === 1) {
       const node = contents[0];
       const size = nodeSizes.get(node.id)!;
       const bounds = pack(
@@ -108,28 +194,21 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       positions.set(node.id, { ...bounds.position });
       continue;
     }
-    const columnHeights = new Map<number, number>();
-    for (const node of contents) {
-      const x = columnX(node.id);
-      columnHeights.set(
-        x,
-        (columnHeights.get(x) ?? -rowGap) + heightOf(node.id) + rowGap,
-      );
-    }
-    const nextRow = new Map<number, number>();
-    const nodes = contents.map((node) => {
-      const x = columnX(node.id);
-      const y = nextRow.get(x) ?? -columnHeights.get(x)! / 2;
-      nextRow.set(x, y + heightOf(node.id) + rowGap);
-      return { ...node, position: { x, y } };
-    });
-    const bounds = nodes.length
-      ? newGroupBounds(nodes, nodeSizes, { x: 0, y: 0 })
-      : {
-          position: { x: 0, y: -group.height / 2 },
-          width: group.width,
-          height: group.height,
-        };
+    const useBranches = contents.some(({ id }) =>
+      splitRoots.has(roots.get(id)!),
+    );
+    const nodes = useBranches
+      ? arrangeBranches(contents)
+      : arrangeColumns(contents);
+    const bounds = group
+      ? nodes.length
+        ? newGroupBounds(nodes, nodeSizes, { x: 0, y: 0 })
+        : {
+            position: { x: 0, y: -group.height / 2 },
+            width: group.width,
+            height: group.height,
+          }
+      : nodeBounds(nodes, nodeSizes);
     const packed = pack(
       bounds,
       contents.map((node) => node.id),
@@ -140,7 +219,25 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
         y: node.position.y + packed.position.y - bounds.position.y,
       });
     }
-    groupBounds.set(group.id, packed);
+    if (group) groupBounds.set(group.id, packed);
+  }
+
+  function arrangeColumns(contents: MoneyNode[]) {
+    const columnHeights = new Map<number, number>();
+    for (const node of contents) {
+      const x = columnX(node.id);
+      columnHeights.set(
+        x,
+        (columnHeights.get(x) ?? -rowGap) + heightOf(node.id) + rowGap,
+      );
+    }
+    const nextRow = new Map<number, number>();
+    return contents.map((node) => {
+      const x = columnX(node.id);
+      const y = nextRow.get(x) ?? -columnHeights.get(x)! / 2;
+      nextRow.set(x, y + heightOf(node.id) + rowGap);
+      return { ...node, position: { x, y } };
+    });
   }
 
   // Recenter vertical stacks together so moving them cannot introduce overlaps.

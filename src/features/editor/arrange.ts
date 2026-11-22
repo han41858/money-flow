@@ -1,10 +1,6 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
-import {
-  defaultNodeSize,
-  newGroupBounds,
-  type Group,
-  type NodeSizes,
-} from '../groups/geometry';
+import { newGroupBounds, type Group, type NodeSizes } from '../groups/geometry';
+import { cardSize } from '../nodes/sizing';
 
 const columnGap = 96;
 const rowGap = 24;
@@ -43,9 +39,12 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     }
   }
 
+  const nodeSizes = new Map(
+    ordered.map((node) => [node.id, sizes.get(node.id) ?? cardSize(node.name)]),
+  );
   const columnWidth = ordered.reduce(
-    (width, n) => Math.max(width, sizes.get(n.id)?.width ?? 0),
-    defaultNodeSize.width,
+    (width, n) => Math.max(width, nodeSizes.get(n.id)!.width),
+    0,
   );
   const columnX = (id: string) => ranks.get(id)! * (columnWidth + columnGap);
   const members = new Map(diagram.groups.map((g) => [g.id, [] as MoneyNode[]]));
@@ -74,7 +73,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   }
 
   const positions = new Map<string, MoneyNode['position']>();
-  const heightOf = (id: string) => (sizes.get(id) ?? defaultNodeSize).height;
+  const heightOf = (id: string) => nodeSizes.get(id)!.height;
   const groupBounds = new Map<string, Bounds>();
   const regions = [
     ...diagram.groups.map((group) => ({
@@ -91,7 +90,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   for (const { group, contents } of regions) {
     if (!group) {
       const node = contents[0];
-      const size = sizes.get(node.id) ?? defaultNodeSize;
+      const size = nodeSizes.get(node.id)!;
       const bounds = pack(
         { ...size, position: { x: columnX(node.id), y: -size.height / 2 } },
         [node.id],
@@ -115,7 +114,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       return { ...node, position: { x, y } };
     });
     const bounds = nodes.length
-      ? newGroupBounds(nodes, sizes, { x: 0, y: 0 })
+      ? newGroupBounds(nodes, nodeSizes, { x: 0, y: 0 })
       : {
           position: { x: 0, y: -group.height / 2 },
           width: group.width,

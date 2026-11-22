@@ -1,4 +1,5 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
+import { cardSize } from '../nodes/sizing';
 
 export type Group = Diagram['groups'][number];
 export type Point = MoneyNode['position'];
@@ -6,7 +7,6 @@ export type Size = Pick<Group, 'width' | 'height'>;
 export type NodeSizes = ReadonlyMap<string, Size>;
 export const defaultGroupSize = { width: 320, height: 210 };
 export const minGroupSize = { width: 112, height: 64 };
-export const defaultNodeSize = { width: 185, height: 48 };
 
 export function measuredSizes(
   nodes: MoneyNode[],
@@ -30,7 +30,7 @@ export function absoluteFrom(position: Point, origin: Point): Point {
 }
 
 function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {
-  const { width, height } = sizes.get(node.id) ?? defaultNodeSize;
+  const { width, height } = sizes.get(node.id) ?? cardSize(node.name);
   const x = node.position.x + width / 2;
   const y = node.position.y + height / 2;
   return (
@@ -88,7 +88,7 @@ export function newGroupBounds(
   let right = -Infinity;
   let bottom = -Infinity;
   for (const node of selected) {
-    const { width, height } = sizes.get(node.id) ?? defaultNodeSize;
+    const { width, height } = sizes.get(node.id) ?? cardSize(node.name);
     left = Math.min(left, node.position.x);
     top = Math.min(top, node.position.y);
     right = Math.max(right, node.position.x + width);

@@ -250,6 +250,7 @@ export function Canvas({
             ]}
             edges={graph.edges.map((e) => ({
               ...e,
+              data: { ...e.data!, readOnly },
               selected: selected.edges.includes(e.id),
             }))}
             nodeTypes={nodeTypes}

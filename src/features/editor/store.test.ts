@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { example } from '../../app/example';
 import { diagramSchema } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
+import { cardSize } from '../nodes/sizing';
 import { createEditor, nodeOfType } from './store';
 
 describe('편집 이력', () => {
@@ -81,7 +82,9 @@ describe('편집 이력', () => {
     expect(position('income-b').y).toBeLessThan(position('income-a').y);
     expect(position('savings').x).toBe(position('card').x);
     expect(position('savings').y).toBeLessThan(position('card').y);
-    expect(position('card').x - position('joint').x).toBe(185 + 96);
+    expect(position('card').x - position('joint').x).toBe(
+      Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 96,
+    );
     expect(position('card').y - position('savings').y).toBe(48 + 24);
     expect(arranged.groups.map((group) => group.id)).toEqual(
       before.groups.map((group) => group.id),

@@ -15,9 +15,9 @@ import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
-import { NodeArtwork, browserTextWidth, cardLabel } from './artwork';
+import { NodeArtwork } from './artwork';
+import { browserTextWidth, cardLabel, cardSize } from './sizing';
 import { kindNames } from './presentation';
-import { defaultNodeSize } from '../groups/geometry';
 import { portFraction } from '../edges/geometry';
 
 function Ports({
@@ -136,13 +136,17 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         trigger.current?.focus({ preventScroll: true }),
       );
   }
-  const width = defaultNodeSize.width;
-  const label = useMemo(
-    () => cardLabel(node.name, width, browserTextWidth),
-    [node.name, width],
+  const size = useMemo(
+    () => cardSize(node.name, browserTextWidth),
+    [node.name],
   );
   const update = useUpdateNodeInternals();
-  const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
+  const layout = JSON.stringify([
+    node.type,
+    size.width,
+    data.inputs,
+    data.outputs,
+  ]);
   const lastLayout = useRef(layout);
   useLayoutEffect(() => {
     if (lastLayout.current === layout) return;
@@ -158,8 +162,8 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       <NodeArtwork
         decorative
         data={data}
-        label={label}
-        size={{ width, height: defaultNodeSize.height }}
+        label={cardLabel(node.name)}
+        size={size}
         hideName={editing !== null}
         hideIcon={editing === 'kind'}
       />

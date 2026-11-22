@@ -1,7 +1,8 @@
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
 import { transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
-import { amountLabel, edgeWidth, exactAmount } from './money';
+import { edgeWidth, exactAmount } from './money';
+import { TransferAmount } from './TransferAmount';
 
 export function TransferEdge({
   id,
@@ -49,16 +50,13 @@ export function TransferEdge({
         pointerEvents="none"
       />
       <EdgeLabelRenderer>
-        <span
-          className="edge-label nodrag nopan"
-          title={title}
+        <TransferAmount
+          edge={edge}
+          readOnly={data.readOnly}
           style={{
-            transform:
-              'translate(-50%, -50%) translate(' + x + 'px, ' + y + 'px)',
+            transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
           }}
-        >
-          {amountLabel(edge.min, edge.max)}
-        </span>
+        />
       </EdgeLabelRenderer>
     </>
   );

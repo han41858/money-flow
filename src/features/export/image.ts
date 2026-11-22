@@ -1,6 +1,6 @@
 import type { Diagram } from '../../types/diagram';
 import type { NodeSizes } from '../groups/geometry';
-import { browserTextWidth } from '../nodes/artwork';
+import { browserTextWidth } from '../nodes/sizing';
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);

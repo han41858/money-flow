@@ -161,7 +161,7 @@ function edgeShape(
   bounds.path(path, stroke / 2);
   bounds.path(arrow, 0);
   const value = amountLabel(edge.min, edge.max);
-  const width = measure(value, 13, true) + 18;
+  const width = measure(value, 13, true) + 4;
   bounds.include(x - width / 2, y - 12, width, 24);
   return {
     line: (
@@ -172,16 +172,18 @@ function edgeShape(
     ),
     label: (
       <g key={flow.id}>
-        <rect
-          x={x - width / 2}
-          y={y - 12}
-          width={width}
-          height={24}
-          rx={8}
-          fill="white"
-          stroke="#d7dfda"
-        />
-        <text x={x} y={y + 4} textAnchor="middle" fontSize={13}>
+        <text
+          x={x}
+          y={y + 4}
+          textAnchor="middle"
+          fontSize={13}
+          fontWeight={650}
+          fill="#35473c"
+          stroke="white"
+          strokeWidth={3}
+          strokeLinejoin="round"
+          paintOrder="stroke fill"
+        >
           {value}
         </text>
       </g>

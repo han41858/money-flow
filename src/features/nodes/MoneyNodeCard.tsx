@@ -148,6 +148,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         data={data}
         label={cardLabel(node.name)}
         size={size}
+        measure={browserTextWidth}
         hideName={editing !== null}
         hideIcon={editing === 'kind'}
       />

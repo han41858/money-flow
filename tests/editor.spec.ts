@@ -225,10 +225,16 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
       ),
     );
   await expect(group).toBeVisible();
+  const zoom = page.getByLabel('확대 비율');
+  const initialZoom = await zoom.innerText();
+  await page.getByRole('button', { name: '축소' }).click();
+  await expect(zoom).not.toHaveText(initialZoom);
+  const zoomBeforeArrange = await zoom.innerText();
   const before = await transforms();
   const arrange = page.getByRole('button', { name: '자동 정렬' });
   await arrange.click();
   await expect.poll(transforms).not.toEqual(before);
+  await expect(zoom).toHaveText(zoomBeforeArrange);
   const [left, second, middle, right, saving, region] = await transforms();
   expect(left.e).toBe(second.e);
   expect(left.f).not.toBe(second.f);

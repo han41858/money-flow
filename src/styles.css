@@ -502,6 +502,11 @@ h1 {
 .canvas-controls button[aria-pressed='true'] {
   background: #eaf1e8;
 }
+.canvas-controls .zoom-reset {
+  width: auto;
+  padding-inline: 5px;
+  font-size: 12px;
+}
 .canvas-controls output {
   font-size: 12px;
   min-width: 38px;

@@ -240,3 +240,40 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect.poll(transforms).toEqual(before);
 });
+
+test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번에 되돌린다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 960 });
+  await page.goto('/');
+  const income = page.locator('[data-id="income-a"]');
+  const account = page.locator('[data-id="joint"]');
+  const nodes = page.locator('.react-flow__node-money');
+  const edges = page.locator('.react-flow__edge');
+  const paste = page.getByRole('button', { name: '노드 붙여넣기' });
+  await expect(paste).toBeDisabled();
+  await selectNode(income);
+  await selectNode(account, { modifiers: ['Control'] });
+  await page.keyboard.press('Control+c');
+  await expect(paste).toBeEnabled();
+  await page.keyboard.press('Control+v');
+  await expect(nodes).toHaveCount(9);
+  await expect(edges).toHaveCount(7);
+  await expect(nodes.filter({ hasText: '급여 A' })).toHaveCount(2);
+  await expect(page.locator('.react-flow__node-money.selected')).toHaveCount(2);
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(nodes).toHaveCount(7);
+  await expect(edges).toHaveCount(6);
+
+  await selectNode(income);
+  const name = page.getByLabel('이름', { exact: true });
+  await name.focus();
+  await name.press('Control+v');
+  await expect(nodes).toHaveCount(7);
+  await page.getByRole('button', { name: '선택 노드 복사' }).click();
+  await page.getByRole('button', { name: '새 흐름' }).click();
+  await paste.click();
+  await expect(nodes).toHaveCount(1);
+  await expect(nodes.first()).toContainText('급여 A');
+  await expect(edges).toHaveCount(0);
+});

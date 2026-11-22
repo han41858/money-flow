@@ -1135,3 +1135,25 @@ h1 {
     display: none;
   }
 }
+
+.copy-nodes,
+.paste-nodes {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 8px;
+  margin-bottom: 12px;
+  border: 1px solid #d5e1d3;
+  border-radius: 6px;
+  background: #eff4ee;
+  color: #3f5847;
+  font-size: 12px;
+}
+.copy-nodes:hover,
+.paste-nodes:hover:not(:disabled) {
+  background: #e4efdf;
+}
+.paste-nodes:disabled {
+  opacity: 0.5;
+}

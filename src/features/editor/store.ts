@@ -17,6 +17,7 @@ import {
   absoluteFrom,
   relativeTo,
   assignGroup,
+  defaultNodeSize,
   membersAfterResize,
   type NodeSizes,
   type Group,
@@ -26,6 +27,10 @@ import {
 type Position = MoneyNode['position'];
 export type Kind = MoneyNode['type'];
 export type Selection = { nodes: string[]; edges: string[]; groups: string[] };
+export type NodeClipboard = Pick<
+  Diagram,
+  'nodes' | 'edges' | 'customInstitutions'
+>;
 export const emptySelection: Selection = { nodes: [], edges: [], groups: [] };
 
 export function nodeOfType(
@@ -247,6 +252,86 @@ export function createEditor(initial: Diagram) {
       commit(arranged);
   }
 
+  function copyNodes(selected: readonly string[]): NodeClipboard | null {
+    const diagram = current();
+    const ids = new Set(selected);
+    const nodes = diagram.nodes.filter((node) => ids.has(node.id));
+    if (!nodes.length) return null;
+    const brands = new Set(nodes.map((node) => node.institutionId));
+    return {
+      nodes,
+      edges: diagram.edges.filter(
+        (edge) => ids.has(edge.source) && ids.has(edge.target),
+      ),
+      customInstitutions: diagram.customInstitutions.filter((brand) =>
+        brands.has(brand.id),
+      ),
+    };
+  }
+
+  function pasteNodes(clipboard: NodeClipboard, center: Position) {
+    const diagram = current();
+    const customInstitutions = [...diagram.customInstitutions];
+    const brandIds = new Map(
+      clipboard.customInstitutions.map((brand) => {
+        const existing = customInstitutions.find(
+          (item) => item.name === brand.name && item.color === brand.color,
+        );
+        if (existing) return [brand.id, existing.id];
+        const copy = { ...brand, id: crypto.randomUUID() };
+        customInstitutions.push(copy);
+        return [brand.id, copy.id];
+      }),
+    );
+    const xs = clipboard.nodes.map((node) => node.position.x);
+    const ys = clipboard.nodes.map((node) => node.position.y);
+    const origin = {
+      x: (Math.min(...xs) + Math.max(...xs) + defaultNodeSize.width) / 2,
+      y: (Math.min(...ys) + Math.max(...ys) + defaultNodeSize.height) / 2,
+    };
+    const occupied = new Set(
+      diagram.nodes.map((node) => JSON.stringify(node.position)),
+    );
+    const positions = clipboard.nodes.map((node) =>
+      absoluteFrom(relativeTo(node.position, origin), center),
+    );
+    let shift = 0;
+    const shifted = ({ x, y }: Position) => ({ x: x + shift, y: y + shift });
+    while (
+      positions.some((point) => occupied.has(JSON.stringify(shifted(point))))
+    )
+      shift += 28;
+
+    const ids = new Map(
+      clipboard.nodes.map((node) => [node.id, crypto.randomUUID()]),
+    );
+    const nodes = clipboard.nodes.map((node, i) =>
+      assignGroup(
+        {
+          ...node,
+          id: ids.get(node.id)!,
+          position: shifted(positions[i]),
+          institutionId:
+            brandIds.get(node.institutionId ?? '') ?? node.institutionId,
+        },
+        diagram.groups,
+        new Map(),
+      ),
+    );
+    const edges = clipboard.edges.map((edge) => ({
+      ...edge,
+      id: crypto.randomUUID(),
+      source: ids.get(edge.source)!,
+      target: ids.get(edge.target)!,
+    }));
+    commit({
+      nodes: [...diagram.nodes, ...nodes],
+      edges: [...diagram.edges, ...edges],
+      customInstitutions,
+    });
+    return nodes.map((node) => node.id);
+  }
+
   function remove(selected: Selection) {
     const d = current();
     const groups = d.groups.filter((g) => !selected.groups.includes(g.id));
@@ -298,6 +383,8 @@ export function createEditor(initial: Diagram) {
     resizeGroup,
     move,
     autoArrange,
+    copyNodes,
+    pasteNodes,
     remove,
     newDiagram,
     load,

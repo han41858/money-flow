@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test';
-import { connect, point } from './gestures';
+import { connect, point, selectNode } from './gestures';
 test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·배치·삭제를 되돌린다', async ({
   page,
 }) => {
@@ -45,7 +45,7 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
   await expect(page.getByLabel('월 금액 (원)')).toHaveValue('0');
   await page.getByRole('button', { name: '다시 실행' }).click();
   await expect(page.getByLabel('월 최대 금액')).toHaveValue('800000');
-  await account.click();
+  await selectNode(account);
   await expect(
     page
       .getByRole('complementary', { name: '속성 패널' })
@@ -77,13 +77,13 @@ test('여러 노드를 함께 이동·삭제하고 입력 중 삭제 키는 글�
   await page.goto('/');
   const a = page.locator('[data-id="income-a"]');
   const b = page.locator('[data-id="income-b"]');
-  await a.click();
+  await selectNode(a);
   const name = page.getByLabel('이름', { exact: true });
   await name.fill('급여!');
   await name.press('Backspace');
   await name.press('Enter');
   await expect(a).toContainText('급여');
-  await b.click({ modifiers: ['Control'] });
+  await selectNode(b, { modifiers: ['Control'] });
   await expect(
     page.getByRole('heading', { name: '2개 객체 선택' }),
   ).toBeVisible();
@@ -124,7 +124,7 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await page.mouse.move(to.x, to.y, { steps: 10 });
   await page.mouse.up();
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
-  await account.click();
+  await selectNode(account);
   await page.getByRole('button', { name: '+ 금융사 등록' }).click();
   await page.getByLabel('새 금융사 이름').fill('우리 동네 은행');
   await page.getByRole('button', { name: '등록 후 적용' }).click();
@@ -152,7 +152,7 @@ test('카드에서 이름과 유형을 편집하고 연결 제한과 실행 취�
 }) => {
   await page.goto('/');
   const node = page.locator('[data-id="joint"]');
-  await node.click();
+  await selectNode(node);
   const edit = node.getByRole('button', { name: /이름 수정$/ });
   await edit.click();
   const name = node.getByRole('textbox', { name: '카드 이름' });

@@ -318,7 +318,7 @@ h1 {
 }
 .card-name-trigger,
 .card-name-input {
-  inset: 44px 14px 10px;
+  inset: 9px 13px 9px 35px;
   border-radius: 5px;
 }
 .card-name-trigger,
@@ -336,24 +336,24 @@ h1 {
   cursor: text;
 }
 .card-name-input {
-  width: calc(100% - 28px);
+  width: calc(100% - 48px);
   min-width: 0;
   padding: 3px;
   border: 1px solid #a7b7ab;
   background: white;
   color: #1c2923;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
 }
 .card-kind-trigger {
-  top: 12px;
-  left: 12px;
+  top: 9px;
+  left: 7px;
   width: 30px;
   height: 30px;
   border-radius: 5px;
 }
 .card-kinds {
-  top: 12px;
+  top: 9px;
   inset-inline: 12px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -929,6 +929,7 @@ footer span {
   flex: none;
 }
 .group-region .group-size-handle {
+  transform: translateX(-18px);
   width: 19px;
   height: 19px;
   display: grid;

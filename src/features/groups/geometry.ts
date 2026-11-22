@@ -6,7 +6,7 @@ export type Size = Pick<Group, 'width' | 'height'>;
 export type NodeSizes = ReadonlyMap<string, Size>;
 export const defaultGroupSize = { width: 320, height: 210 };
 export const minGroupSize = { width: 112, height: 64 };
-export const defaultNodeSize = { width: 185, height: 83 };
+export const defaultNodeSize = { width: 185, height: 48 };
 
 export function measuredSizes(
   nodes: MoneyNode[],

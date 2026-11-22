@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { selectNode } from './gestures';
 test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -11,7 +12,7 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   await expect(nodes).toHaveCount(7);
   await expect(edges).toHaveCount(6);
   for (const node of await nodes.all()) await expect(node).toBeInViewport();
-  await nodes.filter({ hasText: '공동 생활비 통장' }).click();
+  await selectNode(nodes.filter({ hasText: '공동 생활비 통장' }));
   const sidebar = page.getByRole('complementary', { name: '속성 패널' });
   await expect(sidebar.getByText('5,600,000원')).toBeVisible();
   await sidebar.getByRole('button', { name: '생활비 카드' }).click();
@@ -38,7 +39,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
     .locator('.react-flow__node-money')
     .filter({ hasText: '공동 생활비 통장' });
   await expect(account).toBeInViewport();
-  await account.click({ timeout: 5000 });
+  await selectNode(account);
   await expect(
     page.getByRole('heading', { name: '공동 생활비 통장' }),
   ).toBeVisible();

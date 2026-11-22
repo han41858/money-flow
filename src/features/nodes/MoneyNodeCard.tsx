@@ -15,7 +15,7 @@ import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
-import { NodeArtwork, browserTextWidth, cardLayout } from './artwork';
+import { NodeArtwork, browserTextWidth, cardLabel } from './artwork';
 import { kindNames } from './presentation';
 import { defaultNodeSize } from '../groups/geometry';
 import { portFraction } from '../edges/geometry';
@@ -137,9 +137,9 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       );
   }
   const width = defaultNodeSize.width;
-  const card = useMemo(
-    () => cardLayout(data, width, browserTextWidth),
-    [data, width],
+  const label = useMemo(
+    () => cardLabel(node.name, width, browserTextWidth),
+    [node.name, width],
   );
   const update = useUpdateNodeInternals();
   const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
@@ -158,9 +158,9 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       <NodeArtwork
         decorative
         data={data}
-        layout={card}
-        size={{ width, height: card.height }}
-        hideName={editing === 'name'}
+        label={label}
+        size={{ width, height: defaultNodeSize.height }}
+        hideName={editing !== null}
         hideIcon={editing === 'kind'}
       />
       {!data.readOnly && (
@@ -171,9 +171,13 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
             <button
               ref={nameButton}
               type="button"
-              className="card-name-trigger nodrag nopan"
+              className="card-name-trigger nopan"
               aria-label={node.name + ' 이름 수정'}
-              onKeyDown={(event) => event.stopPropagation()}
+              title={node.name}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ')
+                  event.stopPropagation();
+              }}
               onClick={(event) => {
                 event.stopPropagation();
                 setEditing('name');
@@ -188,7 +192,10 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
               type="button"
               className="card-kind-trigger nodrag nopan"
               aria-label={kindNames[node.type] + ' 유형 수정'}
-              onKeyDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ')
+                  event.stopPropagation();
+              }}
               onClick={(event) => {
                 event.stopPropagation();
                 setEditing('kind');

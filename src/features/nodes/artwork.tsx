@@ -1,5 +1,5 @@
 import type { FlowNode } from '../editor/graph';
-import { defaultNodeSize, type Size } from '../groups/geometry';
+import { type Size } from '../groups/geometry';
 import { tint } from '../../lib/brands/palette';
 
 export const cardFont =
@@ -26,48 +26,25 @@ export const estimatedTextWidth: MeasureText = (value, size) =>
 
 const graphemes = new Intl.Segmenter('ko', { granularity: 'grapheme' });
 
-function wrapText(
-  text: string,
-  width: number,
-  size: number,
-  bold: boolean,
-  measure: MeasureText,
-) {
-  const lines: string[] = [];
-  let line = '';
-  for (const word of text.trim().split(/\s+/)) {
-    const combined = line ? line + ' ' + word : word;
-    if (measure(combined, size, bold) <= width) {
-      line = combined;
-      continue;
-    }
-    if (line) lines.push(line);
-    line = '';
-    for (const { segment } of graphemes.segment(word)) {
-      if (line && measure(line + segment, size, bold) > width) {
-        lines.push(line);
-        line = '';
-      }
-      line += segment;
-    }
-  }
-  lines.push(line);
-  return lines;
-}
+const nameX = 38;
+const nameFontSize = 15;
 
-export function cardLayout(
-  data: FlowNode['data'],
-  width: number,
-  measure: MeasureText,
-) {
-  const contentWidth = Math.max(1, width - 36);
-  const names = wrapText(data.node.name, contentWidth, 18, true, measure);
-  return { names, height: defaultNodeSize.height + (names.length - 1) * 25 };
+export function cardLabel(name: string, width: number, measure: MeasureText) {
+  const available = width - nameX - 14;
+  const text = name.replace(/\s+/g, ' ').trim();
+  if (measure(text, nameFontSize, true) <= available) return text;
+
+  let prefix = '';
+  for (const { segment } of graphemes.segment(text)) {
+    if (measure(prefix + segment + '…', nameFontSize, true) > available) break;
+    prefix += segment;
+  }
+  return prefix.trimEnd() + '…';
 }
 
 type Props = {
   data: FlowNode['data'];
-  layout: ReturnType<typeof cardLayout>;
+  label: string;
   size: Size;
   hideName?: boolean;
   hideIcon?: boolean;
@@ -78,7 +55,7 @@ type Props = {
 
 export function NodeArtwork({
   data,
-  layout,
+  label,
   size,
   hideName = false,
   hideIcon = false,
@@ -102,8 +79,8 @@ export function NodeArtwork({
       <rect width={width} height={height} rx={12} fill={tint(color, 0.18)} />
       {!hideIcon && (
         <Icon
-          x={18}
-          y={18}
+          x={13}
+          y={(height - 18) / 2}
           width={18}
           height={18}
           color="#314937"
@@ -112,15 +89,14 @@ export function NodeArtwork({
       )}
       <text
         visibility={hideName ? 'hidden' : undefined}
-        fontSize={18}
+        x={nameX}
+        y={height / 2}
+        dominantBaseline="central"
+        fontSize={nameFontSize}
         fontWeight={700}
         fill="#1c2923"
       >
-        {layout.names.map((line, i) => (
-          <tspan key={i} x={18} y={65 + i * 25}>
-            {line}
-          </tspan>
-        ))}
+        {label}
       </text>
     </svg>
   );

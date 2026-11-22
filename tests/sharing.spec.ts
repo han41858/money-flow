@@ -88,7 +88,7 @@ test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다
   expect(png.readUInt32BE(20)).toBe(Number(height) * 2);
 });
 
-test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
+test('긴 이름의 말줄임·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
   page,
 }) => {
   await page.goto('/');
@@ -101,10 +101,16 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
   await page.getByLabel('이름', { exact: true }).fill(name);
   await page.getByLabel('이름', { exact: true }).press('Enter');
   const card = page.locator('[data-id="joint"] .money-node > svg');
-  const lines = await card
-    .locator('text[font-size="18"] tspan')
-    .allTextContents();
-  expect(lines.length).toBeGreaterThan(1);
+  const text = card.locator(':scope > text');
+  const iconBox = (await card.locator('svg').boundingBox())!;
+  const textBox = (await text.boundingBox())!;
+  expect(textBox.x).toBeGreaterThan(iconBox.x + iconBox.width);
+  expect(
+    Math.abs(textBox.y + textBox.height / 2 - iconBox.y - iconBox.height / 2),
+  ).toBeLessThan(4);
+  const label = await text.textContent();
+  expect(label).toMatch(/…$/);
+  expect(label!.length).toBeLessThan(name.length);
   const background = card.locator(':scope > rect');
   await expect(background).toHaveCount(1);
   expect(await background.getAttribute('stroke')).toBeNull();
@@ -126,10 +132,7 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
         (n) => n.getAttribute('aria-label') === name,
       )!;
       return {
-        lines: Array.from(
-          node.querySelectorAll('text[font-size="18"] tspan'),
-          (s) => s.textContent,
-        ),
+        label: node.querySelector(':scope > text')?.textContent,
         background: Array.from(node.querySelectorAll(':scope > rect'), (r) => [
           r.getAttribute('fill'),
           r.getAttribute('stroke'),
@@ -143,7 +146,7 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
     },
     { svg, name },
   );
-  expect(result.lines).toEqual(lines);
+  expect(result.label).toBe(label);
   expect(result.background).toEqual([[fill, null]]);
   expect(result.textCount).toBe(1);
   expect(result.icon).toBe(icon);

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { example } from '../../app/example';
 import { diagramSchema } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
+import { cardSize } from '../nodes/sizing';
 import { createEditor, nodeOfType } from './store';
 
 describe('편집 이력', () => {
@@ -68,6 +69,26 @@ describe('편집 이력', () => {
     expect(ed.current()).toBe(arranged);
     ed.history.getState().undo();
     expect(ed.current()).toBe(before);
+  });
+  it('붙여넣을 때 같은 이름의 금융사를 사용하고 기존 노드와 겹치지 않는다', () => {
+    const source = createEditor(example);
+    source.addInstitution('joint', '지역 은행', '#216443');
+    const clipboard = source.copyNodes(['joint'])!;
+    const target = createEditor(example);
+    target.addInstitution('joint', '지역 은행', '#123456');
+    const existing = target.current().nodes.find(({ id }) => id === 'joint')!;
+    const { width, height } = cardSize(existing.name);
+    const [id] = target.pasteNodes(clipboard, {
+      x: existing.position.x + width / 2 + 1,
+      y: existing.position.y + height / 2 + 1,
+    });
+    const pasted = target.current().nodes.find((node) => node.id === id)!;
+    expect(target.current().customInstitutions).toHaveLength(1);
+    expect(pasted.institutionId).toBe(existing.institutionId);
+    expect(
+      pasted.position.x >= existing.position.x + width ||
+        pasted.position.y >= existing.position.y + height,
+    ).toBe(true);
   });
   it('금융사 등록과 노드 적용을 한 번에 취소한다', () => {
     const ed = createEditor(example);

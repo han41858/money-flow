@@ -9,7 +9,8 @@ import {
   type MoneyEdge,
 } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { kindNames } from '../nodes/presentation';
+import { cardSize, type MeasureText } from '../nodes/sizing';
+import { newNodeName } from '../nodes/presentation';
 import { institutions } from '../../lib/brands/registry';
 import { arrangeDiagram } from './arrange';
 
@@ -17,7 +18,6 @@ import {
   absoluteFrom,
   relativeTo,
   assignGroup,
-  defaultNodeSize,
   membersAfterResize,
   type NodeSizes,
   type Group,
@@ -75,7 +75,7 @@ export function createEditor(initial: Diagram) {
   function addNode(type: Kind, position: Position) {
     const node = nodeOfType(type, {
       id: crypto.randomUUID(),
-      name: '새 ' + kindNames[type],
+      name: newNodeName(type),
       position,
     });
     const diagram = current();
@@ -269,13 +269,17 @@ export function createEditor(initial: Diagram) {
     };
   }
 
-  function pasteNodes(clipboard: NodeClipboard, center: Position) {
+  function pasteNodes(
+    clipboard: NodeClipboard,
+    center: Position,
+    measure?: MeasureText,
+  ) {
     const diagram = current();
     const customInstitutions = [...diagram.customInstitutions];
     const brandIds = new Map(
       clipboard.customInstitutions.map((brand) => {
-        const existing = customInstitutions.find(
-          (item) => item.name === brand.name && item.color === brand.color,
+        const existing = [...institutions, ...customInstitutions].find(
+          (item) => item.name === brand.name.trim(),
         );
         if (existing) return [brand.id, existing.id];
         const copy = { ...brand, id: crypto.randomUUID() };
@@ -283,27 +287,50 @@ export function createEditor(initial: Diagram) {
         return [brand.id, copy.id];
       }),
     );
-    const xs = clipboard.nodes.map((node) => node.position.x);
-    const ys = clipboard.nodes.map((node) => node.position.y);
+    const boundsOf = (node: MoneyNode) => ({
+      ...node.position,
+      ...cardSize(node.name, measure),
+    });
+    const copied = clipboard.nodes.map(boundsOf);
     const origin = {
-      x: (Math.min(...xs) + Math.max(...xs) + defaultNodeSize.width) / 2,
-      y: (Math.min(...ys) + Math.max(...ys) + defaultNodeSize.height) / 2,
+      x:
+        (Math.min(...copied.map(({ x }) => x)) +
+          Math.max(...copied.map(({ x, width }) => x + width))) /
+        2,
+      y:
+        (Math.min(...copied.map(({ y }) => y)) +
+          Math.max(...copied.map(({ y, height }) => y + height))) /
+        2,
     };
-    const occupied = new Set(
-      diagram.nodes.map((node) => JSON.stringify(node.position)),
-    );
-    const positions = clipboard.nodes.map((node) =>
-      absoluteFrom(relativeTo(node.position, origin), center),
+    const occupied = diagram.nodes.map(boundsOf);
+    const positions = copied.map((node) =>
+      absoluteFrom(relativeTo(node, origin), center),
     );
     let shift = 0;
     const shifted = ({ x, y }: Position) => ({ x: x + shift, y: y + shift });
     while (
-      positions.some((point) => occupied.has(JSON.stringify(shifted(point))))
+      positions.some((point, index) => {
+        const { x, y } = shifted(point);
+        const { width, height } = copied[index];
+        return occupied.some(
+          (node) =>
+            x < node.x + node.width &&
+            x + width > node.x &&
+            y < node.y + node.height &&
+            y + height > node.y,
+        );
+      })
     )
       shift += 28;
 
     const ids = new Map(
       clipboard.nodes.map((node) => [node.id, crypto.randomUUID()]),
+    );
+    const sizes = new Map(
+      clipboard.nodes.map((node, i) => {
+        const { width, height } = copied[i];
+        return [ids.get(node.id)!, { width, height }];
+      }),
     );
     const nodes = clipboard.nodes.map((node, i) =>
       assignGroup(
@@ -315,7 +342,7 @@ export function createEditor(initial: Diagram) {
             brandIds.get(node.institutionId ?? '') ?? node.institutionId,
         },
         diagram.groups,
-        new Map(),
+        sizes,
       ),
     );
     const edges = clipboard.edges.map((edge) => ({

@@ -34,9 +34,15 @@ import {
   type NodeClipboard,
   type Selection,
 } from '../features/editor/store';
+import { browserTextWidth, cardSize } from '../features/nodes/sizing';
 import { insertionPoint } from '../features/editor/placement';
 import { amountLabel, sum } from '../features/edges/money';
-import { describe, kindNames, kindIcons } from '../features/nodes/presentation';
+import {
+  describe,
+  kindNames,
+  kindIcons,
+  newNodeName,
+} from '../features/nodes/presentation';
 
 import {
   LibraryDialog,
@@ -49,11 +55,7 @@ import {
   open as openDiagram,
 } from '../features/diagrams/library';
 
-import {
-  defaultNodeSize,
-  measuredSizes,
-  newGroupBounds,
-} from '../features/groups/geometry';
+import { measuredSizes, newGroupBounds } from '../features/groups/geometry';
 
 function Summary({
   icon: Icon,
@@ -138,7 +140,7 @@ function Workspace({
       x: canvas.left + canvas.width / 2,
       y: canvas.top + canvas.height / 2,
     });
-    const ids = editor.pasteNodes(clipboard, center);
+    const ids = editor.pasteNodes(clipboard, center, browserTextWidth);
     setSelected({ ...emptySelection, nodes: ids });
     setMobile(null);
     return true;
@@ -204,12 +206,15 @@ function Workspace({
 
   function add(kind: Kind) {
     const box = document.querySelector('.flow-area')!.getBoundingClientRect();
+    const size = cardSize(newNodeName(kind), browserTextWidth);
     const point = insertionPoint(
       kind,
       nodes,
       screenToFlowPosition({ x: box.left, y: box.top }),
       screenToFlowPosition({ x: box.right, y: box.bottom }),
       diagram.groups,
+      size,
+      measuredSizes(nodes, getInternalNode),
     );
     const id = editor.addNode(kind, point);
     select({ groups: [], nodes: [id], edges: [] });
@@ -221,11 +226,11 @@ function Workspace({
       const viewport = getViewport();
       const dx = Math.min(
         0,
-        area.right - 10 - top.x - defaultNodeSize.width * viewport.zoom,
+        area.right - 10 - top.x - size.width * viewport.zoom,
       );
       const dy = Math.min(
         0,
-        area.bottom - 10 - top.y - defaultNodeSize.height * viewport.zoom,
+        area.bottom - 10 - top.y - size.height * viewport.zoom,
       );
       if (dx || dy)
         void setViewport({

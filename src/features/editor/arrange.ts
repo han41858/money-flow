@@ -1,10 +1,6 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
-import {
-  defaultNodeSize,
-  newGroupBounds,
-  type Group,
-  type NodeSizes,
-} from '../groups/geometry';
+import { cardSize } from '../nodes/sizing';
+import { newGroupBounds, type Group, type NodeSizes } from '../groups/geometry';
 
 const columnGap = 152;
 const rowGap = 48;
@@ -43,8 +39,8 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   }
 
   const columnWidth = ordered.reduce(
-    (width, n) => Math.max(width, sizes.get(n.id)?.width ?? 0),
-    defaultNodeSize.width,
+    (width, n) => Math.max(width, (sizes.get(n.id) ?? cardSize(n.name)).width),
+    0,
   );
   const columnX = (id: string) => ranks.get(id)! * (columnWidth + columnGap);
   const members = new Map(diagram.groups.map((g) => [g.id, [] as MoneyNode[]]));
@@ -80,7 +76,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       const y = nextRow.get(x) ?? 0;
       nextRow.set(
         x,
-        y + (sizes.get(node.id) ?? defaultNodeSize).height + rowGap,
+        y + (sizes.get(node.id) ?? cardSize(node.name)).height + rowGap,
       );
       return { ...node, position: { x, y } };
     });
@@ -97,7 +93,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     return { ...group, ...packed };
   });
   for (const node of ungrouped) {
-    const size = sizes.get(node.id) ?? defaultNodeSize;
+    const size = sizes.get(node.id) ?? cardSize(node.name);
     const bounds = pack({ ...size, position: { x: columnX(node.id), y: 0 } });
     positions.set(node.id, bounds.position);
   }

@@ -11,6 +11,16 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   await expect(
     main.getByText('우리 집 자금 흐름', { exact: true }),
   ).toHaveCount(0);
+  const navigation = page.getByRole('complementary', {
+    name: '다이어그램 탐색',
+  });
+  await expect(navigation.getByText('노드 7개 · 연결 6개')).toBeVisible();
+  await expect(navigation.getByRole('status')).toHaveText(
+    '이 브라우저에 저장됨',
+  );
+  await expect(
+    main.getByText(/노드의 연결점을 끌거나|노드 7개|이 브라우저에 저장됨/),
+  ).toHaveCount(0);
   const nodes = page.locator('.react-flow__node-money');
   const edges = page.locator('.react-flow__edge');
   await expect(nodes).toHaveCount(7);
@@ -56,6 +66,9 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
   ).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
   await page.getByRole('button', { name: '노드 목록 열기' }).click();
+  const tools = page.getByRole('dialog', { name: '편집 도구' });
+  await expect(tools.getByText('노드 7개 · 연결 6개')).toBeVisible();
+  await expect(tools.getByRole('status')).toHaveText('이 브라우저에 저장됨');
   await page.getByRole('button', { name: '정기 적금', exact: true }).click();
   await expect(page.getByRole('heading', { name: '정기 적금' })).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();

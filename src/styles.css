@@ -41,9 +41,7 @@ button:focus-visible {
 .canvas-heading,
 .canvas-heading > span,
 .related,
-.back,
-footer,
-footer span {
+.back {
   display: flex;
   align-items: center;
 }
@@ -100,13 +98,14 @@ footer span {
 .canvas-heading > span {
   gap: 8px;
 }
-.side-head b {
+.sidebar-summary {
+  margin: 7px 6px 0;
   color: #52645a;
-  background: #e8eee7;
   font-size: 11px;
-  min-width: 21px;
-  text-align: center;
-  border-radius: 5px;
+  line-height: 1.5;
+}
+.sidebar-summary p {
+  margin: 0;
 }
 .diagram-link {
   font-size: 13px;
@@ -195,18 +194,6 @@ h1 {
   line-height: 1.25;
   font-weight: 740;
   margin: 14px 0 6px;
-}
-.page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.page-head p {
-  color: #617168;
-  font-size: 14px;
-  margin: 0;
-  line-height: 1.65;
 }
 .metrics {
   display: grid;
@@ -453,20 +440,10 @@ h1 {
   min-width: 38px;
   text-align: center;
 }
-.canvas-controls i,
-footer i {
+.canvas-controls i {
   height: 13px;
   width: 1px;
   background: #d6dfd6;
-}
-footer {
-  justify-content: space-between;
-  padding: 12px 2px 0;
-  font-size: 11px;
-  color: #67766d;
-}
-footer span {
-  gap: 7px;
 }
 .mobile-only {
   display: none;
@@ -518,20 +495,15 @@ footer span {
     place-items: center;
     padding: 6px;
   }
-  .page-head button {
+  .node-list-toggle {
+    align-self: flex-end;
     border: 1px solid #d8dfd6;
     border-radius: 6px;
     background: white;
   }
-  .page-head button svg {
-    width: 17px;
-  }
   main {
     padding: 18px 12px;
     min-height: calc(100dvh - 54px);
-  }
-  .page-head p {
-    font-size: 12px;
   }
   .metrics {
     gap: 6px;
@@ -559,9 +531,6 @@ footer span {
   }
   .canvas-heading {
     padding: 10px 12px;
-  }
-  footer span:last-child {
-    display: none;
   }
 }
 .history-tools,
@@ -746,9 +715,6 @@ footer span {
   .workspace-title,
   .header-divider {
     display: none;
-  }
-  footer span:last-child {
-    display: flex;
   }
 }
 .library-dialog {
@@ -1143,10 +1109,6 @@ footer span {
   }
   .metric {
     padding: 6px;
-  }
-  footer {
-    flex-wrap: wrap;
-    gap: 3px;
   }
 }
 

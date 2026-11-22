@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { useStore } from 'zustand';
 import {
-  Activity,
   ArrowDownLeft,
   ArrowUpRight,
   Coins,
@@ -319,7 +318,20 @@ function Workspace() {
                   <ListTree size={16} />
                   노드 목록
                 </span>
-                <b>{nodes.length}</b>
+              </div>
+              <div className="sidebar-summary">
+                <p>
+                  노드 {nodes.length}개 · 연결 {edges.length}개
+                </p>
+                <p role="status">
+                  {conflict
+                    ? '자동 저장 일시 중지'
+                    : dirty
+                      ? error
+                        ? '저장되지 않은 변경 사항'
+                        : '저장 중…'
+                      : '이 브라우저에 저장됨'}
+                </p>
               </div>
               {(Object.keys(kindNames) as Kind[])
                 .filter((type) => nodes.some((n) => n.type === type))
@@ -379,19 +391,13 @@ function Workspace() {
           </aside>
         </ResponsivePanel>
         <main id="editor-main" tabIndex={-1} aria-label={diagram.name}>
-          <div className="page-head">
-            <p>
-              노드의 연결점을 끌거나 출발 노드의 속성에서 연결할 노드를
-              선택하세요.
-            </p>
-            <button
-              className="mobile-only"
-              aria-label="노드 목록 열기"
-              onClick={() => setMobile('tools')}
-            >
-              <PanelLeftOpen />
-            </button>
-          </div>
+          <button
+            className="mobile-only node-list-toggle"
+            aria-label="노드 목록 열기"
+            onClick={() => setMobile('tools')}
+          >
+            <PanelLeftOpen size={17} />
+          </button>
           <div className="metrics">
             <Summary
               icon={ArrowDownLeft}
@@ -456,21 +462,6 @@ function Workspace() {
               </ResponsivePanel>
             )}
           </div>
-          <footer>
-            <span>
-              <Activity size={14} />
-              노드 {nodes.length}개 <i /> 연결 {edges.length}개
-            </span>
-            <span role="status">
-              {conflict
-                ? '자동 저장 일시 중지'
-                : dirty
-                  ? error
-                    ? '저장되지 않은 변경 사항'
-                    : '저장 중…'
-                  : '이 브라우저에 저장됨'}
-            </span>
-          </footer>
         </main>
       </div>
     </div>

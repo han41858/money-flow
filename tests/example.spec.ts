@@ -48,6 +48,8 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const initial = await zoom.innerText();
   await page.getByRole('button', { name: '확대', exact: true }).click();
   await expect(zoom).not.toHaveText(initial);
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await expect(zoom).toHaveText('100%');
   await page.getByRole('button', { name: '전체 보기' }).click();
   await expect(zoom).toHaveText(initial);
   await page.getByRole('button', { name: '격자 표시' }).click();

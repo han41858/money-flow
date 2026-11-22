@@ -88,7 +88,7 @@ export function Canvas({
         }
       : fitOptions,
   );
-  const { fitView, zoomIn, zoomOut, getInternalNode } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, zoomTo, getInternalNode } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
 
   function selectionChanges(
@@ -315,6 +315,14 @@ export function Canvas({
               <button aria-label="확대" onClick={() => void zoomIn()}>
                 <Plus size={16} />
               </button>
+              <button
+                className="zoom-reset"
+                aria-label="100% 배율로 설정"
+                title="100% 배율로 설정"
+                onClick={() => void zoomTo(1)}
+              >
+                100%
+              </button>
               <i />
               <button
                 aria-label="전체 보기"
@@ -333,7 +341,6 @@ export function Canvas({
                     editor.autoArrange(
                       measuredSizes(diagram.nodes, getInternalNode),
                     );
-                    requestAnimationFrame(() => void fitView(fitOptions));
                   }}
                 >
                   <WandSparkles size={15} />

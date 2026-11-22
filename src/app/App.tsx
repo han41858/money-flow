@@ -5,6 +5,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Coins,
+  ClipboardPaste,
   ChevronRight,
   Frame,
   FilePlus2,
@@ -30,6 +31,7 @@ import {
   editor,
   emptySelection,
   type Kind,
+  type NodeClipboard,
   type Selection,
 } from '../features/editor/store';
 import { browserTextWidth, cardSize } from '../features/nodes/sizing';
@@ -82,7 +84,13 @@ function Summary({
   );
 }
 
-function Workspace() {
+function Workspace({
+  clipboard,
+  setClipboard,
+}: {
+  clipboard: NodeClipboard | null;
+  setClipboard: (value: NodeClipboard) => void;
+}) {
   const diagram = editor.useDiagram((s) => s.diagram);
   const { nodes, edges } = diagram;
   const [shareOpen, setShareOpen] = useState(false);
@@ -117,6 +125,27 @@ function Workspace() {
     setSelected(emptySelection);
     setMobile(null);
   };
+  const copyNodes = useCallback(() => {
+    const copied = editor.copyNodes(selection.nodes);
+    if (!copied) return false;
+    setClipboard(copied);
+    return true;
+  }, [selection.nodes, setClipboard]);
+  const pasteNodes = useCallback(() => {
+    if (!clipboard) return false;
+    const canvas = document
+      .querySelector('.flow-area')!
+      .getBoundingClientRect();
+    const center = screenToFlowPosition({
+      x: canvas.left + canvas.width / 2,
+      y: canvas.top + canvas.height / 2,
+    });
+    const ids = editor.pasteNodes(clipboard, center, browserTextWidth);
+    setSelected({ ...emptySelection, nodes: ids });
+    setMobile(null);
+    return true;
+  }, [clipboard, screenToFlowPosition]);
+
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if (
@@ -132,7 +161,12 @@ function Workspace() {
         return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (mod && (key === 'z' || key === 'y')) {
+      if (mod && key === 'c' && !e.altKey && !e.shiftKey) {
+        if (!window.getSelection()?.toString() && copyNodes())
+          e.preventDefault();
+      } else if (mod && key === 'v' && !e.altKey && !e.shiftKey) {
+        if (pasteNodes()) e.preventDefault();
+      } else if (mod && (key === 'z' || key === 'y')) {
         e.preventDefault();
         const h = editor.history.getState();
         if (key === 'y' || e.shiftKey) h.redo();
@@ -148,7 +182,7 @@ function Workspace() {
 
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [remove, libraryOpen, shareOpen]);
+  }, [remove, libraryOpen, shareOpen, copyNodes, pasteNodes]);
   const select = (s: Selection) => {
     setSelected(s);
     setMobile('details');
@@ -317,6 +351,14 @@ function Workspace() {
               그룹 추가
               <Plus size={13} />
             </button>
+            <button
+              className="paste-nodes"
+              disabled={!clipboard}
+              onClick={pasteNodes}
+              title="붙여넣기 (Ctrl/⌘ V)"
+            >
+              <ClipboardPaste size={15} /> 노드 붙여넣기
+            </button>
             <div className="side-content">
               <div className="side-head">
                 <span>
@@ -461,6 +503,7 @@ function Workspace() {
                     selected={selected}
                     select={select}
                     remove={remove}
+                    copy={copyNodes}
                     close={close}
                   />
                 </div>
@@ -476,6 +519,7 @@ function Workspace() {
 const initialDiagram = () => example;
 
 export function App() {
+  const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   useEffect(() => {
     void start(initialDiagram);
   }, []);
@@ -511,7 +555,7 @@ export function App() {
     );
   return (
     <ReactFlowProvider key={session}>
-      <Workspace />
+      <Workspace clipboard={clipboard} setClipboard={setClipboard} />
     </ReactFlowProvider>
   );
 }

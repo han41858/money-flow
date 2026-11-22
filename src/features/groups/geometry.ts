@@ -83,11 +83,23 @@ export function newGroupBounds(
         y: center.y - defaultGroupSize.height / 2,
       },
     };
+  const { position, width, height } = nodeBounds(selected, sizes);
+  return {
+    position: { x: position.x - 24, y: position.y - 44 },
+    width: width + 48,
+    height: height + 68,
+  };
+}
+
+export function nodeBounds(
+  nodes: MoneyNode[],
+  sizes: NodeSizes,
+): Pick<Group, 'position' | 'width' | 'height'> {
   let left = Infinity;
   let top = Infinity;
   let right = -Infinity;
   let bottom = -Infinity;
-  for (const node of selected) {
+  for (const node of nodes) {
     const { width, height } = sizes.get(node.id) ?? cardSize(node.name);
     left = Math.min(left, node.position.x);
     top = Math.min(top, node.position.y);
@@ -95,8 +107,8 @@ export function newGroupBounds(
     bottom = Math.max(bottom, node.position.y + height);
   }
   return {
-    position: { x: left - 24, y: top - 44 },
-    width: right - left + 48,
-    height: bottom - top + 68,
+    position: { x: left, y: top },
+    width: right - left,
+    height: bottom - top,
   };
 }

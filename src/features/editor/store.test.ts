@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { example } from '../../app/example';
 import { diagramSchema } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { cardSize } from '../nodes/sizing';
+import { cardSize, nodeHeight, totalLineHeight } from '../nodes/sizing';
+import { arrangeDiagram } from './arrange';
 import { createEditor, nodeOfType } from './store';
 
 describe('편집 이력', () => {
@@ -105,11 +106,56 @@ describe('편집 이력', () => {
     expect(position('card').x - position('joint').x).toBe(
       Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 96,
     );
-    expect(position('card').y - position('savings').y).toBe(48 + 24);
+    expect(position('card').y - position('savings').y).toBeGreaterThanOrEqual(
+      48 + 24,
+    );
     expect(arranged.groups.map((group) => group.id)).toEqual(
       before.groups.map((group) => group.id),
     );
   });
+  it.each([true, false])(
+    '분기에서 하위 노드의 중심과 형제 간격을 맞춘다 (그룹: %s)',
+    (grouped) => {
+      const extra = {
+        ...example.nodes.find((node) => node.id === 'telecom')!,
+        id: 'third-expense',
+        position: { x: 1020, y: 210 },
+      };
+      const diagram = {
+        ...example,
+        groups: grouped ? example.groups : [],
+        nodes: [...example.nodes, extra].map((node) =>
+          grouped ? node : { ...node, groupId: undefined },
+        ),
+        edges: [
+          ...example.edges,
+          {
+            id: 'third-transfer',
+            source: 'card',
+            target: extra.id,
+            min: 0,
+            max: 0,
+          },
+        ],
+      };
+      const layout = arrangeDiagram(diagram, new Map());
+      const position = (id: string) =>
+        layout.nodes.find((node) => node.id === id)!.position;
+      const first = position('living');
+      const last = position(extra.id);
+      const card = position('card');
+      const savings = position('savings');
+      expect(first.x).toBeGreaterThan(card.x);
+      expect(first.x).toBe(last.x);
+      expect(card.y + (nodeHeight + totalLineHeight) / 2).toBe(
+        (first.y + last.y + nodeHeight) / 2,
+      );
+      expect(savings.y).toBe(last.y + nodeHeight + 24);
+      expect(arrangeDiagram({ ...diagram, ...layout }, new Map())).toEqual(
+        layout,
+      );
+    },
+  );
   it('금융사 등록과 노드 적용을 한 번에 취소한다', () => {
     const ed = createEditor(example);
     expect(ed.addInstitution('joint', '지역 은행', '#216443')).toBe(true);

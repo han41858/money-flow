@@ -42,3 +42,28 @@ export function cardSize(
     height: nodeHeight,
   };
 }
+
+export type NodeTotal = {
+  side: 'left' | 'right';
+  label: string;
+  description: string;
+};
+
+export function layoutTotals(
+  totals: NodeTotal[],
+  width: number,
+  measure: MeasureText,
+) {
+  const labels = totals.map((total) => ({
+    ...total,
+    labelWidth: measure(total.label, totalFontSize),
+  }));
+  const extra =
+    labels.length === 2
+      ? Math.max(0, labels[0].labelWidth + labels[1].labelWidth + 6 - width) / 2
+      : 0;
+  return labels.map((total) => ({
+    ...total,
+    x: total.side === 'left' ? -extra : width + extra,
+  }));
+}

@@ -3,6 +3,8 @@ import { type Size } from '../groups/geometry';
 
 import {
   cardFont,
+  layoutTotals,
+  type MeasureText,
   nameX,
   nameFontSize,
   totalFontSize,
@@ -12,6 +14,7 @@ import {
 type Props = {
   data: FlowNode['data'];
   label: string;
+  measure: MeasureText;
   size: Size;
   hideName?: boolean;
   hideIcon?: boolean;
@@ -23,6 +26,7 @@ type Props = {
 export function NodeArtwork({
   data,
   label,
+  measure,
   size,
   hideName = false,
   hideIcon = false,
@@ -74,18 +78,20 @@ export function NodeArtwork({
       </text>
       {data.totals.length ? (
         <g className="node-totals" pointerEvents="none">
-          {data.totals.map(({ label }, index) => (
-            <text
-              key={label}
-              x={width / 2}
-              y={height + totalLineHeight * (index + 1) - 1}
-              textAnchor="middle"
-              fontSize={totalFontSize}
-              fill="#415548"
-            >
-              {label}
-            </text>
-          ))}
+          {layoutTotals(data.totals, width, measure).map(
+            ({ label, side, x }) => (
+              <text
+                key={side}
+                x={x}
+                y={height + totalLineHeight - 1}
+                textAnchor={side === 'left' ? 'start' : 'end'}
+                fontSize={totalFontSize}
+                fill="#415548"
+              >
+                {label}
+              </text>
+            ),
+          )}
         </g>
       ) : null}
     </svg>

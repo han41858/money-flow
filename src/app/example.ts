@@ -9,6 +9,7 @@ export const example = diagramSchema.parse({
   updatedAt: '2026-11-01T00:00:00Z',
   nodes: [
     {
+      groupId: 'jang',
       id: 'income-a',
       type: 'income',
       name: '장현의 급여',
@@ -16,6 +17,7 @@ export const example = diagramSchema.parse({
       position: { x: 0, y: 60 },
     },
     {
+      groupId: 'hye',
       id: 'income-b',
       type: 'income',
       name: '혜경의 급여',
@@ -23,6 +25,7 @@ export const example = diagramSchema.parse({
       position: { x: 0, y: 270 },
     },
     {
+      groupId: 'joint-area',
       id: 'joint',
       type: 'account',
       name: '공동 생활비 통장',
@@ -31,6 +34,7 @@ export const example = diagramSchema.parse({
       position: { x: 340, y: 165 },
     },
     {
+      groupId: 'joint-area',
       id: 'card',
       type: 'card',
       name: '생활비 카드',
@@ -39,6 +43,7 @@ export const example = diagramSchema.parse({
       position: { x: 680, y: 70 },
     },
     {
+      groupId: 'joint-area',
       id: 'savings',
       type: 'expense',
       category: 'saving',
@@ -46,12 +51,14 @@ export const example = diagramSchema.parse({
       position: { x: 680, y: 285 },
     },
     {
+      groupId: 'joint-area',
       id: 'living',
       type: 'expense',
       name: '생활비',
       position: { x: 1020, y: 0 },
     },
     {
+      groupId: 'joint-area',
       id: 'telecom',
       type: 'expense',
       name: '통신비',
@@ -96,7 +103,32 @@ export const example = diagramSchema.parse({
     },
     { id: 'bill', source: 'card', target: 'telecom', min: 80000, max: 80000 },
   ],
-  groups: [],
+  groups: [
+    {
+      id: 'jang',
+      name: '장현',
+      position: { x: -24, y: 14 },
+      width: 233,
+      height: 172,
+      color: '#92ab86',
+    },
+    {
+      id: 'hye',
+      name: '혜경',
+      position: { x: -24, y: 224 },
+      width: 233,
+      height: 172,
+      color: '#86aabe',
+    },
+    {
+      id: 'joint-area',
+      name: '공동 자금',
+      position: { x: 316, y: -46 },
+      width: 914,
+      height: 460,
+      color: '#b6a478',
+    },
+  ],
   customInstitutions: [],
   viewport: { x: 0, y: 0, zoom: 1 },
 });

@@ -13,10 +13,20 @@ import { canConnect } from '../edges/connections';
 import { kindNames } from '../nodes/presentation';
 import { institutions } from '../../lib/brands/registry';
 
+import {
+  absoluteFrom,
+  relativeTo,
+  assignGroup,
+  membersAfterResize,
+  type NodeSizes,
+  type Group,
+  type Size,
+} from '../groups/geometry';
+
 type Position = MoneyNode['position'];
 export type Kind = MoneyNode['type'];
-export type Selection = { nodes: string[]; edges: string[] };
-export const emptySelection: Selection = { nodes: [], edges: [] };
+export type Selection = { nodes: string[]; edges: string[]; groups: string[] };
+export const emptySelection: Selection = { nodes: [], edges: [], groups: [] };
 
 export function nodeOfType(
   type: Kind,
@@ -109,28 +119,111 @@ export function createEditor(initial: Diagram) {
       commit({ edges: d.edges.map((e) => (e.id === id ? valid.data : e)) });
     return true;
   }
-  function move(positions: Map<string, Position>) {
-    let changed = false;
-    const nodes = current().nodes.map((n) => {
-      const point = positions.get(n.id);
-      if (!point || (n.position.x === point.x && n.position.y === point.y))
-        return n;
-      changed = true;
-      return { ...n, position: point };
+  function addGroup(
+    bounds: Pick<Group, 'position' | 'width' | 'height'>,
+    sizes: NodeSizes,
+  ) {
+    const d = current();
+    const colors = ['#92ab86', '#86aabe', '#c2a0ae', '#b6a478'];
+    const group = {
+      ...bounds,
+      id: crypto.randomUUID(),
+      name: '새 그룹',
+      color: colors[d.groups.length % colors.length],
+    };
+    const groups = [...d.groups, group];
+    commit({
+      groups,
+      nodes: membersAfterResize(d.nodes, groups, group, sizes),
     });
-    if (changed) commit({ nodes });
+    return group.id;
+  }
+  function editGroup(
+    id: string,
+    patch: Partial<Pick<Group, 'name' | 'color'>>,
+  ) {
+    const d = current(),
+      group = d.groups.find((g) => g.id === id);
+    if (!group) return;
+    const name = patch.name?.trim() ?? group.name,
+      color = patch.color ?? group.color;
+    if (
+      !name ||
+      !/^#[a-f0-9]{6}$/i.test(color) ||
+      (name === group.name && color === group.color)
+    )
+      return;
+    commit({
+      groups: d.groups.map((g) => (g === group ? { ...g, name, color } : g)),
+    });
+  }
+  function resizeGroup(id: string, size: Size, sizes: NodeSizes) {
+    const d = current(),
+      group = d.groups.find((g) => g.id === id);
+    if (
+      !group ||
+      !(size.width > 0 && size.height > 0) ||
+      !Number.isFinite(size.width + size.height) ||
+      (size.width === group.width && size.height === group.height)
+    )
+      return;
+    const region = { ...group, ...size },
+      groups = d.groups.map((g) => (g === group ? region : g));
+    commit({
+      groups,
+      nodes: membersAfterResize(d.nodes, groups, region, sizes),
+    });
+  }
+  function move(
+    positions: Map<string, Position>,
+    groupPositions: Map<string, Position> = new Map(),
+    sizes: NodeSizes = new Map(),
+  ) {
+    const d = current();
+    const deltas = new Map<string, Position>();
+    const groups = d.groups.map((g) => {
+      const point = groupPositions.get(g.id);
+      if (!point || (point.x === g.position.x && point.y === g.position.y))
+        return g;
+      deltas.set(g.id, relativeTo(point, g.position));
+      return { ...g, position: point };
+    });
+    const nodes = d.nodes.map((n) => {
+      const delta = n.groupId && deltas.get(n.groupId);
+      if (delta) return { ...n, position: absoluteFrom(n.position, delta) };
+      const point = positions.get(n.id);
+      if (!point) return n;
+      const moved =
+        point.x === n.position.x && point.y === n.position.y
+          ? n
+          : { ...n, position: point };
+      return assignGroup(moved, groups, sizes);
+    });
+    if (deltas.size || nodes.some((n, i) => n !== d.nodes[i]))
+      commit({ groups, nodes });
   }
   function remove(selected: Selection) {
     const d = current(),
-      nodes = d.nodes.filter((n) => !selected.nodes.includes(n.id));
+      groups = d.groups.filter((g) => !selected.groups.includes(g.id));
+    const nodes = d.nodes
+      .filter((n) => !selected.nodes.includes(n.id))
+      .map((n) =>
+        n.groupId && selected.groups.includes(n.groupId)
+          ? { ...n, groupId: undefined }
+          : n,
+      );
     const edges = d.edges.filter(
       (e) =>
         !selected.edges.includes(e.id) &&
         !selected.nodes.includes(e.source) &&
         !selected.nodes.includes(e.target),
     );
-    if (nodes.length !== d.nodes.length || edges.length !== d.edges.length)
-      commit({ nodes, edges });
+    if (
+      groups.length !== d.groups.length ||
+      nodes.length !== d.nodes.length ||
+      edges.length !== d.edges.length
+    )
+      commit({ groups, nodes, edges });
   }
   function load(diagram: Diagram) {
     useDiagram.setState({ diagram });
@@ -151,6 +244,9 @@ export function createEditor(initial: Diagram) {
     editEdge,
     addInstitution,
     connect,
+    addGroup,
+    editGroup,
+    resizeGroup,
     move,
     remove,
     newDiagram,

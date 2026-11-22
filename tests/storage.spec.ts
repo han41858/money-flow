@@ -41,7 +41,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
     await page.getByLabel('이름', { exact: true }).fill('저장된 통장');
     await page.getByLabel('이름', { exact: true }).press('Enter');
     await page.getByRole('button', { name: '속성 닫기' }).click();
-    const node = page.locator('.react-flow__node');
+    const node = page.locator('.react-flow__node-money');
     const rect = (await node.boundingBox())!;
     await page.mouse.move(rect.x + 30, rect.y + 30);
     await page.mouse.down();
@@ -60,12 +60,14 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
     await expect(
       next.getByRole('heading', { name: '새 자금 흐름' }),
     ).toBeVisible();
-    await expect(next.locator('.react-flow__node')).toContainText(
+    await expect(next.locator('.react-flow__node-money')).toContainText(
       '저장된 통장',
     );
     await expect
       .poll(() =>
-        next.locator('.react-flow__node').evaluate((n) => n.style.transform),
+        next
+          .locator('.react-flow__node-money')
+          .evaluate((n) => n.style.transform),
       )
       .toBe(position);
     await expect(next.locator('.react-flow__viewport')).toHaveAttribute(
@@ -148,7 +150,7 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   await saved(page);
   await expect(other.getByRole('alert')).toContainText('다른 탭');
   await other.getByRole('button', { name: '최신 내용 불러오기' }).click();
-  await expect(other.locator('.react-flow__node')).toHaveCount(8);
+  await expect(other.locator('.react-flow__node-money')).toHaveCount(8);
   await page.getByRole('button', { name: '지출 추가' }).click();
   await saved(page);
   await expect(other.getByRole('alert')).toBeVisible();
@@ -158,10 +160,10 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByRole('button', { name: '최신 내용 불러오기' }).click();
   await expect(
-    page.locator('.react-flow__node').filter({ hasText: '새 수입' }),
+    page.locator('.react-flow__node-money').filter({ hasText: '새 수입' }),
   ).toHaveCount(1);
   await expect(
-    page.locator('.react-flow__node').filter({ hasText: '새 지출' }),
+    page.locator('.react-flow__node-money').filter({ hasText: '새 지출' }),
   ).toHaveCount(0);
 });
 test('파일 손상 시 열려 있는 흐름을 유지한다', async ({ page }) => {
@@ -194,11 +196,11 @@ test('저장 공간 부족 시 편집을 유지하고 재시도하면 복원된�
   });
   await page.getByRole('button', { name: '지출 추가' }).click();
   await expect(page.getByRole('alert')).toContainText('저장 공간이 부족');
-  await expect(page.locator('.react-flow__node')).toHaveCount(8);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(8);
   await page.getByRole('button', { name: '저장 다시 시도' }).click();
   await saved(page);
   await page.reload();
-  await expect(page.locator('.react-flow__node')).toHaveCount(8);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(8);
 });
 
 test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보관한다', async ({
@@ -269,7 +271,7 @@ test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감�
   await expect(
     page.getByRole('heading', { name: '다른 탭에서 저장한 이름' }),
   ).toBeVisible();
-  await expect(page.locator('.react-flow__node')).toHaveCount(7);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(7);
 });
 
 test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수 있다', async ({

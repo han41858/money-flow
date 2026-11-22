@@ -30,7 +30,7 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
   }
   const node = (name: string) =>
     page
-      .locator('.react-flow__node')
+      .locator('.react-flow__node-money')
       .filter({ has: page.getByText(name, { exact: true }) });
   const account = node('공동 계좌');
   await connect(page, node('급여'), account);
@@ -114,10 +114,10 @@ test('여러 노드를 함께 이동·삭제하고 입력 중 삭제 키는 글�
   await expect.poll(() => position(a)).toBe(beforeA);
   await expect.poll(() => position(b)).toBe(beforeB);
   await page.keyboard.press('Delete');
-  await expect(page.locator('.react-flow__node')).toHaveCount(5);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(5);
   await expect(page.locator('.react-flow__edge')).toHaveCount(4);
   await page.keyboard.press('Control+z');
-  await expect(page.locator('.react-flow__node')).toHaveCount(7);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(7);
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
 });
 

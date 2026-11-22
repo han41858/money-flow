@@ -6,6 +6,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ChevronRight,
+  Frame,
   FilePlus2,
   FolderOpen,
   Layers2,
@@ -43,6 +44,8 @@ import {
   open as openDiagram,
 } from '../features/diagrams/library';
 
+import { measuredSizes, newGroupBounds } from '../features/groups/geometry';
+
 function Summary({
   icon: Icon,
   label,
@@ -76,12 +79,17 @@ function Workspace() {
   const { dirty, busy, conflict, error } = useLibrary();
   const [selection, setSelected] = useState<Selection>(emptySelection);
   const selected = {
+    groups: selection.groups.filter((id) =>
+      diagram.groups.some((g) => g.id === id),
+    ),
     nodes: selection.nodes.filter((id) => nodes.some((n) => n.id === id)),
     edges: selection.edges.filter((id) => edges.some((e) => e.id === id)),
   };
-  const count = selected.nodes.length + selected.edges.length;
+  const count =
+    selected.nodes.length + selected.edges.length + selected.groups.length;
   const [mobile, setMobile] = useState<'tools' | 'details' | null>(null);
   const {
+    getInternalNode,
     screenToFlowPosition,
     flowToScreenPosition,
     getViewport,
@@ -132,6 +140,21 @@ function Workspace() {
     setSelected(s);
     setMobile('details');
   };
+  function addGroup() {
+    const area = document.querySelector('.flow-area')!.getBoundingClientRect();
+    const center = screenToFlowPosition({
+      x: area.left + area.width / 2,
+      y: area.top + area.height / 2,
+    });
+    const sizes = measuredSizes(nodes, getInternalNode);
+    const bounds = newGroupBounds(
+      nodes.filter((n) => selected.nodes.includes(n.id)),
+      sizes,
+      center,
+    );
+    const id = editor.addGroup(bounds, sizes);
+    select({ nodes: [], edges: [], groups: [id] });
+  }
   function add(kind: Kind) {
     const box = document.querySelector('.flow-area')!.getBoundingClientRect();
     const point = insertionPoint(
@@ -141,7 +164,7 @@ function Workspace() {
       screenToFlowPosition({ x: box.right, y: box.bottom }),
     );
     const id = editor.addNode(kind, point);
-    select({ nodes: [id], edges: [] });
+    select({ groups: [], nodes: [id], edges: [] });
     requestAnimationFrame(() => {
       const area = document
         .querySelector('.flow-area')!
@@ -224,7 +247,7 @@ function Workspace() {
           <div className="side-head">
             <span>
               <Layers2 size={16} />
-              노드 추가
+              편집 도구
             </span>
             <button
               className="mobile-only"
@@ -250,6 +273,11 @@ function Workspace() {
               );
             })}
           </div>
+          <button className="add-region" onClick={addGroup}>
+            <Frame size={15} />
+            그룹 추가
+            <Plus size={13} />
+          </button>
           <div className="side-content">
             <div className="side-head">
               <span>
@@ -271,7 +299,9 @@ function Workspace() {
                         <button
                           className="node-row"
                           key={n.id}
-                          onClick={() => select({ nodes: [n.id], edges: [] })}
+                          onClick={() =>
+                            select({ groups: [], nodes: [n.id], edges: [] })
+                          }
                         >
                           <span
                             style={{
@@ -288,6 +318,26 @@ function Workspace() {
                     })}
                 </section>
               ))}
+            {diagram.groups.length > 0 && (
+              <section className="node-group">
+                <h3>그룹</h3>
+                {diagram.groups.map((g) => (
+                  <button
+                    className="node-row"
+                    key={g.id}
+                    onClick={() =>
+                      select({ groups: [g.id], nodes: [], edges: [] })
+                    }
+                  >
+                    <span style={{ background: g.color + '33' }}>
+                      <Frame size={14} />
+                    </span>
+                    {g.name}
+                    <ChevronRight size={13} />
+                  </button>
+                ))}
+              </section>
+            )}
           </div>
         </aside>
         <main>

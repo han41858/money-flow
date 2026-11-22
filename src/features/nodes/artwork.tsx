@@ -1,6 +1,5 @@
 import type { FlowNode } from '../editor/graph';
 import { type Size } from '../groups/geometry';
-import { tint } from '../../lib/brands/palette';
 
 import {
   cardFont,
@@ -31,7 +30,7 @@ export function NodeArtwork({
   x = 0,
   y = 0,
 }: Props) {
-  const { color, Icon } = data.appearance;
+  const { cardFill, Icon } = data.appearance;
   const { width, height } = size;
   return (
     <svg
@@ -51,7 +50,7 @@ export function NodeArtwork({
             undefined
       }
     >
-      <rect width={width} height={height} rx={12} fill={tint(color, 0.18)} />
+      <rect width={width} height={height} rx={12} fill={cardFill} />
       {!hideIcon && (
         <Icon
           x={13}

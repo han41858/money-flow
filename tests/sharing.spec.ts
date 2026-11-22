@@ -134,7 +134,7 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   await expect(background).toHaveCount(1);
   expect(await background.getAttribute('stroke')).toBeNull();
   const fill = await background.getAttribute('fill');
-  expect(fill).toMatch(/^#/);
+  expect(fill).toBe('#ebc638');
   await expect(card.locator(':scope > text')).toHaveCount(1);
   const icon = await card.locator('svg').getAttribute('class');
   const liveArrow = await page

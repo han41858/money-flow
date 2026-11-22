@@ -54,10 +54,10 @@ export function NodeArtwork({
             undefined
       }
     >
-      <rect width={width} height={height} rx={12} fill={cardFill} />
+      <rect width={width} height={height} rx={8} fill={cardFill} />
       {!hideIcon && (
         <Icon
-          x={13}
+          x={9}
           y={(height - 18) / 2}
           width={18}
           height={18}

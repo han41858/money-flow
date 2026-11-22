@@ -325,7 +325,7 @@ h1 {
 }
 .money-node {
   position: relative;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 .money-node > svg {
   display: block;
@@ -338,7 +338,7 @@ h1 {
 }
 .card-name-trigger,
 .card-name-input {
-  inset: 9px 13px 9px 35px;
+  inset: 5px 8px 5px 29px;
   border-radius: 5px;
 }
 .card-name-trigger,
@@ -356,7 +356,7 @@ h1 {
   cursor: text;
 }
 .card-name-input {
-  width: calc(100% - 48px);
+  width: calc(100% - 37px);
   min-width: 0;
   padding: 3px;
   border: 1px solid #a7b7ab;
@@ -366,15 +366,15 @@ h1 {
   font-weight: 700;
 }
 .card-kind-trigger {
-  top: 9px;
-  left: 7px;
-  width: 30px;
+  top: 5px;
+  left: 3px;
+  width: 28px;
   height: 30px;
   border-radius: 5px;
 }
 .card-kinds {
   z-index: 1;
-  top: 9px;
+  top: 5px;
   inset-inline: 12px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);

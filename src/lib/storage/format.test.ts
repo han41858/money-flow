@@ -38,9 +38,23 @@ it('빈 흐름과 최초 버전 데이터를 읽고 잘못된 버전·JSON·참�
   expect(decodeDiagram(blank)).toEqual(blank);
   expect(() => parseFile('[')).toThrow(/JSON/);
   expect(() => decodeDiagram({})).toThrow(/버전/);
-  expect(() => decodeDiagram({ ...example, schemaVersion: 2 })).toThrow(/최신/);
+  expect(() => decodeDiagram({ ...example, schemaVersion: 3 })).toThrow(/최신/);
   expect(() => decodeDiagram({ ...example, schemaVersion: 0 })).toThrow(
     /지원하지/,
   );
   expect(() => decodeDiagram({ ...example, nodes: [] })).toThrow(/형식/);
+});
+
+it('스키마 1의 기존 금융사와 다이어그램을 유지하고 스키마 2에서 미지정을 허용한다', () => {
+  expect(parseFile(JSON.stringify({ ...example, schemaVersion: 1 }))).toEqual(
+    example,
+  );
+  const unassigned = {
+    ...example,
+    nodes: example.nodes.map((n) => ({ ...n, institutionId: undefined })),
+  };
+  expect(() => decodeDiagram({ ...unassigned, schemaVersion: 1 })).toThrow(
+    /금융사/,
+  );
+  expect(decodeDiagram(unassigned)).toEqual(unassigned);
 });

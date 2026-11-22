@@ -167,6 +167,7 @@ function Workspace() {
       nodes,
       screenToFlowPosition({ x: box.left, y: box.top }),
       screenToFlowPosition({ x: box.right, y: box.bottom }),
+      diagram.groups,
     );
     const id = editor.addNode(kind, point);
     select({ groups: [], nodes: [id], edges: [] });

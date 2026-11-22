@@ -27,9 +27,11 @@ const categoryNames = {
   loan: '대출 상환',
 };
 export function describe(node: MoneyNode, diagram: Diagram) {
+  const institutionId =
+    node.type === 'expense' ? undefined : node.institutionId;
   const brand =
-    diagram.customInstitutions.find((b) => b.id === node.institutionId) ??
-    institutions.find((b) => b.id === node.institutionId);
+    diagram.customInstitutions.find((b) => b.id === institutionId) ??
+    institutions.find((b) => b.id === institutionId);
   const category = node.type === 'expense' ? node.category : undefined;
   const subtitle =
     brand?.name ??
@@ -37,7 +39,7 @@ export function describe(node: MoneyNode, diagram: Diagram) {
       ? categoryNames[category]
       : node.type === 'income'
         ? (node.payer ?? '월 급여')
-        : kindNames[node.type]);
+        : '금융사 미지정');
   const color =
     brand?.color ??
     (node.type === 'income'

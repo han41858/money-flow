@@ -14,8 +14,8 @@ const nodeCore = z.object({
 });
 export const nodeSchema = z.discriminatedUnion('type', [
   nodeCore.extend({ type: z.literal('income'), payer: id.optional() }),
-  nodeCore.extend({ type: z.literal('account'), institutionId: id }),
-  nodeCore.extend({ type: z.literal('card'), institutionId: id }),
+  nodeCore.extend({ type: z.literal('account') }),
+  nodeCore.extend({ type: z.literal('card') }),
   nodeCore.extend({
     type: z.literal('expense'),
     category: z.enum(['consumption', 'saving', 'loan']).default('consumption'),
@@ -36,7 +36,7 @@ export type MoneyEdge = z.infer<typeof edgeSchema>;
 
 export const diagramSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     id,
     name: id,
     description: z.string().optional(),

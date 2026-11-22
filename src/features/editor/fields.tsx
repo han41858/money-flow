@@ -6,9 +6,16 @@ type FieldProps = {
   label: string;
   value: string;
   list?: string;
+  placeholder?: string;
   commit: (value: string) => string | void;
 };
-export function TextField({ label, value, list, commit }: FieldProps) {
+export function TextField({
+  label,
+  value,
+  list,
+  placeholder,
+  commit,
+}: FieldProps) {
   const [draft, setDraft] = useState(value),
     [error, setError] = useState('');
   return (
@@ -17,6 +24,7 @@ export function TextField({ label, value, list, commit }: FieldProps) {
       <input
         value={draft}
         list={list}
+        placeholder={placeholder}
         onChange={(e) => {
           setDraft(e.target.value);
           setError('');

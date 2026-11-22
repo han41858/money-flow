@@ -1,8 +1,24 @@
 import { diagramSchema, type Diagram } from '../../types/diagram';
 
-const currentVersion = 1;
+const currentVersion = 2;
 // Each key is the input version of a pure, one-version migration.
-const migrations: Partial<Record<number, (input: unknown) => unknown>> = {};
+const migrations: Partial<Record<number, (input: object) => object>> = {
+  1(input) {
+    // In v1 accounts and cards always carried the chosen (or default) institution.
+    if (
+      'nodes' in input &&
+      Array.isArray(input.nodes) &&
+      input.nodes.some(
+        (node) =>
+          node &&
+          (node.type === 'account' || node.type === 'card') &&
+          !node.institutionId,
+      )
+    )
+      throw new Error('이전 버전의 금융사 데이터가 올바르지 않습니다.');
+    return { ...input, schemaVersion: 2 };
+  },
+};
 
 export function decodeDiagram(input: unknown): Diagram {
   if (
@@ -18,7 +34,7 @@ export function decodeDiagram(input: unknown): Diagram {
     throw new Error(
       '더 최신 버전의 다이어그램입니다. 앱을 업데이트한 뒤 다시 여세요.',
     );
-  let data: unknown = input;
+  let data: object = input;
   for (let v = version; v < currentVersion; v++) {
     const migrate = migrations[v];
     if (!migrate) throw new Error('지원하지 않는 다이어그램 버전입니다.');
@@ -57,7 +73,7 @@ export function blankDiagram(): Diagram {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
-    schemaVersion: 1,
+    schemaVersion: 2,
     name: '새 자금 흐름',
     createdAt: now,
     updatedAt: now,

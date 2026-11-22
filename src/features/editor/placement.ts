@@ -1,4 +1,5 @@
 import type { MoneyNode } from '../../types/diagram';
+import type { Group } from '../groups/geometry';
 import type { Kind } from './store';
 
 // Place new nodes in the visible canvas and leave room for handles and edge labels.
@@ -7,13 +8,31 @@ export function insertionPoint(
   nodes: MoneyNode[],
   topLeft: MoneyNode['position'],
   bottomRight: MoneyNode['position'],
+  groups: Group[] = [],
 ) {
   const width = bottomRight.x - topLeft.x,
     height = bottomRight.y - topLeft.y;
   const ratios = { income: 0.12, account: 0.43, card: 0.57, expense: 0.86 };
   const x = topLeft.x + Math.max(0, width - 185) * ratios[kind];
-  const y = topLeft.y + Math.max(0, height - 105) * 0.43;
+  const initialY = topLeft.y + Math.max(0, height - 105) * 0.43;
+  // Leave the header available as a drag handle when inserting near a group's top edge.
+  const headers = groups.map((g) => ({
+    x: g.position.x,
+    y: g.position.y,
+    width: g.width,
+    height: 36,
+  }));
+  const coversHeader = (cx: number, cy: number, h: (typeof headers)[number]) =>
+    cx < h.x + h.width &&
+    cx + 185 > h.x &&
+    cy < h.y + h.height &&
+    cy + 105 > h.y;
+  const y = headers.reduce(
+    (cy, h) => (coversHeader(x, cy, h) ? h.y + h.height : cy),
+    initialY,
+  );
   const free = (cx: number, cy: number) =>
+    !headers.some((h) => coversHeader(cx, cy, h)) &&
     nodes.every(
       (n) =>
         Math.abs(n.position.x - cx) > 205 || Math.abs(n.position.y - cy) > 122,

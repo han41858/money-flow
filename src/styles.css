@@ -287,10 +287,6 @@ h1 {
   background: #f8faf8;
   min-height: 380px;
 }
-.flow-area > .react-flow {
-  position: absolute;
-  inset: 0;
-}
 .money-node {
   width: 185px;
   padding: 13px 16px 14px;

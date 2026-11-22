@@ -33,6 +33,15 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
+  const account = page
+    .locator('.react-flow__node')
+    .filter({ hasText: '공동 생활비 통장' });
+  await expect(account).toBeInViewport();
+  await account.click({ timeout: 5000 });
+  await expect(
+    page.getByRole('heading', { name: '공동 생활비 통장' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '탐색 닫기' }).click();
   await page.getByRole('button', { name: '노드 목록 열기' }).click();
   await page.getByRole('button', { name: '정기 적금' }).click();
   await expect(page.getByRole('heading', { name: '정기 적금' })).toBeVisible();

@@ -1,5 +1,10 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react';
-import type { CSSProperties } from 'react';
+import {
+  Handle,
+  Position,
+  useUpdateNodeInternals,
+  type NodeProps,
+} from '@xyflow/react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { kindNames } from './presentation';
@@ -11,14 +16,16 @@ function Ports({
   ids: string[];
   outgoing?: boolean;
 }) {
-  return ids.map((id, i) => (
+  const ports = ids.length ? ids : [outgoing ? 'new-out' : 'new-in'];
+  return ports.map((id, i) => (
     <Handle
       key={id}
       id={id}
       type={outgoing ? 'source' : 'target'}
       position={outgoing ? Position.Right : Position.Left}
-      isConnectable={false}
-      style={{ top: ((i + 1) / (ids.length + 1)) * 100 + '%' }}
+      isConnectableStart={outgoing}
+      isConnectableEnd={!outgoing}
+      style={{ top: ((i + 1) / (ports.length + 1)) * 100 + '%' }}
     />
   ));
 }
@@ -28,6 +35,14 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
     node,
     appearance: { Icon, subtitle, color },
   } = data;
+  const update = useUpdateNodeInternals();
+  const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
+  const lastLayout = useRef(layout);
+  useLayoutEffect(() => {
+    if (lastLayout.current === layout) return;
+    lastLayout.current = layout;
+    update(node.id);
+  }, [node.id, layout, update]);
   return (
     <div
       className={'money-node' + (selected ? ' active' : '')}
@@ -35,7 +50,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         { '--accent': color, '--outline': strokeColor(color) } as CSSProperties
       }
     >
-      <Ports ids={data.inputs} />
+      {node.type !== 'income' && <Ports ids={data.inputs} />}
       <div className="node-meta">
         <span className="node-icon">
           {node.type === 'card' ? (
@@ -48,7 +63,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       </div>
       <strong>{node.name}</strong>
       <small>{subtitle}</small>
-      <Ports ids={data.outputs} outgoing />
+      {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
     </div>
   );
 }

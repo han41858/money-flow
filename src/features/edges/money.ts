@@ -9,6 +9,10 @@ const thickness = scaleSymlog()
 export const edgeWidth = ({ min, max }: Pick<MoneyEdge, 'min' | 'max'>) =>
   thickness((min + max) / 2);
 const comma = new Intl.NumberFormat('ko-KR');
+export function exactAmount({ min, max }: Pick<MoneyEdge, 'min' | 'max'>) {
+  const low = comma.format(min) + '원';
+  return min === max ? low : low + ' ~ ' + comma.format(max) + '원';
+}
 export function amountLabel(min: number, max = min): string {
   if (min !== max) {
     return min % 10000 === 0 && max % 10000 === 0

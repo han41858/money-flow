@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { allowsDirection } from '../features/edges/connections';
 
 const id = z.string().trim().min(1);
 const color = z.string().regex(/^#[0-9a-f]{6}$/i);
@@ -73,14 +74,7 @@ export const diagramSchema = z
       const source = nodes.get(e.source),
         target = nodes.get(e.target);
       const key = JSON.stringify([e.source, e.target]);
-      if (
-        !source ||
-        !target ||
-        source === target ||
-        source.type === 'expense' ||
-        target.type === 'income' ||
-        pairs.has(key)
-      )
+      if (!allowsDirection(source, target) || pairs.has(key))
         issue('허용되지 않는 연결입니다.');
       pairs.add(key);
     }

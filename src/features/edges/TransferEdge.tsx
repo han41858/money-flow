@@ -5,7 +5,7 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import type { FlowEdge } from '../editor/graph';
-import { amountLabel, edgeWidth } from './money';
+import { amountLabel, edgeWidth, exactAmount } from './money';
 
 export function TransferEdge({
   id,
@@ -17,12 +17,7 @@ export function TransferEdge({
   if (!data) return null;
   const [path, x, y] = getBezierPath(coords);
   const { color, edge } = data;
-  const title =
-    edge.min.toLocaleString('ko-KR') +
-    '원' +
-    (edge.min === edge.max
-      ? ''
-      : ' ~ ' + edge.max.toLocaleString('ko-KR') + '원');
+  const title = exactAmount(edge);
   return (
     <>
       <title>{title}</title>
@@ -38,7 +33,7 @@ export function TransferEdge({
       />
       <EdgeLabelRenderer>
         <span
-          className="edge-label"
+          className="edge-label nodrag nopan"
           title={title}
           style={{
             transform:

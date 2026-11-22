@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connect, point } from './gestures';
+import { connect, point, selectNode } from './gestures';
 test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 전용 링크와 이미지로 전달한다', async ({
   page,
   context,
@@ -29,7 +29,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     ['장현 월급', '장현'],
     ['공동 통장', '공동 자금'],
   ]) {
-    await node(member).click();
+    await selectNode(node(member));
     await page.getByRole('button', { name: '그룹 추가' }).click();
     await page.getByLabel('그룹 이름').fill(name);
     await page.getByLabel('그룹 이름').press('Enter');
@@ -51,7 +51,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await page.reload();
   await expect(handle).toBeVisible();
   await expect(page.getByText('280만', { exact: true })).toBeVisible();
-  await node('공동 통장').click();
+  await selectNode(node('공동 통장'));
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
   ).toContainText('공동 자금');
@@ -83,7 +83,7 @@ test('키보드로 대상 노드 선택·연결·이동·실행 취소가 가능
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: '장현의 급여' }).focus();
+  await page.getByRole('button', { name: '급여 A', exact: true }).focus();
   await page.keyboard.press('Enter');
   const select = page.getByLabel('연결할 노드');
   await select.focus();

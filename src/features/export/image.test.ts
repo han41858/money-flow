@@ -10,7 +10,15 @@ test('모든 노드·금액·그룹을 순수 SVG로 만들고 XML 문자를 이
   for (const e of example.edges)
     expect(svg).toContain(amountLabel(e.min, e.max));
   expect(svg.match(/<path d="M [^"]+ Z"/g)).toHaveLength(example.edges.length);
-  expect(svg).toContain('💳');
+  for (const icon of [
+    'arrow-down-left',
+    'landmark',
+    'credit-card',
+    'receipt-text',
+  ])
+    expect(svg).toContain('lucide-' + icon);
+  for (const subtitle of ['카카오뱅크', '신한카드', '일반 소비', '저축·투자'])
+    expect(svg).not.toContain('>' + subtitle + '<');
   expect(svg).toContain('A &amp; &lt;B&gt;');
   expect(svg).not.toMatch(/foreignObject|react-flow/);
 });

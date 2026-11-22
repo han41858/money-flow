@@ -3,7 +3,7 @@ import { point } from './gestures';
 
 for (const { name, id, handle } of [
   { name: '노드를', id: 'income-a', handle: '.money-node' },
-  { name: '그룹을', id: 'group:jang', handle: '.group-title' },
+  { name: '그룹을', id: 'group:personal-a', handle: '.group-title' },
 ]) {
   test(`${name} 드래그하고 놓을 때 연결선이 유지된다`, async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 1000 });

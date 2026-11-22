@@ -19,7 +19,7 @@ async function rename(p: Page, name: string) {
   await d.getByRole('button', { name: '이름 변경' }).click();
   await expect(d.getByRole('button', { name: '이름 변경' })).toBeDisabled();
   await d.getByRole('button', { name: '목록 닫기' }).click();
-  await expect(p.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(p.getByRole('main', { name, exact: true })).toBeVisible();
 }
 test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원되고 이력은 비워진다', async ({
   playwright,
@@ -58,7 +58,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
     const next = await context.newPage();
     await next.goto('/');
     await expect(
-      next.getByRole('heading', { name: '새 자금 흐름' }),
+      next.getByRole('main', { name: '새 자금 흐름' }),
     ).toBeVisible();
     await expect(next.locator('.react-flow__node-money')).toContainText(
       '저장된 통장',
@@ -96,12 +96,12 @@ test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 �
   expect(json.nodes).toHaveLength(7);
   await d.getByRole('button', { name: '복제', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: '11월 계획 복사본' }),
+    page.getByRole('main', { name: '11월 계획 복사본' }),
   ).toBeVisible();
   d = await library(page);
   await d.getByRole('button', { name: '11월 계획 열기' }).click();
   await expect(
-    page.getByRole('heading', { name: '11월 계획', exact: true }),
+    page.getByRole('main', { name: '11월 계획', exact: true }),
   ).toBeVisible();
   d = await library(page);
   await d.getByLabel('JSON 파일 선택').setInputFiles({
@@ -109,9 +109,7 @@ test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 �
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ ...json, name: '가져온 계획' })),
   });
-  await expect(
-    page.getByRole('heading', { name: '가져온 계획' }),
-  ).toBeVisible();
+  await expect(page.getByRole('main', { name: '가져온 계획' })).toBeVisible();
   d = await library(page);
   const exported = page.waitForEvent('download');
   await d.getByRole('button', { name: 'JSON 내보내기' }).click();
@@ -215,9 +213,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
   const d = await library(page);
   page.once('dialog', (e) => e.accept());
   await d.getByRole('button', { name: '삭제', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: '새 자금 흐름' }),
-  ).toBeVisible();
+  await expect(page.getByRole('main', { name: '새 자금 흐름' })).toBeVisible();
   await expect(other.getByRole('alert')).toContainText('삭제했습니다');
   await other.getByRole('button', { name: '새 흐름으로 보관' }).click();
   await saved(other);
@@ -269,7 +265,7 @@ test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감�
   await expect(page.getByRole('alert')).toContainText('다른 탭');
   await page.getByRole('button', { name: '최신 내용 불러오기' }).click();
   await expect(
-    page.getByRole('heading', { name: '다른 탭에서 저장한 이름' }),
+    page.getByRole('main', { name: '다른 탭에서 저장한 이름' }),
   ).toBeVisible();
   await expect(page.locator('.react-flow__node-money')).toHaveCount(7);
 });
@@ -279,9 +275,7 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '새 흐름', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: '새 자금 흐름' }),
-  ).toBeVisible();
+  await expect(page.getByRole('main', { name: '새 자금 흐름' })).toBeVisible();
   await page.evaluate(
     () =>
       new Promise<void>((resolve, reject) => {
@@ -310,7 +304,7 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
   await page.reload();
   await expect(page.getByText(/더 최신 버전의 다이어그램/)).toBeVisible();
   await page.getByRole('button', { name: example.name }).click();
-  await expect(page.getByRole('heading', { name: example.name })).toBeVisible();
+  await expect(page.getByRole('main', { name: example.name })).toBeVisible();
   const d = await library(page);
   await d.getByRole('button', { name: '새 자금 흐름 열기' }).click();
   await expect(d.getByRole('alert')).toContainText('최신 버전');

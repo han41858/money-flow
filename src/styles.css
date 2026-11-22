@@ -40,12 +40,8 @@ button:focus-visible {
 .metric,
 .canvas-heading,
 .canvas-heading > span,
-.breadcrumb,
 .related,
-.back,
-footer,
-footer span,
-.title-row {
+.back {
   display: flex;
   align-items: center;
 }
@@ -102,13 +98,14 @@ footer span,
 .canvas-heading > span {
   gap: 8px;
 }
-.side-head b {
+.sidebar-summary {
+  margin: 7px 6px 0;
   color: #52645a;
-  background: #e8eee7;
   font-size: 11px;
-  min-width: 21px;
-  text-align: center;
-  border-radius: 5px;
+  line-height: 1.5;
+}
+.sidebar-summary p {
+  margin: 0;
 }
 .diagram-link {
   font-size: 13px;
@@ -191,26 +188,12 @@ main {
   display: flex;
   flex-direction: column;
 }
-.breadcrumb {
-  gap: 8px;
-  font-size: 12px;
-  color: #61736a;
-}
-.breadcrumb span {
-  color: #3f5047;
-}
 h1 {
   font-size: clamp(26px, 2.5vw, 38px);
   letter-spacing: -0.065em;
   line-height: 1.25;
   font-weight: 740;
   margin: 14px 0 6px;
-}
-.page-head p {
-  color: #617168;
-  font-size: 14px;
-  margin: 0;
-  line-height: 1.65;
 }
 .metrics {
   display: grid;
@@ -303,12 +286,90 @@ h1 {
   min-height: 380px;
 }
 .money-node {
+  position: relative;
   width: 185px;
   border-radius: 12px;
-  box-shadow: 0 3px 6px #2031260c;
 }
 .money-node > svg {
   display: block;
+}
+.card-name-trigger,
+.card-name-input,
+.card-kind-trigger,
+.card-kinds {
+  position: absolute;
+}
+.card-name-trigger,
+.card-name-input {
+  inset: 9px 13px 9px 35px;
+  border-radius: 5px;
+}
+.card-name-trigger,
+.card-kind-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.card-name-trigger:hover,
+.card-kind-trigger:hover {
+  background: #285d4810;
+}
+.card-name-trigger {
+  cursor: text;
+}
+.card-name-input {
+  width: calc(100% - 48px);
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid #a7b7ab;
+  background: white;
+  color: #1c2923;
+  font-size: 15px;
+  font-weight: 700;
+}
+.card-kind-trigger {
+  top: 9px;
+  left: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+}
+.card-kinds {
+  top: 9px;
+  inset-inline: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.card-kinds button {
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid #a7b7ab;
+  border-radius: 5px;
+  background: white;
+  color: #314937;
+  font-size: 12px;
+  cursor: pointer;
+}
+.card-kinds button[aria-pressed='true'] {
+  border-color: #267864;
+  background: #e1f0e9;
+  color: #174632;
+  font-weight: 700;
+}
+.card-kinds [role='alert'] {
+  position: absolute;
+  bottom: 100%;
+  inset-inline: 0;
+  padding: 5px 7px;
+  border: 1px solid #943c22;
+  border-radius: 6px;
+  background: white;
 }
 .money-node .react-flow__handle-right {
   right: 0;
@@ -322,11 +383,22 @@ h1 {
   outline: 3px solid #285d48;
   outline-offset: 4px;
 }
-.money-node .react-flow__handle {
+.flow-area .money-node .react-flow__handle {
   background: white;
   width: 12px;
   height: 12px;
   border: 2px solid var(--outline);
+  opacity: 0;
+  pointer-events: none;
+}
+[data-port-mode='idle'] .money-node:hover .source.connectionindicator,
+[data-port-mode='idle']
+  .react-flow__node:focus-visible
+  .source.connectionindicator,
+[data-port-mode='connecting'] .valid-target .target.connectionindicator,
+[data-port-mode='connecting'] .money-node .connectingfrom,
+[data-port-mode='connecting'] .money-node .clickconnecting {
+  opacity: 1;
   pointer-events: all;
   cursor: crosshair;
 }
@@ -368,20 +440,10 @@ h1 {
   min-width: 38px;
   text-align: center;
 }
-.canvas-controls i,
-footer i {
+.canvas-controls i {
   height: 13px;
   width: 1px;
   background: #d6dfd6;
-}
-footer {
-  justify-content: space-between;
-  padding: 12px 2px 0;
-  font-size: 11px;
-  color: #67766d;
-}
-footer span {
-  gap: 7px;
 }
 .mobile-only {
   display: none;
@@ -433,23 +495,15 @@ footer span {
     place-items: center;
     padding: 6px;
   }
-  .title-row {
-    justify-content: space-between;
-  }
-  .title-row button {
+  .node-list-toggle {
+    align-self: flex-end;
     border: 1px solid #d8dfd6;
     border-radius: 6px;
     background: white;
   }
-  .title-row button svg {
-    width: 17px;
-  }
   main {
     padding: 18px 12px;
     min-height: calc(100dvh - 54px);
-  }
-  .page-head p {
-    font-size: 12px;
   }
   .metrics {
     gap: 6px;
@@ -477,9 +531,6 @@ footer span {
   }
   .canvas-heading {
     padding: 10px 12px;
-  }
-  footer span:last-child {
-    display: none;
   }
 }
 .history-tools,
@@ -593,6 +644,9 @@ footer span {
   height: 31px;
   padding: 2px;
 }
+.field input[list]::-webkit-calendar-picker-indicator {
+  display: none;
+}
 .field small,
 [role='alert'] {
   color: #943c22;
@@ -661,9 +715,6 @@ footer span {
   .workspace-title,
   .header-divider {
     display: none;
-  }
-  footer span:last-child {
-    display: flex;
   }
 }
 .library-dialog {
@@ -848,6 +899,7 @@ footer span {
   flex: none;
 }
 .group-region .group-size-handle {
+  transform: translateX(-18px);
   width: 19px;
   height: 19px;
   display: grid;
@@ -930,10 +982,6 @@ footer span {
 .shared-page .flow-area {
   flex: 1;
   min-height: 0;
-}
-.shared-page .react-flow__handle {
-  opacity: 0;
-  pointer-events: none;
 }
 .shared-page .group-title {
   cursor: pointer;
@@ -1041,8 +1089,7 @@ footer span {
     max-height: 30dvh;
     overflow: auto;
   }
-  .shared-heading h1,
-  .title-row h1 {
+  .shared-heading h1 {
     min-width: 0;
     overflow-wrap: anywhere;
   }
@@ -1062,10 +1109,6 @@ footer span {
   }
   .metric {
     padding: 6px;
-  }
-  footer {
-    flex-wrap: wrap;
-    gap: 3px;
   }
 }
 

@@ -1,5 +1,5 @@
 import type { MoneyNode } from '../../types/diagram';
-import type { Group } from '../groups/geometry';
+import { defaultNodeSize, type Group } from '../groups/geometry';
 import type { Kind } from './store';
 
 // Place new nodes in the visible canvas and leave room for handles and edge labels.
@@ -13,8 +13,10 @@ export function insertionPoint(
   const width = bottomRight.x - topLeft.x;
   const height = bottomRight.y - topLeft.y;
   const ratios = { income: 0.12, account: 0.43, card: 0.57, expense: 0.86 };
-  const x = topLeft.x + Math.max(0, width - 185) * ratios[kind];
-  const initialY = topLeft.y + Math.max(0, height - 105) * 0.43;
+  const x =
+    topLeft.x + Math.max(0, width - defaultNodeSize.width) * ratios[kind];
+  const initialY =
+    topLeft.y + Math.max(0, height - defaultNodeSize.height) * 0.43;
   // Leave the header available as a drag handle when inserting near a group's top edge.
   const headers = groups.map((g) => ({
     x: g.position.x,
@@ -24,9 +26,9 @@ export function insertionPoint(
   }));
   const coversHeader = (cx: number, cy: number, h: (typeof headers)[number]) =>
     cx < h.x + h.width &&
-    cx + 185 > h.x &&
+    cx + defaultNodeSize.width > h.x &&
     cy < h.y + h.height &&
-    cy + 105 > h.y;
+    cy + defaultNodeSize.height > h.y;
   const y = headers.reduce(
     (cy, h) => (coversHeader(x, cy, h) ? h.y + h.height : cy),
     initialY,
@@ -43,9 +45,9 @@ export function insertionPoint(
       const cy = y + oy;
       if (
         cx >= topLeft.x &&
-        cx + 185 <= bottomRight.x &&
+        cx + defaultNodeSize.width <= bottomRight.x &&
         cy >= topLeft.y &&
-        cy + 105 <= bottomRight.y &&
+        cy + defaultNodeSize.height <= bottomRight.y &&
         free(cx, cy)
       )
         return { x: cx, y: cy };

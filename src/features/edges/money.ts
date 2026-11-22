@@ -4,7 +4,7 @@ import type { MoneyEdge } from '../../types/diagram';
 const thickness = scaleSymlog()
   .constant(100000)
   .domain([0, 10000000])
-  .range([2, 24])
+  .range([2, 14])
   .clamp(true);
 export const edgeWidth = ({ min, max }: Pick<MoneyEdge, 'min' | 'max'>) =>
   thickness((min + max) / 2);

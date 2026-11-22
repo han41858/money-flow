@@ -98,7 +98,10 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   await page
     .getByRole('button', { name: '공동 생활비 통장', exact: true })
     .click();
-  const card = page.locator('[data-id="joint"] .money-node > svg');
+  const joint = page.locator('[data-id="joint"] .money-node');
+  await expect(joint.locator('.react-flow__handle.target')).toHaveCount(1);
+  await expect(joint.locator('.react-flow__handle.source')).toHaveCount(1);
+  const card = joint.locator(':scope > svg');
   const outgoing = page.locator(
     '[data-id="card-payment"] .react-flow__edge-path',
   );

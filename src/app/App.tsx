@@ -21,6 +21,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { example } from './example';
 import { ResponsivePanel } from './ResponsivePanel';
 import { ShareDialog } from '../features/sharing/ShareDialog';
 import { Share2 } from 'lucide-react';
@@ -75,9 +76,10 @@ function Summary({
     </div>
   );
 }
+
 function Workspace() {
-  const diagram = editor.useDiagram((s) => s.diagram),
-    { nodes, edges } = diagram;
+  const diagram = editor.useDiagram((s) => s.diagram);
+  const { nodes, edges } = diagram;
   const [shareOpen, setShareOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const { dirty, busy, conflict, error } = useLibrary();
@@ -99,8 +101,8 @@ function Workspace() {
     getViewport,
     setViewport,
   } = useReactFlow();
-  const undoable = useStore(editor.history, (s) => s.pastStates.length > 0),
-    redoable = useStore(editor.history, (s) => s.futureStates.length > 0);
+  const undoable = useStore(editor.history, (s) => s.pastStates.length > 0);
+  const redoable = useStore(editor.history, (s) => s.futureStates.length > 0);
   const remove = useCallback(() => {
     editor.remove(selection);
     setSelected(emptySelection);
@@ -123,8 +125,8 @@ function Workspace() {
             e.target.closest('input,textarea,select,[role=textbox]')))
       )
         return;
-      const mod = e.ctrlKey || e.metaKey,
-        key = e.key.toLowerCase();
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
       if (mod && (key === 'z' || key === 'y')) {
         e.preventDefault();
         const h = editor.history.getState();
@@ -138,6 +140,7 @@ function Workspace() {
         setMobile(null);
       }
     }
+
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [remove, libraryOpen, shareOpen]);
@@ -145,6 +148,7 @@ function Workspace() {
     setSelected(s);
     setMobile('details');
   };
+
   function addGroup() {
     const area = document.querySelector('.flow-area')!.getBoundingClientRect();
     const center = screenToFlowPosition({
@@ -160,6 +164,7 @@ function Workspace() {
     const id = editor.addGroup(bounds, sizes);
     select({ nodes: [], edges: [], groups: [id] });
   }
+
   function add(kind: Kind) {
     const box = document.querySelector('.flow-area')!.getBoundingClientRect();
     const point = insertionPoint(
@@ -187,7 +192,9 @@ function Workspace() {
         });
     });
   }
+
   const byId = new Map(nodes.map((n) => [n.id, n]));
+
   function expense(category: 'consumption' | 'saving') {
     return sum(
       edges.filter((e) => {
@@ -196,6 +203,7 @@ function Workspace() {
       }),
     );
   }
+
   return (
     <div className="workspace" inert={busy}>
       <a className="skip-link" href="#editor-main">
@@ -456,10 +464,16 @@ function Workspace() {
     </div>
   );
 }
+
+const initialDiagram = () => example;
+
 export function App() {
-  const session = useLibrary((s) => s.session),
-    error = useLibrary((s) => s.error),
-    entries = useLibrary((s) => s.entries);
+  useEffect(() => {
+    void start(initialDiagram);
+  }, []);
+  const session = useLibrary((s) => s.session);
+  const error = useLibrary((s) => s.error);
+  const entries = useLibrary((s) => s.entries);
   if (!session)
     return (
       <main className="library-start" aria-live="polite">
@@ -467,7 +481,9 @@ export function App() {
         {error ? (
           <>
             <p>{error}</p>
-            <button onClick={() => void start()}>다시 열기</button>
+            <button onClick={() => void start(initialDiagram)}>
+              다시 열기
+            </button>
             {entries.length > 0 && (
               <div>
                 <h2>저장된 흐름 열기</h2>

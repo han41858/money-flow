@@ -9,6 +9,7 @@ type FieldProps = {
   placeholder?: string;
   commit: (value: string) => string | void;
 };
+
 export function TextField({
   label,
   value,
@@ -16,8 +17,8 @@ export function TextField({
   placeholder,
   commit,
 }: FieldProps) {
-  const [draft, setDraft] = useState(value),
-    [error, setError] = useState('');
+  const [draft, setDraft] = useState(value);
+  const [error, setError] = useState('');
   return (
     <label className="field">
       {label}
@@ -47,11 +48,13 @@ export function TextField({
     </label>
   );
 }
+
 export function AmountFields({ edge }: { edge: MoneyEdge }) {
-  const [min, setMin] = useState(String(edge.min)),
-    [max, setMax] = useState(String(edge.max));
-  const [range, setRange] = useState(edge.min !== edge.max),
-    [error, setError] = useState('');
+  const [min, setMin] = useState(String(edge.min));
+  const [max, setMax] = useState(String(edge.max));
+  const [range, setRange] = useState(edge.min !== edge.max);
+  const [error, setError] = useState('');
+
   function commit() {
     const upper = range ? max : min;
     if (
@@ -64,6 +67,7 @@ export function AmountFields({ edge }: { edge: MoneyEdge }) {
       );
     } else setError('');
   }
+
   function input(label: string, value: string, set: (s: string) => void) {
     return (
       <label className="field">
@@ -84,6 +88,7 @@ export function AmountFields({ edge }: { edge: MoneyEdge }) {
       </label>
     );
   }
+
   return (
     <div className="amount-fields">
       <label className="field">

@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 async function drag(page: Page, handle: Locator, dx: number, dy: number) {
   const b = (await handle.boundingBox())!;
-  const x = b.x + b.width / 2,
-    y = b.y + b.height / 2;
+  const x = b.x + b.width / 2;
+  const y = b.y + b.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + dx, y + dy, { steps: 14 });

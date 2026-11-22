@@ -75,8 +75,8 @@ test('여러 노드를 함께 이동·삭제하고 입력 중 삭제 키는 글�
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
   await page.goto('/');
-  const a = page.locator('[data-id="income-a"]'),
-    b = page.locator('[data-id="income-b"]');
+  const a = page.locator('[data-id="income-a"]');
+  const b = page.locator('[data-id="income-b"]');
   await a.click();
   const name = page.getByLabel('이름', { exact: true });
   await name.fill('급여!');
@@ -88,8 +88,8 @@ test('여러 노드를 함께 이동·삭제하고 입력 중 삭제 키는 글�
     page.getByRole('heading', { name: '2개 객체 선택' }),
   ).toBeVisible();
   const position = (n: Locator) => n.evaluate((e) => e.style.transform);
-  const beforeA = await position(a),
-    beforeB = await position(b);
+  const beforeA = await position(a);
+  const beforeB = await position(b);
   const start = await point(a);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
@@ -113,10 +113,10 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
   await page.goto('/');
-  const income = page.locator('[data-id="income-a"]'),
-    account = page.locator('[data-id="joint"]');
-  const from = await point(income.locator('.source')),
-    to = await point(account.locator('.target').first());
+  const income = page.locator('[data-id="income-a"]');
+  const account = page.locator('[data-id="joint"]');
+  const from = await point(income.locator('.source'));
+  const to = await point(account.locator('.target').first());
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(from.x + 25, from.y, { steps: 4 });

@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { minGroupSize, type Group } from './geometry';
 
 export type RegionNode = Node<{ group: Group; readOnly?: boolean }, 'region'>;
+
 export function GroupRegion({ data, selected }: NodeProps<RegionNode>) {
   const { group } = data;
   return (

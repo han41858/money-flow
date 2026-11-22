@@ -28,16 +28,17 @@ export const useLibrary = create<LibraryState>(() => ({
   conflict: null,
   error: '',
 }));
-const state = useLibrary.getState,
-  update = useLibrary.setState;
-let revision = 0,
-  change = 0;
+const state = useLibrary.getState;
+const update = useLibrary.setState;
+let revision = 0;
+let change = 0;
 let view: View = editor.current().viewport;
 let modifiedAt = editor.current().updatedAt;
 let loading = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let channel: BroadcastChannel | undefined;
 let queue = Promise.resolve();
+
 function enqueue<T>(work: () => Promise<T>) {
   const next = queue.then(work);
   queue = next.then(
@@ -46,6 +47,7 @@ function enqueue<T>(work: () => Promise<T>) {
   );
   return next;
 }
+
 function report(error: unknown) {
   if (error instanceof db.Conflict) {
     update({ conflict: { revision: error.revision }, error: '' });
@@ -59,6 +61,7 @@ function report(error: unknown) {
     update({ error: '작업을 완료할 수 없습니다. ' + message });
   }
 }
+
 function changed() {
   if (!state().session || loading) return;
   modifiedAt = new Date().toISOString();
@@ -67,25 +70,30 @@ function changed() {
   clearTimeout(timer);
   if (!state().conflict) timer = setTimeout(saveSoon, 250);
 }
+
 function saveSoon() {
   clearTimeout(timer);
   if (state().dirty && !state().conflict) void enqueue(flush).catch(report);
 }
+
 export function snapshot(): Diagram {
   return { ...editor.current(), updatedAt: modifiedAt, viewport: { ...view } };
 }
+
 function advertise(id: string) {
   channel?.postMessage(id);
 }
+
 async function refresh() {
   update({ entries: await db.list() });
 }
+
 async function flush() {
   const { dirty, conflict } = state();
   if (conflict) throw new db.Conflict(conflict.revision);
   if (!dirty) return;
-  const tick = change,
-    diagram = snapshot();
+  const tick = change;
+  const diagram = snapshot();
   revision = await db.save(diagram, revision);
   if (tick === change) update({ dirty: false, error: '' });
   advertise(diagram.id);
@@ -96,6 +104,7 @@ async function flush() {
     ],
   }));
 }
+
 function activate(row: Awaited<ReturnType<typeof db.openDiagram>>) {
   clearTimeout(timer);
   revision = row.revision;
@@ -115,6 +124,7 @@ function activate(row: Awaited<ReturnType<typeof db.openDiagram>>) {
     error: '',
   });
 }
+
 async function checkRemote(id?: string) {
   if (!state().session) return;
   const active = editor.current().id;
@@ -127,6 +137,7 @@ async function checkRemote(id?: string) {
   }
   await refresh();
 }
+
 async function action(work: () => Promise<void>) {
   if (state().busy) return false;
   update({ busy: true, error: '' });
@@ -140,7 +151,9 @@ async function action(work: () => Promise<void>) {
     update({ busy: false });
   }
 }
+
 let listening = false;
+
 function listen() {
   if (listening) return;
   listening = true;
@@ -169,12 +182,16 @@ function listen() {
     }
   });
 }
-export async function start() {
+
+let initialDiagram = blankDiagram;
+
+export async function start(initial: () => Diagram) {
+  initialDiagram = initial;
   if (state().session) return true;
   listen();
   return action(async () => {
     await refresh();
-    const { row, first } = await db.restore();
+    const { row, first } = await db.restore(initialDiagram);
     activate(row);
     if (first) {
       await refresh();
@@ -183,6 +200,7 @@ export async function start() {
     }
   });
 }
+
 export function recordViewport(id: string, next: View, userInitiated: boolean) {
   if (
     id !== editor.current().id ||
@@ -192,23 +210,27 @@ export function recordViewport(id: string, next: View, userInitiated: boolean) {
   view = next;
   if (userInitiated || state().dirty) changed();
 }
+
 export function open(id: string) {
   return action(async () => {
     await flush();
     activate(await db.openDiagram(id));
   });
 }
+
 async function createFrom(diagram: Diagram) {
   activate(await db.insert(diagram));
   advertise(diagram.id);
   await refresh();
 }
+
 export function createBlank() {
   return action(async () => {
     await flush();
     await createFrom(blankDiagram());
   });
 }
+
 export function copyShared(diagram: Diagram) {
   listen();
   return action(async () => {
@@ -216,6 +238,7 @@ export function copyShared(diagram: Diagram) {
     await createFrom(copyDiagram(diagram, diagram.name + ' 복사본'));
   });
 }
+
 export function duplicate() {
   return action(async () => {
     await flush();
@@ -224,6 +247,7 @@ export function duplicate() {
     );
   });
 }
+
 export function importFile(file: File) {
   return action(async () => {
     const diagram = parseFile(await file.text());
@@ -231,6 +255,7 @@ export function importFile(file: File) {
     await createFrom(copyDiagram(diagram));
   });
 }
+
 export function rename(name: string) {
   return action(async () => {
     if (!name.trim()) throw new Error('다이어그램 이름을 입력하세요.');
@@ -239,6 +264,7 @@ export function rename(name: string) {
     await flush();
   });
 }
+
 export function remove() {
   return action(async () => {
     await flush();
@@ -248,17 +274,19 @@ export function remove() {
     await refresh();
   });
 }
+
 export function reloadLatest() {
   return action(async () => {
     const id = editor.current().id;
     activate(
       (await db.revisionOf(id)) === null
-        ? (await db.restore()).row
+        ? (await db.restore(initialDiagram)).row
         : await db.openDiagram(id),
     );
     await refresh();
   });
 }
+
 export function keepLocal(conflict: NonNullable<LibraryState['conflict']>) {
   return action(async () => {
     if (conflict.revision === null) {
@@ -271,12 +299,14 @@ export function keepLocal(conflict: NonNullable<LibraryState['conflict']>) {
     await flush();
   });
 }
+
 export function retrySave() {
   return action(async () => {
     await flush();
     await refresh();
   });
 }
+
 export function exportFile() {
   try {
     const diagram = snapshot();

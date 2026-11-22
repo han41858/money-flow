@@ -19,10 +19,10 @@ import { TextField, AmountFields } from './fields';
 function BrandField({ node, diagram }: { node: MoneyNode; diagram: Diagram }) {
   const brands = [...institutions, ...diagram.customInstitutions];
   const brand = brands.find((b) => b.id === node.institutionId);
-  const [adding, setAdding] = useState(false),
-    [name, setName] = useState(''),
-    [color, setColor] = useState('#31816c'),
-    [error, setError] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#31816c');
+  const [error, setError] = useState('');
   return (
     <>
       <TextField
@@ -81,6 +81,7 @@ function BrandField({ node, diagram }: { node: MoneyNode; diagram: Diagram }) {
     </>
   );
 }
+
 type Props = {
   diagram: Diagram;
   selected: Selection;
@@ -88,6 +89,7 @@ type Props = {
   close: () => void;
   remove: () => void;
 };
+
 export function Inspector({ diagram, selected, select, close, remove }: Props) {
   const [error, setError] = useState('');
   const { nodes, edges } = diagram;

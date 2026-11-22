@@ -6,8 +6,8 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: '우리 집 자금 흐름' }),
   ).toBeVisible();
-  const nodes = page.locator('.react-flow__node-money'),
-    edges = page.locator('.react-flow__edge');
+  const nodes = page.locator('.react-flow__node-money');
+  const edges = page.locator('.react-flow__edge');
   await expect(nodes).toHaveCount(7);
   await expect(edges).toHaveCount(6);
   for (const node of await nodes.all()) await expect(node).toBeInViewport();

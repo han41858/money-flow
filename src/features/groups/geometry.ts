@@ -24,13 +24,15 @@ export function measuredSizes(
 export function relativeTo(position: Point, origin: Point): Point {
   return { x: position.x - origin.x, y: position.y - origin.y };
 }
+
 export function absoluteFrom(position: Point, origin: Point): Point {
   return { x: position.x + origin.x, y: position.y + origin.y };
 }
+
 function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {
   const { width, height } = sizes.get(node.id) ?? defaultNodeSize;
-  const x = node.position.x + width / 2,
-    y = node.position.y + height / 2;
+  const x = node.position.x + width / 2;
+  const y = node.position.y + height / 2;
   return (
     x >= group.position.x &&
     x <= group.position.x + group.width &&
@@ -38,6 +40,7 @@ function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {
     y <= group.position.y + group.height
   );
 }
+
 export function assignGroup(
   node: MoneyNode,
   groups: Group[],
@@ -53,6 +56,7 @@ export function assignGroup(
   }
   return groupId === node.groupId ? node : { ...node, groupId };
 }
+
 export function membersAfterResize(
   nodes: MoneyNode[],
   groups: Group[],
@@ -65,6 +69,7 @@ export function membersAfterResize(
       : node,
   );
 }
+
 export function newGroupBounds(
   selected: MoneyNode[],
   sizes: NodeSizes,
@@ -78,10 +83,10 @@ export function newGroupBounds(
         y: center.y - defaultGroupSize.height / 2,
       },
     };
-  let left = Infinity,
-    top = Infinity,
-    right = -Infinity,
-    bottom = -Infinity;
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
   for (const node of selected) {
     const { width, height } = sizes.get(node.id) ?? defaultNodeSize;
     left = Math.min(left, node.position.x);

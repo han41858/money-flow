@@ -50,9 +50,10 @@ export function StorageNotice() {
     </section>
   );
 }
+
 export function LibraryDialog({ close }: { close: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null),
-    file = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLDialogElement>(null);
+  const file = useRef<HTMLInputElement>(null);
   const diagram = editor.useDiagram((s) => s.diagram);
   const { entries, busy } = library.useLibrary();
   const [name, setName] = useState(diagram.name);

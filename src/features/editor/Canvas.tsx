@@ -31,8 +31,8 @@ import { recordViewport, useLibrary } from '../diagrams/library';
 import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
 import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
-const nodeTypes = { money: MoneyNodeCard, region: GroupRegion },
-  edgeTypes = { transfer: TransferEdge };
+const nodeTypes = { money: MoneyNodeCard, region: GroupRegion };
+const edgeTypes = { transfer: TransferEdge };
 const fitOptions = { padding: 0.13, maxZoom: 1.25 };
 type Props = {
   diagram: Diagram;
@@ -41,6 +41,7 @@ type Props = {
   openInspector: () => void;
   readOnly?: boolean;
 };
+
 export function Canvas({
   diagram,
   selected,
@@ -79,6 +80,7 @@ export function Canvas({
   );
   const { fitView, zoomIn, zoomOut, getInternalNode } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
+
   function selectionChanges(
     changes: NodeSelectionChange[],
     key: keyof Selection,
@@ -93,6 +95,7 @@ export function Canvas({
       return { ...previous, [key]: [...ids] };
     });
   }
+
   function changeNodes(changes: NodeChange<CanvasNode>[]) {
     const selections = changes.filter((c) => c.type === 'select');
     selectionChanges(
@@ -122,8 +125,8 @@ export function Canvas({
         setResizing(null);
       }
     }
-    const moving = new Map<string, XYPosition>(),
-      finished = new Map<string, XYPosition>();
+    const moving = new Map<string, XYPosition>();
+    const finished = new Map<string, XYPosition>();
     for (const change of changes) {
       if (change.type === 'position' && change.position) {
         (change.dragging ? moving : finished).set(change.id, change.position);
@@ -132,8 +135,8 @@ export function Canvas({
     if (moving.size)
       setPositions((previous) => new Map([...previous, ...moving]));
     if (finished.size) {
-      const groupPositions = new Map<string, XYPosition>(),
-        nodePositions = new Map<string, XYPosition>();
+      const groupPositions = new Map<string, XYPosition>();
+      const nodePositions = new Map<string, XYPosition>();
       for (const [id, point] of finished) {
         const group = regions.get(id);
         if (group) groupPositions.set(group.id, point);
@@ -158,12 +161,14 @@ export function Canvas({
       });
     }
   }
+
   function changeEdges(changes: EdgeChange<FlowEdge>[]) {
     selectionChanges(
       changes.filter((c) => c.type === 'select'),
       'edges',
     );
   }
+
   return (
     <section className="canvas-shell" aria-label="자금 흐름 캔버스">
       <div className="canvas-heading">

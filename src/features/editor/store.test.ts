@@ -8,10 +8,10 @@ describe('편집 이력', () => {
   it('빈 다이어그램에서 노드, 연결, 금액, 일괄 이동·삭제를 작업 단위로 되돌린다', () => {
     const ed = createEditor(example);
     ed.newDiagram();
-    const p = { x: 0, y: 0 },
-      a = ed.addNode('income', p),
-      b = ed.addNode('account', p),
-      c = ed.addNode('expense', p);
+    const p = { x: 0, y: 0 };
+    const a = ed.addNode('income', p);
+    const b = ed.addNode('account', p);
+    const c = ed.addNode('expense', p);
     ed.connect(a, b);
     const edge = ed.connect(b, c)!;
     expect(ed.editEdge(edge, { min: 500000, max: 800000 })).toBe(true);

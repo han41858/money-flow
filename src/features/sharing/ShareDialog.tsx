@@ -21,6 +21,7 @@ export function ShareDialog({ close }: { close: () => void }) {
     el.showModal();
     return () => el.close();
   }, []);
+
   async function run(action: () => Promise<void>) {
     setError('');
     setMessage('');
@@ -33,6 +34,7 @@ export function ShareDialog({ close }: { close: () => void }) {
       setBusy(false);
     }
   }
+
   return (
     <dialog
       ref={dialog}

@@ -1,4 +1,4 @@
-import { MarkerType, type Node, type Edge } from '@xyflow/react';
+import { type Node, type Edge } from '@xyflow/react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
@@ -32,9 +32,10 @@ export function buildGraph(diagram: Diagram) {
   }));
   const byGroupId = new Map(groupNodes.map((n) => [n.data.group.id, n]));
   const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
+
   function sortedPorts(node: MoneyNode, outgoing: boolean) {
-    const end = outgoing ? 'source' : 'target',
-      other = outgoing ? 'target' : 'source';
+    const end = outgoing ? 'source' : 'target';
+    const other = outgoing ? 'target' : 'source';
     return diagram.edges
       .filter((e) => e[end] === node.id)
       .sort(
@@ -43,6 +44,7 @@ export function buildGraph(diagram: Diagram) {
       )
       .map((e) => e.id);
   }
+
   const nodes: FlowNode[] = diagram.nodes.map((node) => {
     const parent = node.groupId ? byGroupId.get(node.groupId) : undefined;
     return {
@@ -74,13 +76,6 @@ export function buildGraph(diagram: Diagram) {
       data: { edge, color },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color,
-        markerUnits: 'userSpaceOnUse',
-        width: 15,
-        height: 15,
-      },
     };
   });
   return { nodes, edges, groupNodes };

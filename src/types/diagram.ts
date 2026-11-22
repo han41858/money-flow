@@ -71,8 +71,8 @@ export const diagramSchema = z
       if (n.groupId && !groups.has(n.groupId))
         issue('존재하지 않는 그룹입니다.');
     for (const e of d.edges) {
-      const source = nodes.get(e.source),
-        target = nodes.get(e.target);
+      const source = nodes.get(e.source);
+      const target = nodes.get(e.target);
       const key = JSON.stringify([e.source, e.target]);
       if (!allowsDirection(source, target) || pairs.has(key))
         issue('허용되지 않는 연결입니다.');

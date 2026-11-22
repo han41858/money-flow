@@ -4,7 +4,9 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
-  await expect(page.locator('.workspace-title')).toHaveText('자금 흐름');
+  await expect(page.locator('.workspace-title')).toHaveText(
+    '우리 집 자금 흐름',
+  );
   const main = page.getByRole('main', { name: '우리 집 자금 흐름' });
   await expect(main).toBeVisible();
   await expect(main.getByText('월간 계획', { exact: true })).toHaveCount(0);

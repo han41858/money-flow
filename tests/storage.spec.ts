@@ -21,6 +21,40 @@ async function rename(p: Page, name: string) {
   await d.getByRole('button', { name: '목록 닫기' }).click();
   await expect(p.getByRole('main', { name, exact: true })).toBeVisible();
 }
+test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 다시 열면 복원한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('/');
+  const title = page.locator('.workspace-title');
+  await title.getByRole('button').click();
+  const input = title.getByRole('textbox', { name: '현재 흐름 이름' });
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue(example.name);
+  await input.fill('   ');
+  await input.press('Enter');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(title.getByRole('status')).toHaveText('흐름 이름을 입력하세요.');
+  await input.fill('취소할 이름');
+  await input.press('Escape');
+  await expect(title.getByRole('button')).toHaveText(example.name);
+  await expect(title.getByRole('button')).toBeFocused();
+  await title.getByRole('button').click();
+  await input.fill('  12월 자금 계획  ');
+  await input.press('Enter');
+  await expect(title.getByRole('button')).toHaveText('12월 자금 계획');
+  await expect(title.getByRole('button')).toBeFocused();
+  const tools = page.getByRole('button', { name: '노드 목록 열기' });
+  await tools.click();
+  await saved(page);
+  await page.reload();
+  await expect(title.getByRole('button')).toHaveText('12월 자금 계획');
+  await title.getByRole('button').click();
+  await input.fill('다음 달 자금 계획');
+  await input.press('Tab');
+  await expect(title.getByRole('button')).toHaveText('다음 달 자금 계획');
+});
 test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원되고 이력은 비워진다', async ({
   playwright,
   baseURL,

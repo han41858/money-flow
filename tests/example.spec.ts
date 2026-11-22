@@ -44,7 +44,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
   ).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
   await page.getByRole('button', { name: '노드 목록 열기' }).click();
-  await page.getByRole('button', { name: '정기 적금' }).click();
+  await page.getByRole('button', { name: '정기 적금', exact: true }).click();
   await expect(page.getByRole('heading', { name: '정기 적금' })).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
   await expect(

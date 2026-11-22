@@ -1,6 +1,6 @@
 import type { FlowNode } from '../editor/graph';
 import { defaultNodeSize, type Size } from '../groups/geometry';
-import { strokeColor, tint } from '../../lib/brands/palette';
+import { tint } from '../../lib/brands/palette';
 
 export const cardFont =
   "Inter, 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
@@ -69,7 +69,8 @@ type Props = {
   data: FlowNode['data'];
   layout: ReturnType<typeof cardLayout>;
   size: Size;
-  gradientId: string;
+  hideName?: boolean;
+  hideIcon?: boolean;
   decorative?: boolean;
   x?: number;
   y?: number;
@@ -79,12 +80,13 @@ export function NodeArtwork({
   data,
   layout,
   size,
-  gradientId,
+  hideName = false,
+  hideIcon = false,
   decorative = false,
   x = 0,
   y = 0,
 }: Props) {
-  const { color, Icon, kind } = data.appearance;
+  const { color, Icon } = data.appearance;
   const { width, height } = size;
   return (
     <svg
@@ -97,42 +99,23 @@ export function NodeArtwork({
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : data.node.name}
     >
-      <defs>
-        <linearGradient id={gradientId} x2="100%" y2="20%">
-          <stop stopColor={tint(color, 0.1)} />
-          <stop offset="1" stopColor={tint(color, 0.04)} />
-        </linearGradient>
-      </defs>
-      <rect
-        x={1}
-        y={1}
-        width={width - 2}
-        height={height - 2}
-        rx={12}
-        fill={'url(#' + gradientId + ')'}
-        stroke={strokeColor(color)}
-        strokeWidth={1.6}
-      />
-      <rect
-        x={18}
-        y={15}
-        width={25}
-        height={25}
-        rx={6}
-        fill={tint(color, 0.16)}
-      />
-      <Icon
-        x={21.5}
-        y={18.5}
-        width={18}
-        height={18}
-        color="#314937"
-        aria-hidden="true"
-      />
-      <text x={50} y={32} fontSize={12} fontWeight={650} fill="#48584f">
-        {kind}
-      </text>
-      <text fontSize={18} fontWeight={700} fill="#1c2923">
+      <rect width={width} height={height} rx={12} fill={tint(color, 0.18)} />
+      {!hideIcon && (
+        <Icon
+          x={18}
+          y={18}
+          width={18}
+          height={18}
+          color="#314937"
+          aria-hidden="true"
+        />
+      )}
+      <text
+        visibility={hideName ? 'hidden' : undefined}
+        fontSize={18}
+        fontWeight={700}
+        fill="#1c2923"
+      >
         {layout.names.map((line, i) => (
           <tspan key={i} x={18} y={65 + i * 25}>
             {line}

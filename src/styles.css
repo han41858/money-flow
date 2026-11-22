@@ -306,69 +306,55 @@ h1 {
   position: relative;
   width: 185px;
   border-radius: 12px;
-  box-shadow: 0 3px 6px #2031260c;
 }
 .money-node > svg {
   display: block;
 }
-.card-edit,
-.card-field-actions button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
+.card-name-trigger,
+.card-name-input,
+.card-kind-trigger,
+.card-kinds {
+  position: absolute;
+}
+.card-name-trigger,
+.card-name-input {
+  inset: 44px 14px 10px;
+  border-radius: 5px;
+}
+.card-name-trigger,
+.card-kind-trigger {
   padding: 0;
-  border: 1px solid #a7b7ab;
-  border-radius: 6px;
-  background: white;
-  color: #314937;
+  border: 0;
+  background: transparent;
   cursor: pointer;
 }
-.card-edit {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  opacity: 0;
+.card-name-trigger:hover,
+.card-kind-trigger:hover {
+  background: #285d4810;
 }
-.money-node:hover .card-edit,
-.money-node.active .card-edit,
-.card-edit:focus-visible {
-  opacity: 1;
+.card-name-trigger {
+  cursor: text;
 }
-@media (hover: none) {
-  .card-edit {
-    opacity: 1;
-  }
-}
-.card-fields {
-  position: absolute;
-  inset: 7px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 2px 3px;
-  border-radius: 6px;
-  background: white;
-}
-.card-field-actions {
-  display: flex;
-  gap: 4px;
-}
-.card-field-actions input {
-  flex: 1;
+.card-name-input {
+  width: calc(100% - 28px);
   min-width: 0;
-  min-height: 30px;
-  padding: 3px 6px;
+  padding: 3px;
   border: 1px solid #a7b7ab;
-  border-radius: 6px;
   background: white;
-  color: #26392e;
-  font-size: 14px;
+  color: #1c2923;
+  font-size: 18px;
+  font-weight: 700;
 }
-.card-field-actions button {
-  flex: 0 0 28px;
+.card-kind-trigger {
+  top: 12px;
+  left: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
 }
 .card-kinds {
+  top: 12px;
+  inset-inline: 12px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 3px;
@@ -377,29 +363,25 @@ h1 {
   padding: 0;
   border: 0;
 }
-.card-kinds span {
-  display: grid;
-  place-items: center;
-  min-height: 26px;
+.card-kinds button {
+  min-height: 30px;
+  padding: 0;
   border: 1px solid #a7b7ab;
   border-radius: 5px;
+  background: white;
   color: #314937;
   font-size: 12px;
   cursor: pointer;
 }
-.card-kinds input:checked + span {
+.card-kinds button[aria-pressed='true'] {
   border-color: #267864;
   background: #e1f0e9;
   color: #174632;
   font-weight: 700;
 }
-.card-kinds input:focus-visible + span {
-  outline: 2px solid #267864;
-  outline-offset: 1px;
-}
-.card-fields [role='alert'] {
+.card-kinds [role='alert'] {
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   inset-inline: 0;
   padding: 5px 7px;
   border: 1px solid #943c22;

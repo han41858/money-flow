@@ -5,14 +5,12 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import {
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
 } from 'react';
-import { Check, Pencil, X } from 'lucide-react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
@@ -43,95 +41,101 @@ function Ports({
   ));
 }
 
-function CardFields({ node, close }: { node: MoneyNode; close: () => void }) {
+function CardNameInput({
+  node,
+  close,
+}: {
+  node: MoneyNode;
+  close: (restoreFocus: boolean) => void;
+}) {
   const [name, setName] = useState(node.name);
-  const [kind, setKind] = useState(node.type);
-  const [error, setError] = useState('');
+
+  function finish(save: boolean, restoreFocus: boolean) {
+    const next = name.trim();
+    if (save && next && next !== node.name)
+      editor.editNode({ ...node, name: next });
+    close(restoreFocus);
+  }
+
   return (
-    <form
-      className="card-fields nodrag nopan nowheel"
+    <input
+      className="card-name-input nodrag nopan nowheel"
+      aria-label="카드 이름"
+      autoFocus
+      value={name}
+      onChange={(event) => setName(event.target.value)}
       onClick={(event) => event.stopPropagation()}
+      onBlur={() => finish(true, false)}
       onKeyDown={(event) => {
         event.stopPropagation();
-        if (event.nativeEvent.isComposing) {
-          if (event.key === 'Enter') event.preventDefault();
-        } else if (event.key === 'Escape') {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === 'Enter' || event.key === 'Escape') {
           event.preventDefault();
-          close();
+          finish(event.key === 'Enter', true);
         }
       }}
-      onSubmit={(event) => {
-        event.preventDefault();
-        const nextName = name.trim();
-        if (!nextName) {
-          setError('이름을 입력하세요.');
-          return;
+    />
+  );
+}
+
+function CardKinds({
+  node,
+  close,
+}: {
+  node: MoneyNode;
+  close: (restoreFocus: boolean) => void;
+}) {
+  const [error, setError] = useState('');
+  return (
+    <fieldset
+      className="card-kinds nodrag nopan"
+      onClick={(event) => event.stopPropagation()}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) close(false);
+      }}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          close(true);
         }
-        const next =
-          kind === node.type
-            ? { ...node, name: nextName }
-            : nodeOfType(kind, { ...node, name: nextName });
-        if (
-          (nextName !== node.name || kind !== node.type) &&
-          !editor.editNode(next)
-        ) {
-          setError('이 유형과 맞지 않는 연결선을 먼저 삭제하세요.');
-          return;
-        }
-        close();
       }}
     >
-      <fieldset className="card-kinds">
-        <legend className="sr-only">카드 유형</legend>
-        {(Object.keys(kindNames) as MoneyNode['type'][]).map((type) => (
-          <label key={type}>
-            <input
-              type="radio"
-              name="card-kind"
-              value={type}
-              className="sr-only"
-              checked={kind === type}
-              onChange={() => {
-                setKind(type);
-                setError('');
-              }}
-            />
-            <span>{kindNames[type]}</span>
-          </label>
-        ))}
-      </fieldset>
-      <div className="card-field-actions">
-        <input
-          aria-label="카드 이름"
-          autoFocus
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError('');
-          }}
-        />
-        <button type="submit" aria-label="카드 수정 저장" title="저장">
-          <Check size={16} aria-hidden="true" />
-        </button>
+      <legend className="sr-only">카드 유형</legend>
+      {(Object.keys(kindNames) as MoneyNode['type'][]).map((type) => (
         <button
+          key={type}
           type="button"
-          aria-label="카드 수정 취소"
-          title="취소"
-          onClick={close}
+          autoFocus={node.type === type}
+          aria-pressed={node.type === type}
+          onClick={() => {
+            if (node.type === type || editor.editNode(nodeOfType(type, node)))
+              close(true);
+            else setError('이 유형과 맞지 않는 연결선을 먼저 삭제하세요.');
+          }}
         >
-          <X size={16} aria-hidden="true" />
+          {kindNames[type]}
         </button>
-      </div>
+      ))}
       {error && <small role="alert">{error}</small>}
-    </form>
+    </fieldset>
   );
 }
 
 export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
   const { node, appearance } = data;
-  const [editing, setEditing] = useState(false);
-  const editButton = useRef<HTMLButtonElement>(null);
-  const gradientId = useId();
+  const [editing, setEditing] = useState<'name' | 'kind' | null>(null);
+  const nameButton = useRef<HTMLButtonElement>(null);
+  const kindButton = useRef<HTMLButtonElement>(null);
+
+  function close(restoreFocus: boolean) {
+    const trigger = editing === 'name' ? nameButton : kindButton;
+    setEditing(null);
+    if (restoreFocus)
+      requestAnimationFrame(() =>
+        trigger.current?.focus({ preventScroll: true }),
+      );
+  }
   const width = defaultNodeSize.width;
   const card = useMemo(
     () => cardLayout(data, width, browserTextWidth),
@@ -156,35 +160,43 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         data={data}
         layout={card}
         size={{ width, height: card.height }}
-        gradientId={gradientId}
+        hideName={editing === 'name'}
+        hideIcon={editing === 'kind'}
       />
-      {!data.readOnly &&
-        (editing ? (
-          <CardFields
-            node={node}
-            close={() => {
-              setEditing(false);
-              requestAnimationFrame(() =>
-                editButton.current?.focus({ preventScroll: true }),
-              );
-            }}
-          />
-        ) : (
-          <button
-            ref={editButton}
-            type="button"
-            className="card-edit nodrag nopan"
-            aria-label="카드에서 수정"
-            title="카드에서 수정"
-            onKeyDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              setEditing(true);
-            }}
-          >
-            <Pencil size={15} aria-hidden="true" />
-          </button>
-        ))}
+      {!data.readOnly && (
+        <>
+          {editing === 'name' ? (
+            <CardNameInput node={node} close={close} />
+          ) : (
+            <button
+              ref={nameButton}
+              type="button"
+              className="card-name-trigger nodrag nopan"
+              aria-label={node.name + ' 이름 수정'}
+              onKeyDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                setEditing('name');
+              }}
+            />
+          )}
+          {editing === 'kind' ? (
+            <CardKinds node={node} close={close} />
+          ) : (
+            <button
+              ref={kindButton}
+              type="button"
+              className="card-kind-trigger nodrag nopan"
+              aria-label={kindNames[node.type] + ' 유형 수정'}
+              onKeyDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                setEditing('kind');
+              }}
+            />
+          )}
+        </>
+      )}
       {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
     </div>
   );

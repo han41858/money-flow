@@ -90,7 +90,6 @@ function nodeShape(
   sizes: NodeSizes,
   bounds: Bounds,
   measure: MeasureText,
-  index: number,
 ) {
   const { x, y } = node.data.node.position;
   const width = sizes.get(node.id)?.width ?? defaultNodeSize.width;
@@ -105,7 +104,6 @@ function nodeShape(
       data={node.data}
       layout={layout}
       size={{ width, height }}
-      gradientId={'card-' + index}
     />
   );
 }
@@ -189,9 +187,7 @@ export function renderSvg(
   const edges = graph.edges.map((e) =>
     edgeShape(e, nodes, sizes, bounds, measure),
   );
-  const cards = graph.nodes.map((n, i) =>
-    nodeShape(n, sizes, bounds, measure, i),
-  );
+  const cards = graph.nodes.map((n) => nodeShape(n, sizes, bounds, measure));
   const frame = bounds.frame();
   const svg = renderToStaticMarkup(
     <svg

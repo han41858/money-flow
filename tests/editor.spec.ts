@@ -153,38 +153,36 @@ test('카드에서 이름과 유형을 편집하고 연결 제한과 실행 취�
   await page.goto('/');
   const node = page.locator('[data-id="joint"]');
   await node.click();
-  const edit = node.getByRole('button', { name: '카드에서 수정' });
+  const edit = node.getByRole('button', { name: /이름 수정$/ });
   await edit.click();
   const name = node.getByRole('textbox', { name: '카드 이름' });
   await expect(name).toBeFocused();
   await name.fill('가계 통장');
-  await node.getByText('수입', { exact: true }).click();
-  const save = node.getByRole('button', { name: '카드 수정 저장' });
-  await save.click();
-  await expect(node.getByRole('alert')).toContainText('연결선');
-  await expect(page.getByLabel('이름', { exact: true })).toHaveValue(
-    '공동 생활비 통장',
-  );
-  await node.getByText('카드', { exact: true }).click();
-  await expect(
-    node.getByRole('radio', { name: '카드', exact: true }),
-  ).toBeChecked();
   await name.press('Enter');
   await expect(node).toHaveAttribute('aria-label', '가계 통장');
-  await expect(node.locator('.lucide-credit-card')).toBeVisible();
   await expect(page.getByLabel('이름', { exact: true })).toHaveValue(
     '가계 통장',
   );
+
+  await node.getByRole('button', { name: '계좌 유형 수정' }).click();
+  await node.getByRole('button', { name: '수입', exact: true }).click();
+  await expect(node.getByRole('alert')).toContainText('연결선');
+  await node.getByRole('button', { name: '카드', exact: true }).click();
+  await expect(node.locator('.lucide-credit-card')).toBeVisible();
   await expect(page.getByRole('combobox', { name: /^유형/ })).toHaveValue(
     'card',
   );
   await page.getByRole('button', { name: '실행 취소' }).click();
-  await expect(node).toHaveAttribute('aria-label', '공동 생활비 통장');
   await expect(node.locator('.lucide-landmark')).toBeVisible();
+
   await edit.click();
   await name.fill('취소할 이름');
   await name.press('Escape');
   await expect(name).toHaveCount(0);
   await expect(edit).toBeFocused();
-  await expect(node).toHaveAttribute('aria-label', '공동 생활비 통장');
+  await expect(node).toHaveAttribute('aria-label', '가계 통장');
+  await edit.click();
+  await name.fill('포커스를 벗어나 저장');
+  await name.press('Tab');
+  await expect(node).toHaveAttribute('aria-label', '포커스를 벗어나 저장');
 });

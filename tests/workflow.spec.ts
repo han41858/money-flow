@@ -83,7 +83,7 @@ test('키보드로 대상 노드 선택·연결·이동·실행 취소가 가능
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: '장현의 급여' }).focus();
+  await page.getByRole('button', { name: '장현의 급여', exact: true }).focus();
   await page.keyboard.press('Enter');
   const select = page.getByLabel('연결할 노드');
   await select.focus();

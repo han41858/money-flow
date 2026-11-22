@@ -27,7 +27,7 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   await viewer.goto(url);
   await expect(viewer.getByText('Money Flow · 읽기 전용')).toBeVisible();
   await expect(
-    viewer.getByRole('button', { name: '카드에서 수정' }),
+    viewer.getByRole('button', { name: /이름 수정$|유형 수정$/ }),
   ).toHaveCount(0);
   await viewer
     .locator('.react-flow__node-money')
@@ -105,9 +105,12 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
     .locator('text[font-size="18"] tspan')
     .allTextContents();
   expect(lines.length).toBeGreaterThan(1);
-  const colors = await card
-    .locator('stop')
-    .evaluateAll((stops) => stops.map((s) => s.getAttribute('stop-color')));
+  const background = card.locator(':scope > rect');
+  await expect(background).toHaveCount(1);
+  expect(await background.getAttribute('stroke')).toBeNull();
+  const fill = await background.getAttribute('fill');
+  expect(fill).toMatch(/^#/);
+  await expect(card.locator(':scope > text')).toHaveCount(1);
   const icon = await card.locator('svg').getAttribute('class');
   const liveArrow = await page
     .locator('[data-id="salary-a"] .transfer-arrow')
@@ -127,9 +130,11 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
           node.querySelectorAll('text[font-size="18"] tspan'),
           (s) => s.textContent,
         ),
-        colors: Array.from(node.querySelectorAll('stop'), (s) =>
-          s.getAttribute('stop-color'),
-        ),
+        background: Array.from(node.querySelectorAll(':scope > rect'), (r) => [
+          r.getAttribute('fill'),
+          r.getAttribute('stroke'),
+        ]),
+        textCount: node.querySelectorAll(':scope > text').length,
         icon: node.querySelector('svg')?.getAttribute('class'),
         arrow: Array.from(xml.querySelectorAll('path'))
           .find((p) => p.getAttribute('d')?.endsWith(' Z'))
@@ -139,7 +144,8 @@ test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔�
     { svg, name },
   );
   expect(result.lines).toEqual(lines);
-  expect(result.colors).toEqual(colors);
+  expect(result.background).toEqual([[fill, null]]);
+  expect(result.textCount).toBe(1);
   expect(result.icon).toBe(icon);
   const coords = (d: string) => d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   const expected = coords(liveArrow!);

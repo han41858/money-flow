@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { editor } from '../editor/store';
+import { onEditKey } from '../../lib/editing';
 
 export function FlowName({ name }: { name: string }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -36,15 +37,12 @@ export function FlowName({ name }: { name: string }) {
             onChange={(event) => setDraft(event.target.value)}
             onBlur={(event) => finish(event.currentTarget.value, false)}
             onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === 'Enter' || event.key === 'Escape') {
-                event.preventDefault();
-                if (event.key === 'Enter' && invalid) return;
-                finish(
-                  event.key === 'Enter' ? event.currentTarget.value : null,
-                  true,
-                );
-              }
+              const { value } = event.currentTarget;
+              onEditKey(
+                event,
+                (save) => finish(save ? value : null, true),
+                !invalid,
+              );
             }}
           />
           {invalid ? (

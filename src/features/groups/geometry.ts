@@ -2,10 +2,10 @@ import type { Diagram, MoneyNode } from '../../types/diagram';
 import { cardSize } from '../nodes/sizing';
 
 export type Group = Diagram['groups'][number];
-export type Point = MoneyNode['position'];
+type Point = MoneyNode['position'];
 export type Size = Pick<Group, 'width' | 'height'>;
 export type NodeSizes = ReadonlyMap<string, Size>;
-export const defaultGroupSize = { width: 320, height: 210 };
+const defaultGroupSize = { width: 320, height: 210 };
 export const minGroupSize = { width: 112, height: 64 };
 
 export function measuredSizes(

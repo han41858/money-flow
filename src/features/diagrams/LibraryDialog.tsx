@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Check,
   Copy,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { editor } from '../editor/store';
 import * as library from './library';
+import { useModalDialog } from '../../lib/editing';
 
 export function StorageNotice() {
   const { error, conflict, busy, dirty } = library.useLibrary();
@@ -57,11 +58,7 @@ export function LibraryDialog({ close }: { close: () => void }) {
   const diagram = editor.useDiagram((s) => s.diagram);
   const { entries, busy } = library.useLibrary();
   const [name, setName] = useState(diagram.name);
-  useEffect(() => {
-    const el = ref.current!;
-    el.showModal();
-    return () => el.close();
-  }, []);
+  useModalDialog(ref);
   return (
     <dialog
       ref={ref}

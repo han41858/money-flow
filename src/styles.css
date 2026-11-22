@@ -32,10 +32,8 @@ button:focus-visible {
 }
 .brand,
 .brand-icon,
-.view-mode,
 .side-head,
 .side-head span,
-.diagram-link,
 .node-row,
 .metric,
 .canvas-heading,
@@ -106,15 +104,6 @@ button:focus-visible {
   background: white;
   color: #943c22;
 }
-.view-mode {
-  margin-left: auto;
-  gap: 7px;
-  font-size: 12px;
-  color: #d8ecdb;
-  border: 1px solid #597467;
-  border-radius: 20px;
-  padding: 4px 11px;
-}
 .workspace-body {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
@@ -144,18 +133,6 @@ button:focus-visible {
 }
 .sidebar-summary p {
   margin: 0;
-}
-.diagram-link {
-  font-size: 13px;
-  font-weight: 700;
-  color: #285b43;
-  background: #e4efdf;
-  border: 1px solid #cfdfc9;
-  gap: 9px;
-  padding: 10px 12px;
-  width: 100%;
-  border-radius: 7px;
-  margin: 14px 0 24px;
 }
 .side-content {
   border-top: 1px solid #dfe4dc;

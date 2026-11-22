@@ -3,18 +3,15 @@ import type { Diagram } from '../../types/diagram';
 import { buildGraph, type FlowNode, type FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth } from '../edges/money';
 import { transferGeometry, portFraction } from '../edges/geometry';
+import { type NodeSizes, type Group } from '../groups/geometry';
 import {
-  defaultNodeSize,
-  type NodeSizes,
-  type Group,
-} from '../groups/geometry';
-import {
-  NodeArtwork,
   cardLabel,
+  cardSize,
   cardFont,
   estimatedTextWidth,
   type MeasureText,
-} from '../nodes/artwork';
+} from '../nodes/sizing';
+import { NodeArtwork } from '../nodes/artwork';
 
 class Bounds {
   private left = Infinity;
@@ -92,9 +89,9 @@ function nodeShape(
   measure: MeasureText,
 ) {
   const { x, y } = node.data.node.position;
-  const width = sizes.get(node.id)?.width ?? defaultNodeSize.width;
-  const label = cardLabel(node.data.node.name, width, measure);
-  const height = sizes.get(node.id)?.height ?? defaultNodeSize.height;
+  const { name } = node.data.node;
+  const { width, height } = sizes.get(node.id) ?? cardSize(name, measure);
+  const label = cardLabel(name);
   bounds.include(x - 1, y - 1, width + 2, height + 2);
   return (
     <NodeArtwork
@@ -113,10 +110,11 @@ function anchor(
   id: string,
   outgoing: boolean,
   sizes: NodeSizes,
+  measure: MeasureText,
 ) {
   const { x, y } = node.data.node.position;
-  const width = sizes.get(node.id)?.width ?? defaultNodeSize.width;
-  const height = sizes.get(node.id)?.height ?? defaultNodeSize.height;
+  const { width, height } =
+    sizes.get(node.id) ?? cardSize(node.data.node.name, measure);
   const ports = outgoing ? node.data.outputs : node.data.inputs;
   return {
     x: x + (outgoing ? width : 0),
@@ -132,8 +130,8 @@ function edgeShape(
   measure: MeasureText,
 ) {
   const { edge, color } = flow.data!;
-  const from = anchor(nodes.get(flow.source)!, flow.id, true, sizes);
-  const to = anchor(nodes.get(flow.target)!, flow.id, false, sizes);
+  const from = anchor(nodes.get(flow.source)!, flow.id, true, sizes, measure);
+  const to = anchor(nodes.get(flow.target)!, flow.id, false, sizes, measure);
   const stroke = edgeWidth(edge);
   const { path, arrow, x, y } = transferGeometry(
     from.x,

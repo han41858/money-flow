@@ -8,6 +8,10 @@ export const kindNames = {
   card: '카드',
   expense: '지출',
 };
+export function newNodeName(type: MoneyNode['type']) {
+  return '새 ' + kindNames[type];
+}
+
 export const kindIcons = {
   income: ArrowDownLeft,
   account: Landmark,

@@ -287,7 +287,6 @@ h1 {
 }
 .money-node {
   position: relative;
-  width: 185px;
   border-radius: 12px;
 }
 .money-node > svg {
@@ -341,7 +340,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 3px;
-  min-width: 0;
+  min-width: 140px;
   margin: 0;
   padding: 0;
   border: 0;

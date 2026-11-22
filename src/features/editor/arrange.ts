@@ -1,6 +1,6 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
 import { newGroupBounds, type Group, type NodeSizes } from '../groups/geometry';
-import { cardSize } from '../nodes/sizing';
+import { cardSize, totalLineHeight } from '../nodes/sizing';
 
 const columnGap = 96;
 const rowGap = 24;
@@ -23,6 +23,19 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     indegree.set(target, indegree.get(target)! + 1);
   }
 
+  const nodeSizes = new Map(
+    ordered.map((node) => {
+      const size = sizes.get(node.id) ?? cardSize(node.name);
+      const lines =
+        Number(indegree.get(node.id)! >= 2) +
+        Number(outgoing.get(node.id)!.length >= 2);
+      return [
+        node.id,
+        { ...size, height: size.height + lines * totalLineHeight },
+      ];
+    }),
+  );
+
   const remaining = new Set(diagram.nodes.map((n) => n.id));
   const ready = [...remaining].filter((id) => indegree.get(id) === 0);
   for (let cursor = 0; remaining.size; cursor++) {
@@ -39,9 +52,6 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     }
   }
 
-  const nodeSizes = new Map(
-    ordered.map((node) => [node.id, sizes.get(node.id) ?? cardSize(node.name)]),
-  );
   const columnWidth = ordered.reduce(
     (width, n) => Math.max(width, nodeSizes.get(n.id)!.width),
     0,

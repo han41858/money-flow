@@ -8,7 +8,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await page.goto('/');
   await page.getByRole('button', { name: '새 흐름' }).click();
   for (const [kind, name] of [
-    ['수입', '본인 월급'],
+    ['수입', '급여 A'],
     ['계좌', '공동 통장'],
   ]) {
     await page.getByRole('button', { name: kind + ' 추가' }).click();
@@ -17,7 +17,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   }
   const node = (name: string) =>
     page.locator('.react-flow__node-money').filter({ hasText: name });
-  await connect(page, node('본인 월급'), node('공동 통장'));
+  await connect(page, node('급여 A'), node('공동 통장'));
   const path = page.locator('.react-flow__edge-path');
   const initial = await path.evaluate((el) => getComputedStyle(el).strokeWidth);
   await page.getByLabel('월 금액 (원)').fill('2800000');
@@ -26,7 +26,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     .poll(() => path.evaluate((el) => getComputedStyle(el).strokeWidth))
     .not.toBe(initial);
   for (const [member, name] of [
-    ['본인 월급', '본인'],
+    ['급여 A', '개인 A'],
     ['공동 통장', '공동 자금'],
   ]) {
     await selectNode(node(member));
@@ -63,7 +63,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await expect(shared.getByText('Money Flow · 읽기 전용')).toBeVisible();
   await shared
     .getByLabel('항목 찾기')
-    .selectOption({ label: '본인 월급 → 공동 통장' });
+    .selectOption({ label: '급여 A → 공동 통장' });
   await expect(shared.getByRole('region', { name: '선택 상세' })).toContainText(
     '2,800,000원',
   );

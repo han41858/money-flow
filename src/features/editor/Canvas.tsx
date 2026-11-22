@@ -59,6 +59,9 @@ export function Canvas({
   const [positions, setPositions] = useState<Map<string, XYPosition>>(
     new Map(),
   );
+  const [measurements, setMeasurements] = useState<Map<string, Size>>(
+    new Map(),
+  );
   const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
   const graph = useMemo(() => buildGraph(diagram), [diagram]);
   const regions = useMemo(
@@ -109,6 +112,19 @@ export function Canvas({
       }),
       'groups',
     );
+    // Keep React Flow's measurements on controlled nodes so position and
+    // selection updates preserve their measured handle bounds.
+    const measured = new Map<string, Size>();
+    for (const change of changes) {
+      if (
+        change.type === 'dimensions' &&
+        change.resizing === undefined &&
+        change.dimensions
+      )
+        measured.set(change.id, change.dimensions);
+    }
+    if (measured.size)
+      setMeasurements((previous) => new Map([...previous, ...measured]));
     if (readOnly) return;
     for (const c of changes) {
       if (c.type !== 'dimensions' || c.resizing === undefined || !c.dimensions)
@@ -205,6 +221,7 @@ export function Canvas({
               ...graph.groupNodes.map((n) => ({
                 ...n,
                 position: positions.get(n.id) ?? n.position,
+                measured: measurements.get(n.id),
                 data: { ...n.data, readOnly },
                 selected: selected.groups.includes(n.data.group.id),
                 ...(resizing?.id === n.id ? resizing.size : {}),
@@ -212,6 +229,7 @@ export function Canvas({
               ...graph.nodes.map((n) => ({
                 ...n,
                 position: positions.get(n.id) ?? n.position,
+                measured: measurements.get(n.id),
                 selected: selected.nodes.includes(n.id),
                 className:
                   source &&

@@ -1,4 +1,5 @@
 import { ArrowDownLeft, Landmark, CreditCard, ReceiptText } from 'lucide-react';
+import { tint } from '../../lib/brands/palette';
 import { institutions } from '../../lib/brands/registry';
 import type { Diagram, MoneyNode } from '../../types/diagram';
 
@@ -8,6 +9,10 @@ export const kindNames = {
   card: '카드',
   expense: '지출',
 };
+export function newNodeName(type: MoneyNode['type']) {
+  return '새 ' + kindNames[type];
+}
+
 export const kindIcons = {
   income: ArrowDownLeft,
   account: Landmark,
@@ -23,9 +28,13 @@ const categoryNames = {
 export function describe(node: MoneyNode, diagram: Diagram) {
   const institutionId =
     node.type === 'expense' ? undefined : node.institutionId;
-  const brand =
-    diagram.customInstitutions.find((b) => b.id === institutionId) ??
-    institutions.find((b) => b.id === institutionId);
+  const customBrand = diagram.customInstitutions.find(
+    (brand) => brand.id === institutionId,
+  );
+  const builtInBrand = customBrand
+    ? undefined
+    : institutions.find((brand) => brand.id === institutionId);
+  const brand = customBrand ?? builtInBrand;
   const category = node.type === 'expense' ? node.category : undefined;
   const subtitle =
     brand?.name ??
@@ -45,6 +54,7 @@ export function describe(node: MoneyNode, diagram: Diagram) {
     kind: kindNames[node.type],
     subtitle,
     color,
+    cardFill: builtInBrand?.cardFill ?? tint(color, 0.18),
     Icon: kindIcons[node.type],
   };
 }

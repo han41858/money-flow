@@ -5,6 +5,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Coins,
+  ClipboardPaste,
   ChevronRight,
   Frame,
   FilePlus2,
@@ -21,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { example } from './example';
+import { FlowName } from '../features/diagrams/FlowName';
 import { ResponsivePanel } from './ResponsivePanel';
 import { ShareDialog } from '../features/sharing/ShareDialog';
 import { Share2 } from 'lucide-react';
@@ -30,11 +32,18 @@ import {
   editor,
   emptySelection,
   type Kind,
+  type NodeClipboard,
   type Selection,
 } from '../features/editor/store';
+import { browserTextWidth, cardSize } from '../features/nodes/sizing';
 import { insertionPoint } from '../features/editor/placement';
 import { amountLabel, sum } from '../features/edges/money';
-import { describe, kindNames, kindIcons } from '../features/nodes/presentation';
+import {
+  describe,
+  kindNames,
+  kindIcons,
+  newNodeName,
+} from '../features/nodes/presentation';
 
 import {
   LibraryDialog,
@@ -47,11 +56,7 @@ import {
   open as openDiagram,
 } from '../features/diagrams/library';
 
-import {
-  defaultNodeSize,
-  measuredSizes,
-  newGroupBounds,
-} from '../features/groups/geometry';
+import { measuredSizes, newGroupBounds } from '../features/groups/geometry';
 
 function Summary({
   icon: Icon,
@@ -80,7 +85,13 @@ function Summary({
   );
 }
 
-function Workspace() {
+function Workspace({
+  clipboard,
+  setClipboard,
+}: {
+  clipboard: NodeClipboard | null;
+  setClipboard: (value: NodeClipboard) => void;
+}) {
   const diagram = editor.useDiagram((s) => s.diagram);
   const { nodes, edges } = diagram;
   const [shareOpen, setShareOpen] = useState(false);
@@ -115,6 +126,27 @@ function Workspace() {
     setSelected(emptySelection);
     setMobile(null);
   };
+  const copyNodes = useCallback(() => {
+    const copied = editor.copyNodes(selection.nodes);
+    if (!copied) return false;
+    setClipboard(copied);
+    return true;
+  }, [selection.nodes, setClipboard]);
+  const pasteNodes = useCallback(() => {
+    if (!clipboard) return false;
+    const canvas = document
+      .querySelector('.flow-area')!
+      .getBoundingClientRect();
+    const center = screenToFlowPosition({
+      x: canvas.left + canvas.width / 2,
+      y: canvas.top + canvas.height / 2,
+    });
+    const ids = editor.pasteNodes(clipboard, center, browserTextWidth);
+    setSelected({ ...emptySelection, nodes: ids });
+    setMobile(null);
+    return true;
+  }, [clipboard, screenToFlowPosition]);
+
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if (
@@ -130,7 +162,12 @@ function Workspace() {
         return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (mod && (key === 'z' || key === 'y')) {
+      if (mod && key === 'c' && !e.altKey && !e.shiftKey) {
+        if (!window.getSelection()?.toString() && copyNodes())
+          e.preventDefault();
+      } else if (mod && key === 'v' && !e.altKey && !e.shiftKey) {
+        if (pasteNodes()) e.preventDefault();
+      } else if (mod && (key === 'z' || key === 'y')) {
         e.preventDefault();
         const h = editor.history.getState();
         if (key === 'y' || e.shiftKey) h.redo();
@@ -146,7 +183,7 @@ function Workspace() {
 
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [remove, libraryOpen, shareOpen]);
+  }, [remove, libraryOpen, shareOpen, copyNodes, pasteNodes]);
   const select = (s: Selection) => {
     setSelected(s);
     setMobile('details');
@@ -170,12 +207,15 @@ function Workspace() {
 
   function add(kind: Kind) {
     const box = document.querySelector('.flow-area')!.getBoundingClientRect();
+    const size = cardSize(newNodeName(kind), browserTextWidth);
     const point = insertionPoint(
       kind,
       nodes,
       screenToFlowPosition({ x: box.left, y: box.top }),
       screenToFlowPosition({ x: box.right, y: box.bottom }),
       diagram.groups,
+      size,
+      measuredSizes(nodes, getInternalNode),
     );
     const id = editor.addNode(kind, point);
     select({ groups: [], nodes: [id], edges: [] });
@@ -187,11 +227,11 @@ function Workspace() {
       const viewport = getViewport();
       const dx = Math.min(
         0,
-        area.right - 10 - top.x - defaultNodeSize.width * viewport.zoom,
+        area.right - 10 - top.x - size.width * viewport.zoom,
       );
       const dy = Math.min(
         0,
-        area.bottom - 10 - top.y - defaultNodeSize.height * viewport.zoom,
+        area.bottom - 10 - top.y - size.height * viewport.zoom,
       );
       if (dx || dy)
         void setViewport({
@@ -226,7 +266,7 @@ function Workspace() {
           Money Flow
         </div>
         <span className="header-divider" />
-        <span className="workspace-title">자금 흐름</span>
+        <FlowName key={diagram.id} name={diagram.name} />
         <div className="history-tools">
           <button
             aria-label="실행 취소"
@@ -311,6 +351,14 @@ function Workspace() {
               <Frame size={15} />
               그룹 추가
               <Plus size={13} />
+            </button>
+            <button
+              className="paste-nodes"
+              disabled={!clipboard}
+              onClick={pasteNodes}
+              title="붙여넣기 (Ctrl/⌘ V)"
+            >
+              <ClipboardPaste size={15} /> 노드 붙여넣기
             </button>
             <div className="side-content">
               <div className="side-head">
@@ -456,6 +504,7 @@ function Workspace() {
                     selected={selected}
                     select={select}
                     remove={remove}
+                    copy={copyNodes}
                     close={close}
                   />
                 </div>
@@ -471,6 +520,7 @@ function Workspace() {
 const initialDiagram = () => example;
 
 export function App() {
+  const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   useEffect(() => {
     void start(initialDiagram);
   }, []);
@@ -506,7 +556,7 @@ export function App() {
     );
   return (
     <ReactFlowProvider key={session}>
-      <Workspace />
+      <Workspace clipboard={clipboard} setClipboard={setClipboard} />
     </ReactFlowProvider>
   );
 }

@@ -1,3 +1,4 @@
+import { nodeHeight, totalLineHeight } from '../src/features/nodes/sizing';
 import { test, expect, type Locator } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
 test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·배치·삭제를 되돌린다', async ({
@@ -116,7 +117,9 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   const income = page.locator('[data-id="income-a"]');
   const account = page.locator('[data-id="joint"]');
   const sourcePort = income.locator('.source');
-  const accountPort = account.locator('.target').first();
+  await expect(account.locator('.target')).toHaveCount(1);
+  await expect(account.locator('.source')).toHaveCount(1);
+  const accountPort = account.locator('.target');
   const cardPort = page.locator('[data-id="card"] .target').first();
   await expect(sourcePort).toHaveCSS('opacity', '0');
   await expect(sourcePort).toHaveCSS('pointer-events', 'none');
@@ -150,7 +153,7 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(bank).toHaveValue('카카오뱅크');
   await expect(account).not.toContainText('카카오뱅크');
-  await page.locator('.edge-label').filter({ hasText: '320만' }).click();
+  await page.locator('.react-flow__edge[data-id="salary-a"]').press('Enter');
   await page.getByLabel('월 금액 (원)').fill('-5');
   await page.getByLabel('월 금액 (원)').press('Enter');
   await expect(page.getByRole('alert')).toBeVisible();
@@ -212,10 +215,11 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const partner = page.locator('[data-id="income-b"]');
   const account = page.locator('[data-id="joint"]');
   const card = page.locator('[data-id="card"]');
+  const savings = page.locator('[data-id="savings"]');
   const group = page.locator('[data-id="group:joint-area"]');
   const transforms = () =>
     Promise.all(
-      [income, partner, account, card, group].map((node) =>
+      [income, partner, account, card, savings, group].map((node) =>
         node.evaluate((element) =>
           new DOMMatrixReadOnly(getComputedStyle(element).transform).toJSON(),
         ),
@@ -226,9 +230,14 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   const arrange = page.getByRole('button', { name: '자동 정렬' });
   await arrange.click();
   await expect.poll(transforms).not.toEqual(before);
-  const [left, second, middle, right, region] = await transforms();
+  const [left, second, middle, right, saving, region] = await transforms();
   expect(left.e).toBe(second.e);
   expect(left.f).not.toBe(second.f);
+  const middleCenter = middle.f + nodeHeight / 2 + totalLineHeight;
+  expect(middleCenter).toBeCloseTo((left.f + second.f + nodeHeight) / 2, 3);
+  expect(right.e).toBe(saving.e);
+  expect((right.f + saving.f + nodeHeight) / 2).toBeCloseTo(middleCenter, 3);
+  expect(saving.f - (right.f + nodeHeight + totalLineHeight)).toBe(24);
   expect(left.e).toBeLessThan(middle.e);
   expect(middle.e).toBeLessThan(right.e);
   expect(middle.e).toBeGreaterThan(region.e);
@@ -239,4 +248,75 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   ).toContainText('공동 자금');
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect.poll(transforms).toEqual(before);
+});
+
+test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번에 되돌린다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 960 });
+  await page.goto('/');
+  const income = page.locator('[data-id="income-a"]');
+  const account = page.locator('[data-id="joint"]');
+  const nodes = page.locator('.react-flow__node-money');
+  const edges = page.locator('.react-flow__edge');
+  const paste = page.getByRole('button', { name: '노드 붙여넣기' });
+  await expect(paste).toBeDisabled();
+  await selectNode(income);
+  await selectNode(account, { modifiers: ['Control'] });
+  await page.keyboard.press('Control+c');
+  await expect(paste).toBeEnabled();
+  await page.keyboard.press('Control+v');
+  await expect(nodes).toHaveCount(9);
+  await expect(edges).toHaveCount(7);
+  await expect(nodes.filter({ hasText: '급여 A' })).toHaveCount(2);
+  await expect(page.locator('.react-flow__node-money.selected')).toHaveCount(2);
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(nodes).toHaveCount(7);
+  await expect(edges).toHaveCount(6);
+
+  await selectNode(income);
+  const name = page.getByLabel('이름', { exact: true });
+  await name.focus();
+  await name.press('Control+v');
+  await expect(nodes).toHaveCount(7);
+  await page.getByRole('button', { name: '선택 노드 복사' }).click();
+  await page.getByRole('button', { name: '새 흐름' }).click();
+  await paste.click();
+  await expect(nodes).toHaveCount(1);
+  await expect(nodes.first()).toContainText('급여 A');
+  await expect(edges).toHaveCount(0);
+});
+
+test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다', async ({ page }) => {
+  await page.goto('/');
+  const totals = page.locator('[data-id="joint"] .node-totals text');
+  await expect(totals).toHaveText(['들어온 합계 560만', '나간 합계 228~258만']);
+  await expect(page.locator('[data-id="income-a"] .node-totals')).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: '3,200,000원 금액 수정' }).click();
+  const input = page.getByRole('textbox', { name: '연결선 금액 (원)' });
+  await expect(input).toHaveValue('3200000');
+  await input.fill('900000~800000');
+  await input.press('Enter');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await input.fill('800000~900000');
+  await input.press('Enter');
+  const button = page.getByRole('button', {
+    name: '800,000원 ~ 900,000원 금액 수정',
+  });
+  await expect(button).toBeFocused();
+  await expect(totals.first()).toHaveText('들어온 합계 320~330만');
+  await button.click();
+  await input.fill('1234');
+  await input.press('Escape');
+  await expect(button).toBeVisible();
+  await button.click();
+  await input.fill('700000');
+  await input.press('Tab');
+  await expect(
+    page.getByRole('button', { name: '700,000원 금액 수정' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(button).toBeVisible();
 });

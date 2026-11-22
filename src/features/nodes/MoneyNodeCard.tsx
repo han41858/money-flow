@@ -15,30 +15,19 @@ import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
-import { NodeArtwork, browserTextWidth, cardLabel } from './artwork';
+import { NodeArtwork } from './artwork';
+import { browserTextWidth, cardLabel, cardSize } from './sizing';
 import { kindNames } from './presentation';
-import { defaultNodeSize } from '../groups/geometry';
-import { portFraction } from '../edges/geometry';
 
-function Ports({
-  ids,
-  outgoing = false,
-}: {
-  ids: string[];
-  outgoing?: boolean;
-}) {
-  const ports = ids.length ? ids : [outgoing ? 'new-out' : 'new-in'];
-  return ports.map((id, i) => (
+function Port({ outgoing = false }: { outgoing?: boolean }) {
+  return (
     <Handle
-      key={id}
-      id={id}
       type={outgoing ? 'source' : 'target'}
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
-      style={{ top: portFraction(i, ports.length) * 100 + '%' }}
     />
-  ));
+  );
 }
 
 function CardNameInput({
@@ -136,13 +125,12 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
         trigger.current?.focus({ preventScroll: true }),
       );
   }
-  const width = defaultNodeSize.width;
-  const label = useMemo(
-    () => cardLabel(node.name, width, browserTextWidth),
-    [node.name, width],
+  const size = useMemo(
+    () => cardSize(node.name, browserTextWidth),
+    [node.name],
   );
   const update = useUpdateNodeInternals();
-  const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
+  const layout = `${node.type}:${size.width}`;
   const lastLayout = useRef(layout);
   useLayoutEffect(() => {
     if (lastLayout.current === layout) return;
@@ -154,12 +142,12 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       className={'money-node' + (selected ? ' active' : '')}
       style={{ '--outline': strokeColor(appearance.color) } as CSSProperties}
     >
-      {node.type !== 'income' && <Ports ids={data.inputs} />}
+      {node.type !== 'income' && <Port />}
       <NodeArtwork
         decorative
         data={data}
-        label={label}
-        size={{ width, height: defaultNodeSize.height }}
+        label={cardLabel(node.name)}
+        size={size}
         hideName={editing !== null}
         hideIcon={editing === 'kind'}
       />
@@ -204,7 +192,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
           )}
         </>
       )}
-      {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
+      {node.type !== 'expense' && <Port outgoing />}
     </div>
   );
 }

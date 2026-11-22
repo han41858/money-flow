@@ -1,8 +1,9 @@
 // 공식 CI 값, 공식 디지털 자료에서 고른 근사값, 색상값이 미확인된 잠정값을 구분한다.
+// 네 번째 값은 공식 기본색과 별도로 지정하는 카드 배경색이다.
 const entries = [
   // 공식 브랜드 가이드 · Yellow
   // https://www.kakaobank.com/view/about/brand/resource
-  ['kakao', '카카오뱅크', '#ffe300'],
+  ['kakao', '카카오뱅크', '#ffe300', '#ebc638'],
   // 잠정값 · KB금융그룹 공식 CI의 색상표는 이미지로 제공
   // https://www.kbfg.com/kor/about/corporate/ci.htm
   ['kb', 'KB국민은행', '#ffbc00'],
@@ -77,8 +78,9 @@ const entries = [
   // https://www.nonghyup.com/introduce/ci/cb.do
   ['nh-card', 'NH농협카드', '#009a50'],
 ] as const;
-export const institutions = entries.map(([id, name, color]) => ({
+export const institutions = entries.map(([id, name, color, cardFill]) => ({
   id,
   name,
   color,
+  cardFill,
 }));

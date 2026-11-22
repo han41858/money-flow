@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { defaultNodeSize } from '../groups/geometry';
+import { nodeHeight } from '../nodes/sizing';
 import { portFraction, transferGeometry } from './geometry';
 import { edgeWidth } from './money';
 
@@ -7,7 +7,7 @@ test('짧은 노드에 도착하는 굵은 화살촉은 서로 겹치지 않는�
   const count = 3;
   const width = edgeWidth({ min: 10_000_000, max: 10_000_000 });
   const heads = Array.from({ length: count }, (_, i) => {
-    const y = defaultNodeSize.height * portFraction(i, count);
+    const y = nodeHeight * portFraction(i, count);
     const { arrow } = transferGeometry(0, y, 160, y, width, count);
     return arrow.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   });

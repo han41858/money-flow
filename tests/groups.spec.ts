@@ -56,7 +56,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
     page.locator('.property').filter({ hasText: '소속 그룹' }),
   ).toContainText('없음');
   await expect(page.getByLabel('소유자')).toHaveValue('개인 A');
-  await page.locator('.edge-label').filter({ hasText: '320만' }).click();
+  await page.locator('.react-flow__edge[data-id="salary-a"]').press('Enter');
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
   ).toBeVisible();

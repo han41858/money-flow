@@ -1,7 +1,9 @@
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
+import { nodeHeight } from '../nodes/sizing';
 import { transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
-import { amountLabel, edgeWidth, exactAmount } from './money';
+import { edgeWidth, exactAmount } from './money';
+import { TransferAmount } from './TransferAmount';
 
 export function TransferEdge({
   id,
@@ -14,9 +16,9 @@ export function TransferEdge({
   const stroke = edgeWidth(edge);
   const { path, arrow, x, y } = transferGeometry(
     coords.sourceX,
-    coords.sourceY,
+    coords.sourceY + (data.sourcePort - 0.5) * nodeHeight,
     coords.targetX,
-    coords.targetY,
+    coords.targetY + (data.targetPort - 0.5) * nodeHeight,
     stroke,
     data.targetPortCount,
   );
@@ -49,16 +51,13 @@ export function TransferEdge({
         pointerEvents="none"
       />
       <EdgeLabelRenderer>
-        <span
-          className="edge-label nodrag nopan"
-          title={title}
+        <TransferAmount
+          edge={edge}
+          readOnly={data.readOnly}
           style={{
-            transform:
-              'translate(-50%, -50%) translate(' + x + 'px, ' + y + 'px)',
+            transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
           }}
-        >
-          {amountLabel(edge.min, edge.max)}
-        </span>
+        />
       </EdgeLabelRenderer>
     </>
   );

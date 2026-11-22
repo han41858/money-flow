@@ -230,6 +230,7 @@ export function Canvas({
                 ...n,
                 position: positions.get(n.id) ?? n.position,
                 measured: measurements.get(n.id),
+                data: { ...n.data, readOnly },
                 selected: selected.nodes.includes(n.id),
                 className:
                   source &&

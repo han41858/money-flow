@@ -1,5 +1,5 @@
 import type { FlowNode } from '../editor/graph';
-import type { Size } from '../groups/geometry';
+import { defaultNodeSize, type Size } from '../groups/geometry';
 import { strokeColor, tint } from '../../lib/brands/palette';
 
 export const cardFont =
@@ -62,20 +62,7 @@ export function cardLayout(
 ) {
   const contentWidth = Math.max(1, width - 36);
   const names = wrapText(data.node.name, contentWidth, 18, true, measure);
-  const subtitles = wrapText(
-    data.appearance.subtitle,
-    contentWidth,
-    12,
-    false,
-    measure,
-  );
-  const subtitleY = 88 + (names.length - 1) * 25;
-  return {
-    names,
-    subtitles,
-    subtitleY,
-    height: 105 + (names.length - 1) * 25 + (subtitles.length - 1) * 17,
-  };
+  return { names, height: defaultNodeSize.height + (names.length - 1) * 25 };
 }
 
 type Props = {
@@ -134,26 +121,20 @@ export function NodeArtwork({
         rx={6}
         fill={tint(color, 0.16)}
       />
-      {data.node.type === 'card' ? (
-        <text x={21} y={33} fontSize={16}>
-          💳
-        </text>
-      ) : (
-        <Icon x={21.5} y={18.5} width={18} height={18} color="#314937" />
-      )}
+      <Icon
+        x={21.5}
+        y={18.5}
+        width={18}
+        height={18}
+        color="#314937"
+        aria-hidden="true"
+      />
       <text x={50} y={32} fontSize={12} fontWeight={650} fill="#48584f">
         {kind}
       </text>
       <text fontSize={18} fontWeight={700} fill="#1c2923">
         {layout.names.map((line, i) => (
           <tspan key={i} x={18} y={65 + i * 25}>
-            {line}
-          </tspan>
-        ))}
-      </text>
-      <text fontSize={12} fill="#56645b">
-        {layout.subtitles.map((line, i) => (
-          <tspan key={i} x={18} y={layout.subtitleY + i * 17}>
             {line}
           </tspan>
         ))}

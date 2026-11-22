@@ -26,6 +26,9 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   const viewer = await guest.newPage();
   await viewer.goto(url);
   await expect(viewer.getByText('Money Flow · 읽기 전용')).toBeVisible();
+  await expect(
+    viewer.getByRole('button', { name: '카드에서 수정' }),
+  ).toHaveCount(0);
   await viewer
     .locator('.react-flow__node-money')
     .filter({ hasText: '장현의 급여' })

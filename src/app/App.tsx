@@ -49,7 +49,11 @@ import {
   open as openDiagram,
 } from '../features/diagrams/library';
 
-import { measuredSizes, newGroupBounds } from '../features/groups/geometry';
+import {
+  defaultNodeSize,
+  measuredSizes,
+  newGroupBounds,
+} from '../features/groups/geometry';
 
 function Summary({
   icon: Icon,
@@ -183,8 +187,14 @@ function Workspace() {
         .getBoundingClientRect();
       const top = flowToScreenPosition(point);
       const viewport = getViewport();
-      const dx = Math.min(0, area.right - 10 - top.x - 185 * viewport.zoom);
-      const dy = Math.min(0, area.bottom - 10 - top.y - 105 * viewport.zoom);
+      const dx = Math.min(
+        0,
+        area.right - 10 - top.x - defaultNodeSize.width * viewport.zoom,
+      );
+      const dy = Math.min(
+        0,
+        area.bottom - 10 - top.y - defaultNodeSize.height * viewport.zoom,
+      );
       if (dx || dy)
         void setViewport({
           ...viewport,

@@ -1,11 +1,4 @@
-import {
-  ArrowDownLeft,
-  Landmark,
-  CreditCard,
-  ReceiptText,
-  Sprout,
-  Coins,
-} from 'lucide-react';
+import { ArrowDownLeft, Landmark, CreditCard, ReceiptText } from 'lucide-react';
 import { institutions } from '../../lib/brands/registry';
 import type { Diagram, MoneyNode } from '../../types/diagram';
 
@@ -48,11 +41,10 @@ export function describe(node: MoneyNode, diagram: Diagram) {
       : category === 'saving'
         ? '#638454'
         : '#727987');
-  const Icon =
-    category === 'saving'
-      ? Sprout
-      : category === 'loan'
-        ? Coins
-        : kindIcons[node.type];
-  return { kind: kindNames[node.type], subtitle, color, Icon };
+  return {
+    kind: kindNames[node.type],
+    subtitle,
+    color,
+    Icon: kindIcons[node.type],
+  };
 }

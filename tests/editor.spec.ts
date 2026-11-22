@@ -128,9 +128,12 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await page.getByRole('button', { name: '+ 금융사 등록' }).click();
   await page.getByLabel('새 금융사 이름').fill('우리 동네 은행');
   await page.getByRole('button', { name: '등록 후 적용' }).click();
-  await expect(account.getByText('우리 동네 은행')).toBeVisible();
+  const bank = page.getByLabel('금융사', { exact: true });
+  await expect(bank).toHaveValue('우리 동네 은행');
+  await expect(account).not.toContainText('우리 동네 은행');
   await page.getByRole('button', { name: '실행 취소' }).click();
-  await expect(account.getByText('카카오뱅크')).toBeVisible();
+  await expect(bank).toHaveValue('카카오뱅크');
+  await expect(account).not.toContainText('카카오뱅크');
   await page.locator('.edge-label').filter({ hasText: '320만' }).click();
   await page.getByLabel('월 금액 (원)').fill('-5');
   await page.getByLabel('월 금액 (원)').press('Enter');
@@ -142,4 +145,46 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await expect(page.locator('.react-flow__edge')).toHaveCount(5);
   await page.keyboard.press('Control+z');
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
+});
+
+test('카드에서 이름과 유형을 편집하고 연결 제한과 실행 취소를 적용한다', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const node = page.locator('[data-id="joint"]');
+  await node.click();
+  const edit = node.getByRole('button', { name: '카드에서 수정' });
+  await edit.click();
+  const name = node.getByRole('textbox', { name: '카드 이름' });
+  await expect(name).toBeFocused();
+  await name.fill('가계 통장');
+  await node.getByText('수입', { exact: true }).click();
+  const save = node.getByRole('button', { name: '카드 수정 저장' });
+  await save.click();
+  await expect(node.getByRole('alert')).toContainText('연결선');
+  await expect(page.getByLabel('이름', { exact: true })).toHaveValue(
+    '공동 생활비 통장',
+  );
+  await node.getByText('카드', { exact: true }).click();
+  await expect(
+    node.getByRole('radio', { name: '카드', exact: true }),
+  ).toBeChecked();
+  await name.press('Enter');
+  await expect(node).toHaveAttribute('aria-label', '가계 통장');
+  await expect(node.locator('.lucide-credit-card')).toBeVisible();
+  await expect(page.getByLabel('이름', { exact: true })).toHaveValue(
+    '가계 통장',
+  );
+  await expect(page.getByRole('combobox', { name: /^유형/ })).toHaveValue(
+    'card',
+  );
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(node).toHaveAttribute('aria-label', '공동 생활비 통장');
+  await expect(node.locator('.lucide-landmark')).toBeVisible();
+  await edit.click();
+  await name.fill('취소할 이름');
+  await name.press('Escape');
+  await expect(name).toHaveCount(0);
+  await expect(edit).toBeFocused();
+  await expect(node).toHaveAttribute('aria-label', '공동 생활비 통장');
 });

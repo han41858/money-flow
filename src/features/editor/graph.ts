@@ -10,6 +10,7 @@ export type FlowNode = Node<
     appearance: ReturnType<typeof describe>;
     inputs: string[];
     outputs: string[];
+    readOnly?: boolean;
   },
   'money'
 >;

@@ -85,7 +85,8 @@ test('그룹 안에 만든 계좌가 즉시 함께 이동하고 금융사 선택
   await bank.fill('');
   await bank.press('Enter');
   const account = page.locator('.react-flow__node-money');
-  await expect(account).toContainText('금융사 미지정');
+  await expect(bank).toHaveValue('');
+  await expect(account).not.toContainText('금융사 미지정');
   const group = page.locator('.group-title');
   const before = (await account.boundingBox())!;
   await drag(page, group, 55, 25);

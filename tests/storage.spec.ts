@@ -31,6 +31,11 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   const input = title.getByRole('textbox', { name: '현재 흐름 이름' });
   await expect(input).toBeFocused();
   await expect(input).toHaveValue(example.name);
+  await input.fill('   ');
+  await input.press('Enter');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(title.getByRole('status')).toHaveText('흐름 이름을 입력하세요.');
   await input.fill('취소할 이름');
   await input.press('Escape');
   await expect(title.getByRole('button')).toHaveText(example.name);

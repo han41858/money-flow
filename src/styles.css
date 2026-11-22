@@ -68,6 +68,7 @@ button:focus-visible {
   background: #49665c;
 }
 .workspace-title {
+  position: relative;
   font-size: 13px;
   color: #dde9df;
   width: min(100%, 22rem);
@@ -92,6 +93,18 @@ button:focus-visible {
   background: #fff;
   color: #20332e;
   outline: 2px solid #bdedb9;
+}
+.workspace-title-error {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 3px);
+  left: 0;
+  width: max-content;
+  padding: 4px 7px;
+  border: 1px solid #943c22;
+  border-radius: 5px;
+  background: white;
+  color: #943c22;
 }
 .view-mode {
   margin-left: auto;

@@ -69,6 +69,24 @@ describe('편집 이력', () => {
     ed.history.getState().undo();
     expect(ed.current()).toBe(before);
   });
+  it('자동 정렬에서 화면에서 바꾼 그룹과 같은 단계의 노드 순서를 유지한다', () => {
+    const ed = createEditor(example);
+    ed.move(new Map(), new Map([['personal-b', { x: -24, y: -200 }]]));
+    ed.move(new Map([['savings', { x: 680, y: 20 }]]));
+    const before = ed.current();
+    ed.autoArrange(new Map());
+    const arranged = ed.current();
+    const position = (id: string) =>
+      arranged.nodes.find((node) => node.id === id)!.position;
+    expect(position('income-b').y).toBeLessThan(position('income-a').y);
+    expect(position('savings').x).toBe(position('card').x);
+    expect(position('savings').y).toBeLessThan(position('card').y);
+    expect(position('card').x - position('joint').x).toBe(185 + 96);
+    expect(position('card').y - position('savings').y).toBe(48 + 24);
+    expect(arranged.groups.map((group) => group.id)).toEqual(
+      before.groups.map((group) => group.id),
+    );
+  });
   it('금융사 등록과 노드 적용을 한 번에 취소한다', () => {
     const ed = createEditor(example);
     expect(ed.addInstitution('joint', '지역 은행', '#216443')).toBe(true);

@@ -6,18 +6,19 @@ import {
   type NodeSizes,
 } from '../groups/geometry';
 
-const columnGap = 152;
-const rowGap = 48;
-const regionGap = 44;
-const typeOrder = { income: 0, account: 1, card: 2, expense: 3 };
+const columnGap = 96;
+const rowGap = 24;
+const regionGap = 24;
+
+function byPosition(
+  a: Pick<MoneyNode, 'position'>,
+  b: Pick<MoneyNode, 'position'>,
+) {
+  return a.position.y - b.position.y || a.position.x - b.position.x;
+}
 
 export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
-  const ordered = [...diagram.nodes].sort(
-    (a, b) =>
-      typeOrder[a.type] - typeOrder[b.type] ||
-      a.position.y - b.position.y ||
-      a.position.x - b.position.x,
-  );
+  const ordered = [...diagram.nodes].sort(byPosition);
   const outgoing = new Map(ordered.map((n) => [n.id, [] as string[]]));
   const indegree = new Map(ordered.map((n) => [n.id, 0]));
   const ranks = new Map(ordered.map((n) => [n.id, 0]));
@@ -74,8 +75,30 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
 
   const positions = new Map<string, MoneyNode['position']>();
   const heightOf = (id: string) => (sizes.get(id) ?? defaultNodeSize).height;
-  const groups = diagram.groups.map((group) => {
-    const contents = members.get(group.id)!;
+  const groupBounds = new Map<string, Bounds>();
+  const regions = [
+    ...diagram.groups.map((group) => ({
+      group,
+      position: group.position,
+      contents: members.get(group.id)!,
+    })),
+    ...ungrouped.map((node) => ({
+      group: undefined,
+      position: node.position,
+      contents: [node],
+    })),
+  ].sort(byPosition);
+  for (const { group, contents } of regions) {
+    if (!group) {
+      const node = contents[0];
+      const size = sizes.get(node.id) ?? defaultNodeSize;
+      const bounds = pack(
+        { ...size, position: { x: columnX(node.id), y: -size.height / 2 } },
+        [node.id],
+      );
+      positions.set(node.id, { ...bounds.position });
+      continue;
+    }
     const columnHeights = new Map<number, number>();
     for (const node of contents) {
       const x = columnX(node.id);
@@ -108,15 +131,7 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
         y: node.position.y + packed.position.y - bounds.position.y,
       });
     }
-    return { ...group, ...packed };
-  });
-  for (const node of ungrouped) {
-    const size = sizes.get(node.id) ?? defaultNodeSize;
-    const bounds = pack(
-      { ...size, position: { x: columnX(node.id), y: -size.height / 2 } },
-      [node.id],
-    );
-    positions.set(node.id, { ...bounds.position });
+    groupBounds.set(group.id, packed);
   }
 
   // Recenter vertical stacks together so moving them cannot introduce overlaps.
@@ -148,6 +163,10 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   const nodes = diagram.nodes.map((node) => ({
     ...node,
     position: positions.get(node.id)!,
+  }));
+  const groups = diagram.groups.map((group) => ({
+    ...group,
+    ...groupBounds.get(group.id)!,
   }));
   return { nodes, groups };
 }

@@ -71,7 +71,7 @@ function saveSoon() {
   clearTimeout(timer);
   if (state().dirty && !state().conflict) void enqueue(flush).catch(report);
 }
-function snapshot(): Diagram {
+export function snapshot(): Diagram {
   return { ...editor.current(), updatedAt: modifiedAt, viewport: { ...view } };
 }
 function advertise(id: string) {
@@ -170,6 +170,7 @@ function listen() {
   });
 }
 export async function start() {
+  if (state().session) return true;
   listen();
   return action(async () => {
     await refresh();
@@ -206,6 +207,13 @@ export function createBlank() {
   return action(async () => {
     await flush();
     await createFrom(blankDiagram());
+  });
+}
+export function copyShared(diagram: Diagram) {
+  listen();
+  return action(async () => {
+    await flush();
+    await createFrom(copyDiagram(diagram, diagram.name + ' 복사본'));
   });
 }
 export function duplicate() {

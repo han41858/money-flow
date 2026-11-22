@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   FilePlus2,
+  FolderOpen,
   Layers2,
   ListTree,
   Network,
@@ -30,6 +31,17 @@ import {
 import { insertionPoint } from '../features/editor/placement';
 import { amountLabel, sum } from '../features/edges/money';
 import { describe, kindNames, kindIcons } from '../features/nodes/presentation';
+
+import {
+  LibraryDialog,
+  StorageNotice,
+} from '../features/diagrams/LibraryDialog';
+import {
+  useLibrary,
+  createBlank,
+  start,
+  open as openDiagram,
+} from '../features/diagrams/library';
 
 function Summary({
   icon: Icon,
@@ -60,6 +72,8 @@ function Summary({
 function Workspace() {
   const diagram = editor.useDiagram((s) => s.diagram),
     { nodes, edges } = diagram;
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const { dirty, busy, conflict, error } = useLibrary();
   const [selection, setSelected] = useState<Selection>(emptySelection);
   const selected = {
     nodes: selection.nodes.filter((id) => nodes.some((n) => n.id === id)),
@@ -87,6 +101,8 @@ function Workspace() {
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if (
+        libraryOpen ||
+        useLibrary.getState().busy ||
         e.defaultPrevented ||
         e.isComposing ||
         (e.target instanceof HTMLElement &&
@@ -111,7 +127,7 @@ function Workspace() {
     }
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [remove]);
+  }, [remove, libraryOpen]);
   const select = (s: Selection) => {
     setSelected(s);
     setMobile('details');
@@ -142,17 +158,6 @@ function Workspace() {
         });
     });
   }
-  function fresh() {
-    if (
-      (nodes.length || edges.length) &&
-      !window.confirm(
-        '현재 흐름을 닫고 빈 캔버스로 시작할까요? 현재 작업은 저장되지 않습니다.',
-      )
-    )
-      return;
-    editor.newDiagram();
-    close();
-  }
   const byId = new Map(nodes.map((n) => [n.id, n]));
   function expense(category: 'consumption' | 'saving') {
     return sum(
@@ -164,7 +169,7 @@ function Workspace() {
   }
   const mobileOpen = mobile === 'tools' || (mobile === 'details' && count > 0);
   return (
-    <div className="workspace">
+    <div className="workspace" inert={busy}>
       <header className="topbar">
         <div className="brand">
           <span className="brand-icon">
@@ -191,11 +196,19 @@ function Workspace() {
           >
             <Redo2 size={17} />
           </button>
-          <button className="fresh" onClick={fresh}>
+          <button className="fresh" onClick={() => setLibraryOpen(true)}>
+            <FolderOpen size={15} />내 흐름
+          </button>
+          <button className="fresh" onClick={() => void createBlank()}>
             <FilePlus2 size={15} />새 흐름
           </button>
         </div>
       </header>
+      {libraryOpen ? (
+        <LibraryDialog close={() => setLibraryOpen(false)} />
+      ) : (
+        <StorageNotice />
+      )}
       <div className="workspace-body">
         {mobileOpen && (
           <button
@@ -348,7 +361,15 @@ function Workspace() {
               <Activity size={14} />
               노드 {nodes.length}개 <i /> 연결 {edges.length}개
             </span>
-            <span>새로고침하면 편집 내용이 초기화됩니다.</span>
+            <span role="status">
+              {conflict
+                ? '자동 저장 일시 중지'
+                : dirty
+                  ? error
+                    ? '저장되지 않은 변경 사항'
+                    : '저장 중…'
+                  : '이 브라우저에 저장됨'}
+            </span>
           </footer>
         </main>
       </div>
@@ -356,8 +377,36 @@ function Workspace() {
   );
 }
 export function App() {
+  const session = useLibrary((s) => s.session),
+    error = useLibrary((s) => s.error),
+    entries = useLibrary((s) => s.entries);
+  if (!session)
+    return (
+      <main className="library-start" aria-live="polite">
+        <h1>Money Flow</h1>
+        {error ? (
+          <>
+            <p>{error}</p>
+            <button onClick={() => void start()}>다시 열기</button>
+            {entries.length > 0 && (
+              <div>
+                <h2>저장된 흐름 열기</h2>
+                <button onClick={() => void createBlank()}>새 흐름</button>
+                {entries.map((d) => (
+                  <button key={d.id} onClick={() => void openDiagram(d.id)}>
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p>저장된 흐름을 여는 중…</p>
+        )}
+      </main>
+    );
   return (
-    <ReactFlowProvider>
+    <ReactFlowProvider key={session}>
       <Workspace />
     </ReactFlowProvider>
   );

@@ -1,4 +1,10 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useRef,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import {
   ReactFlow,
   Background,
@@ -19,6 +25,7 @@ import { editor, type Selection } from './store';
 import { canConnect } from '../edges/connections';
 import type { Diagram } from '../../types/diagram';
 import '@xyflow/react/dist/style.css';
+import { recordViewport, useLibrary } from '../diagrams/library';
 
 const nodeTypes = { money: MoneyNodeCard },
   edgeTypes = { transfer: TransferEdge };
@@ -35,6 +42,11 @@ export function Canvas({
   setSelected,
   openInspector,
 }: Props) {
+  const interacted = useRef(false);
+  const trackView = () => {
+    interacted.current = true;
+  };
+  const fit = useLibrary((s) => s.fit);
   const [grid, setGrid] = useState(true);
   const [source, setSource] = useState<string | null>(null);
   const [positions, setPositions] = useState<Map<string, XYPosition>>(
@@ -107,7 +119,12 @@ export function Canvas({
           {source ? '연결할 노드의 왼쪽 점을 선택하세요' : '월 기준 · KRW'}
         </small>
       </div>
-      <div className="flow-area">
+      <div
+        className="flow-area"
+        onPointerDownCapture={trackView}
+        onWheelCapture={trackView}
+        onKeyDownCapture={trackView}
+      >
         <div className="absolute inset-0">
           <ReactFlow<FlowNode, FlowEdge>
             nodes={graph.nodes.map((n) => ({
@@ -142,7 +159,11 @@ export function Canvas({
             onPaneClick={() => setSelected({ nodes: [], edges: [] })}
             deleteKeyCode={null}
             multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
-            fitView={graph.nodes.length > 0}
+            defaultViewport={diagram.viewport}
+            onViewportChange={(vp) =>
+              recordViewport(diagram.id, vp, interacted.current)
+            }
+            fitView={fit && graph.nodes.length > 0}
             fitViewOptions={initialFit}
             minZoom={0.15}
             maxZoom={2}

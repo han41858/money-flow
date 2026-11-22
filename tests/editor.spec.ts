@@ -18,7 +18,6 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
   await page.goto('/');
-  page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '새 흐름' }).click();
   for (const [type, name] of [
     ['수입', '급여'],

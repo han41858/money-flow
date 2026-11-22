@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ReactFlowProvider } from '@xyflow/react';
+import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import type { Diagram } from '../../types/diagram';
 import { decodeShare } from './codec';
 import { Canvas } from '../editor/Canvas';
@@ -15,6 +15,27 @@ function Viewer({ diagram }: { diagram: Diagram }) {
   const edge = diagram.edges.find((e) => selected.edges.includes(e.id));
   const group = diagram.groups.find((g) => selected.groups.includes(g.id));
   const names = new Map(diagram.nodes.map((n) => [n.id, n.name]));
+  const { fitView, fitBounds } = useReactFlow();
+  const choices = [
+    ...diagram.nodes.map((n) => ({
+      kind: 'nodes' as const,
+      id: n.id,
+      name: n.name,
+      focus: [n.id],
+    })),
+    ...diagram.edges.map((e) => ({
+      kind: 'edges' as const,
+      id: e.id,
+      name: names.get(e.source) + ' → ' + names.get(e.target),
+      focus: [e.source, e.target],
+    })),
+    ...diagram.groups.map((g) => ({
+      kind: 'groups' as const,
+      id: g.id,
+      name: g.name,
+      bounds: { ...g.position, width: g.width, height: g.height },
+    })),
+  ];
   const appearance = node && describe(node, diagram);
   return (
     <main className="shared-page">
@@ -40,6 +61,38 @@ function Viewer({ diagram }: { diagram: Diagram }) {
           <a href="#">내 흐름 열기</a>
         </p>
       )}
+      <label className="shared-picker">
+        항목 찾기
+        <select
+          value={choices.findIndex((item) =>
+            selected[item.kind].includes(item.id),
+          )}
+          onChange={(e) => {
+            const item = choices[Number(e.target.value)];
+            if (!item) {
+              setSelected(emptySelection);
+              return;
+            }
+            setSelected({ ...emptySelection, [item.kind]: [item.id] });
+            if (item.kind === 'groups')
+              void fitBounds(item.bounds, { padding: 0.25, duration: 150 });
+            else
+              void fitView({
+                nodes: item.focus.map((id) => ({ id })),
+                padding: 0.25,
+                maxZoom: 1.2,
+                duration: 150,
+              });
+          }}
+        >
+          <option value={-1}>노드·연결선·그룹 선택</option>
+          {choices.map((item, index) => (
+            <option key={item.kind + item.id} value={index}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <Canvas
         diagram={diagram}
         selected={selected}

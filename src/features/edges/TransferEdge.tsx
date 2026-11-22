@@ -21,6 +21,16 @@ export function TransferEdge({
   return (
     <>
       <title>{title}</title>
+      {selected && (
+        <path
+          d={path}
+          fill="none"
+          stroke="#20392d"
+          strokeWidth={edgeWidth(edge) + 4}
+          pointerEvents="none"
+          aria-hidden="true"
+        />
+      )}
       <BaseEdge
         id={id}
         path={path}
@@ -28,7 +38,6 @@ export function TransferEdge({
         style={{
           stroke: color,
           strokeWidth: edgeWidth(edge),
-          opacity: selected ? 1 : 0.52,
         }}
       />
       <EdgeLabelRenderer>

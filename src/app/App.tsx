@@ -21,6 +21,8 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { ShareDialog } from '../features/sharing/ShareDialog';
+import { Share2 } from 'lucide-react';
 import { Canvas } from '../features/editor/Canvas';
 import { Inspector } from '../features/editor/Inspector';
 import {
@@ -75,6 +77,7 @@ function Summary({
 function Workspace() {
   const diagram = editor.useDiagram((s) => s.diagram),
     { nodes, edges } = diagram;
+  const [shareOpen, setShareOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const { dirty, busy, conflict, error } = useLibrary();
   const [selection, setSelected] = useState<Selection>(emptySelection);
@@ -110,6 +113,7 @@ function Workspace() {
     function key(e: KeyboardEvent) {
       if (
         libraryOpen ||
+        shareOpen ||
         useLibrary.getState().busy ||
         e.defaultPrevented ||
         e.isComposing ||
@@ -135,7 +139,7 @@ function Workspace() {
     }
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [remove, libraryOpen]);
+  }, [remove, libraryOpen, shareOpen]);
   const select = (s: Selection) => {
     setSelected(s);
     setMobile('details');
@@ -219,6 +223,15 @@ function Workspace() {
           >
             <Redo2 size={17} />
           </button>
+          <button
+            className="fresh share-trigger"
+            aria-label="공유 및 내보내기"
+            title="공유 및 내보내기"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 size={15} />
+            <span>공유</span>
+          </button>
           <button className="fresh" onClick={() => setLibraryOpen(true)}>
             <FolderOpen size={15} />내 흐름
           </button>
@@ -227,6 +240,7 @@ function Workspace() {
           </button>
         </div>
       </header>
+      {shareOpen && <ShareDialog close={() => setShareOpen(false)} />}
       {libraryOpen ? (
         <LibraryDialog close={() => setLibraryOpen(false)} />
       ) : (

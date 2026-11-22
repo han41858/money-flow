@@ -3,7 +3,7 @@ import { Frame, Scaling } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { minGroupSize, type Group } from './geometry';
 
-export type RegionNode = Node<{ group: Group }, 'region'>;
+export type RegionNode = Node<{ group: Group; readOnly?: boolean }, 'region'>;
 export function GroupRegion({ data, selected }: NodeProps<RegionNode>) {
   const { group } = data;
   return (
@@ -15,7 +15,7 @@ export function GroupRegion({ data, selected }: NodeProps<RegionNode>) {
         <Frame size={13} />
         <strong>{group.name}</strong>
       </div>
-      {selected && (
+      {selected && !data.readOnly && (
         <NodeResizeControl
           position="bottom-right"
           className="group-size-handle"

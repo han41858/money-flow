@@ -38,12 +38,14 @@ type Props = {
   selected: Selection;
   setSelected: Dispatch<SetStateAction<Selection>>;
   openInspector: () => void;
+  readOnly?: boolean;
 };
 export function Canvas({
   diagram,
   selected,
   setSelected,
   openInspector,
+  readOnly = false,
 }: Props) {
   const interacted = useRef(false);
   const trackView = () => {
@@ -64,7 +66,7 @@ export function Canvas({
     null,
   );
   const [initialFit] = useState(() =>
-    window.matchMedia('(max-width:720px)').matches
+    !readOnly && window.matchMedia('(max-width:720px)').matches
       ? {
           ...fitOptions,
           nodes: graph.nodes.filter((n) =>
@@ -102,6 +104,7 @@ export function Canvas({
       }),
       'groups',
     );
+    if (readOnly) return;
     for (const c of changes) {
       if (c.type !== 'dimensions' || c.resizing === undefined || !c.dimensions)
         continue;
@@ -179,10 +182,14 @@ export function Canvas({
         <div className="absolute inset-0">
           <ReactFlow<CanvasNode, FlowEdge>
             zIndexMode="manual"
+            nodesDraggable={!readOnly}
+            nodesConnectable={!readOnly}
+            edgesReconnectable={!readOnly}
             nodes={[
               ...graph.groupNodes.map((n) => ({
                 ...n,
                 position: positions.get(n.id) ?? n.position,
+                data: { ...n.data, readOnly },
                 selected: selected.groups.includes(n.data.group.id),
                 ...(resizing?.id === n.id ? resizing.size : {}),
               })),
@@ -212,6 +219,7 @@ export function Canvas({
             onConnectEnd={() => setSource(null)}
             isValidConnection={(c) => canConnect(diagram, c.source, c.target)}
             onConnect={(c) => {
+              if (readOnly) return;
               const id = editor.connect(c.source, c.target);
               if (id) {
                 setSelected({ groups: [], nodes: [], edges: [id] });
@@ -222,13 +230,16 @@ export function Canvas({
               setSelected({ groups: [], nodes: [], edges: [] })
             }
             deleteKeyCode={null}
-            multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
+            multiSelectionKeyCode={
+              readOnly ? null : ['Meta', 'Control', 'Shift']
+            }
             defaultViewport={diagram.viewport}
             onViewportChange={(vp) =>
-              recordViewport(diagram.id, vp, interacted.current)
+              !readOnly && recordViewport(diagram.id, vp, interacted.current)
             }
             fitView={
-              fit && (graph.nodes.length > 0 || graph.groupNodes.length > 0)
+              (fit || readOnly) &&
+              (graph.nodes.length > 0 || graph.groupNodes.length > 0)
             }
             fitViewOptions={initialFit}
             minZoom={0.15}
@@ -245,7 +256,9 @@ export function Canvas({
             )}
             {!graph.nodes.length && !graph.groupNodes.length && (
               <div className="empty-canvas">
-                수입 노드를 추가해 자금 흐름을 시작하세요.
+                {readOnly
+                  ? '비어 있는 흐름입니다.'
+                  : '수입 노드를 추가해 자금 흐름을 시작하세요.'}
               </div>
             )}
             <Panel position="bottom-left" className="canvas-controls">

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { blankDiagram } from '../../lib/storage/format';
-import { example } from '../../app/example';
 import {
   edgeSchema,
   nodeSchema,
@@ -54,16 +53,19 @@ export function nodeOfType(
       return { ...core, type };
   }
 }
+
 export function createEditor(initial: Diagram) {
   const useDiagram = create<{ diagram: Diagram }>()(
     temporal(() => ({ diagram: initial }), { limit: 150 }),
   );
   const current = () => useDiagram.getState().diagram;
+
   function commit(change: Partial<Diagram>) {
     useDiagram.setState({
       diagram: { ...current(), ...change, updatedAt: new Date().toISOString() },
     });
   }
+
   function addNode(type: Kind, position: Position) {
     const node = nodeOfType(type, {
       id: crypto.randomUUID(),
@@ -75,6 +77,7 @@ export function createEditor(initial: Diagram) {
     commit({ nodes: [...diagram.nodes, member] });
     return node.id;
   }
+
   function editNode(node: MoneyNode) {
     const d = current();
     if (!d.nodes.some((n) => n.id === node.id)) return false;
@@ -88,9 +91,10 @@ export function createEditor(initial: Diagram) {
     commit({ nodes: d.nodes.map((n) => (n.id === node.id ? valid.data : n)) });
     return true;
   }
+
   function addInstitution(nodeId: string, name: string, color: string) {
-    const d = current(),
-      node = d.nodes.find((n) => n.id === nodeId);
+    const d = current();
+    const node = d.nodes.find((n) => n.id === nodeId);
     if (!node || !name.trim() || !/^#[0-9a-f]{6}$/i.test(color)) return false;
     if (
       [...institutions, ...d.customInstitutions].some(
@@ -107,18 +111,20 @@ export function createEditor(initial: Diagram) {
     });
     return true;
   }
+
   function connect(source: string, target: string) {
     if (!canConnect(current(), source, target)) return;
     const edge = { id: crypto.randomUUID(), source, target, min: 0, max: 0 };
     commit({ edges: [...current().edges, edge] });
     return edge.id;
   }
+
   function editEdge(
     id: string,
     patch: Partial<Pick<MoneyEdge, 'min' | 'max' | 'memo'>>,
   ) {
-    const d = current(),
-      edge = d.edges.find((e) => e.id === id);
+    const d = current();
+    const edge = d.edges.find((e) => e.id === id);
     if (!edge) return false;
     const valid = edgeSchema.safeParse({ ...edge, ...patch });
     if (!valid.success) return false;
@@ -130,6 +136,7 @@ export function createEditor(initial: Diagram) {
       commit({ edges: d.edges.map((e) => (e.id === id ? valid.data : e)) });
     return true;
   }
+
   function addGroup(
     bounds: Pick<Group, 'position' | 'width' | 'height'>,
     sizes: NodeSizes,
@@ -149,15 +156,16 @@ export function createEditor(initial: Diagram) {
     });
     return group.id;
   }
+
   function editGroup(
     id: string,
     patch: Partial<Pick<Group, 'name' | 'color'>>,
   ) {
-    const d = current(),
-      group = d.groups.find((g) => g.id === id);
+    const d = current();
+    const group = d.groups.find((g) => g.id === id);
     if (!group) return;
-    const name = patch.name?.trim() ?? group.name,
-      color = patch.color ?? group.color;
+    const name = patch.name?.trim() ?? group.name;
+    const color = patch.color ?? group.color;
     if (
       !name ||
       !/^#[a-f0-9]{6}$/i.test(color) ||
@@ -168,9 +176,10 @@ export function createEditor(initial: Diagram) {
       groups: d.groups.map((g) => (g === group ? { ...g, name, color } : g)),
     });
   }
+
   function resizeGroup(id: string, size: Size, sizes: NodeSizes) {
-    const d = current(),
-      group = d.groups.find((g) => g.id === id);
+    const d = current();
+    const group = d.groups.find((g) => g.id === id);
     if (
       !group ||
       !(size.width > 0 && size.height > 0) ||
@@ -178,13 +187,14 @@ export function createEditor(initial: Diagram) {
       (size.width === group.width && size.height === group.height)
     )
       return;
-    const region = { ...group, ...size },
-      groups = d.groups.map((g) => (g === group ? region : g));
+    const region = { ...group, ...size };
+    const groups = d.groups.map((g) => (g === group ? region : g));
     commit({
       groups,
       nodes: membersAfterResize(d.nodes, groups, region, sizes),
     });
   }
+
   function move(
     positions: Map<string, Position>,
     groupPositions: Map<string, Position> = new Map(),
@@ -213,9 +223,10 @@ export function createEditor(initial: Diagram) {
     if (deltas.size || nodes.some((n, i) => n !== d.nodes[i]))
       commit({ groups, nodes });
   }
+
   function remove(selected: Selection) {
-    const d = current(),
-      groups = d.groups.filter((g) => !selected.groups.includes(g.id));
+    const d = current();
+    const groups = d.groups.filter((g) => !selected.groups.includes(g.id));
     const nodes = d.nodes
       .filter((n) => !selected.nodes.includes(n.id))
       .map((n) =>
@@ -236,17 +247,21 @@ export function createEditor(initial: Diagram) {
     )
       commit({ groups, nodes, edges });
   }
+
   function load(diagram: Diagram) {
     useDiagram.setState({ diagram });
     useDiagram.temporal.getState().clear();
   }
+
   function newDiagram() {
     load(blankDiagram());
   }
+
   function rename(name: string) {
     if (name.trim() && name.trim() !== current().name)
       commit({ name: name.trim() });
   }
+
   return {
     useDiagram,
     current,
@@ -266,4 +281,5 @@ export function createEditor(initial: Diagram) {
     history: useDiagram.temporal,
   };
 }
-export const editor = createEditor(example);
+
+export const editor = createEditor(blankDiagram());

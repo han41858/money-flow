@@ -9,6 +9,7 @@ export function allowsDirection(source?: MoneyNode, target?: MoneyNode) {
     target.type !== 'income',
   );
 }
+
 export function canConnect(diagram: Diagram, source: string, target: string) {
   return (
     allowsDirection(

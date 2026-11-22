@@ -5,6 +5,7 @@ const movement: Record<string, string> = {
   up: '위로',
   down: '아래로',
 };
+
 export function canvasLabels(readOnly: boolean): Partial<AriaLabelConfig> {
   const select = 'Enter 또는 Space로 선택하고 Esc로 선택을 해제합니다.';
   return {

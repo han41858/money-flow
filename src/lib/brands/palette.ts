@@ -3,6 +3,20 @@ export const canvasColor = '#f8faf8';
 function rgb(hex: string) {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 }
+
+export function tint(color: string, fraction: number) {
+  return (
+    '#' +
+    rgb(color)
+      .map((channel) =>
+        Math.round(255 + (channel - 255) * fraction)
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')
+  );
+}
+
 function luminance(hex: string) {
   const [r, g, b] = rgb(hex).map((c) => {
     const n = c / 255;
@@ -10,11 +24,13 @@ function luminance(hex: string) {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
+
 export function contrast(a: string, b: string) {
-  const l = luminance(a),
-    r = luminance(b);
+  const l = luminance(a);
+  const r = luminance(b);
   return (Math.max(l, r) + 0.05) / (Math.min(l, r) + 0.05);
 }
+
 export function strokeColor(color: string, background = canvasColor) {
   const channels = rgb(color);
   let result = color;

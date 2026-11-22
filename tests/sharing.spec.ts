@@ -81,3 +81,63 @@ test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다
   expect(png.readUInt32BE(16)).toBe(Number(width) * 2);
   expect(png.readUInt32BE(20)).toBe(Number(height) * 2);
 });
+
+test('긴 이름의 줄·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .click();
+  const name = '가족의 월간 생활비와 교육비를 함께 관리하는 공동 계좌 '
+    .repeat(2)
+    .trim();
+  await page.getByLabel('이름', { exact: true }).fill(name);
+  await page.getByLabel('이름', { exact: true }).press('Enter');
+  const card = page.locator('[data-id="joint"] .money-node > svg');
+  const lines = await card
+    .locator('text[font-size="18"] tspan')
+    .allTextContents();
+  expect(lines.length).toBeGreaterThan(1);
+  const colors = await card
+    .locator('stop')
+    .evaluateAll((stops) => stops.map((s) => s.getAttribute('stop-color')));
+  const icon = await card.locator('svg').getAttribute('class');
+  const liveArrow = await page
+    .locator('[data-id="salary-a"] .transfer-arrow')
+    .getAttribute('d');
+  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  const next = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'SVG 저장' }).click();
+  const svg = await readFile((await (await next).path())!, 'utf8');
+  const result = await page.evaluate(
+    ({ svg, name }) => {
+      const xml = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      const node = Array.from(xml.querySelectorAll('svg[aria-label]')).find(
+        (n) => n.getAttribute('aria-label') === name,
+      )!;
+      return {
+        lines: Array.from(
+          node.querySelectorAll('text[font-size="18"] tspan'),
+          (s) => s.textContent,
+        ),
+        colors: Array.from(node.querySelectorAll('stop'), (s) =>
+          s.getAttribute('stop-color'),
+        ),
+        icon: node.querySelector('svg')?.getAttribute('class'),
+        arrow: Array.from(xml.querySelectorAll('path'))
+          .find((p) => p.getAttribute('d')?.endsWith(' Z'))
+          ?.getAttribute('d'),
+      };
+    },
+    { svg, name },
+  );
+  expect(result.lines).toEqual(lines);
+  expect(result.colors).toEqual(colors);
+  expect(result.icon).toBe(icon);
+  const coords = (d: string) => d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+  const expected = coords(liveArrow!);
+  coords(result.arrow!).forEach((n, i) =>
+    expect(Math.abs(n - expected[i])).toBeLessThan(1),
+  );
+});

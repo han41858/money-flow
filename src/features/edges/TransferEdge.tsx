@@ -1,9 +1,5 @@
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  type EdgeProps,
-} from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
+import { transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth, exactAmount } from './money';
 
@@ -11,12 +7,18 @@ export function TransferEdge({
   id,
   data,
   selected,
-  markerEnd,
   ...coords
 }: EdgeProps<FlowEdge>) {
   if (!data) return null;
-  const [path, x, y] = getBezierPath(coords);
   const { color, edge } = data;
+  const stroke = edgeWidth(edge);
+  const { path, arrow, x, y } = transferGeometry(
+    coords.sourceX,
+    coords.sourceY,
+    coords.targetX,
+    coords.targetY,
+    stroke,
+  );
   const title = exactAmount(edge);
   return (
     <>
@@ -26,7 +28,7 @@ export function TransferEdge({
           d={path}
           fill="none"
           stroke="#20392d"
-          strokeWidth={edgeWidth(edge) + 4}
+          strokeWidth={stroke + 4}
           pointerEvents="none"
           aria-hidden="true"
         />
@@ -34,11 +36,16 @@ export function TransferEdge({
       <BaseEdge
         id={id}
         path={path}
-        markerEnd={markerEnd}
         style={{
           stroke: color,
-          strokeWidth: edgeWidth(edge),
+          strokeWidth: stroke,
         }}
+      />
+      <path
+        className="transfer-arrow"
+        d={arrow}
+        fill={color}
+        pointerEvents="none"
       />
       <EdgeLabelRenderer>
         <span

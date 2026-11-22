@@ -6,10 +6,12 @@ import {
 } from 'react';
 
 const narrow = window.matchMedia('(max-width: 720px)');
+
 function subscribe(listener: () => void) {
   narrow.addEventListener('change', listener);
   return () => narrow.removeEventListener('change', listener);
 }
+
 export function ResponsivePanel({
   children,
   open,

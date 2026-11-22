@@ -289,52 +289,23 @@ h1 {
 }
 .money-node {
   width: 185px;
-  padding: 13px 16px 14px;
   border-radius: 12px;
-  border: 1.6px solid var(--outline);
-  background: linear-gradient(
-    105deg,
-    color-mix(in srgb, var(--accent) 10%, white),
-    color-mix(in srgb, var(--accent) 4%, white)
-  );
   box-shadow: 0 3px 6px #2031260c;
-  color: #1c2923;
+}
+.money-node > svg {
+  display: block;
+}
+.money-node .react-flow__handle-right {
+  right: 0;
+  transform: translate(0, -50%);
+}
+.money-node .react-flow__handle-left {
+  left: 0;
+  transform: translate(0, -50%);
 }
 .money-node.active {
   outline: 3px solid #285d48;
   outline-offset: 4px;
-}
-.node-meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #48584f;
-  font-size: 12px;
-  font-weight: 650;
-}
-.node-icon {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 16%, white);
-  color: #314937;
-}
-.money-node strong,
-.money-node small {
-  display: block;
-}
-.money-node strong {
-  font-size: 18px;
-  letter-spacing: -0.05em;
-  line-height: 1.4;
-  margin-top: 6px;
-}
-.money-node small {
-  font-size: 12px;
-  color: #56645b;
-  margin-top: 2px;
 }
 .money-node .react-flow__handle {
   background: white;
@@ -641,10 +612,6 @@ footer span {
   z-index: 3;
   color: #5d7063;
   font-size: 14px;
-}
-.money-node strong,
-.money-node small {
-  overflow-wrap: anywhere;
 }
 .invalid-target .money-node {
   opacity: 0.48;

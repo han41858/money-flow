@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { example } from '../../app/example';
-import { renderSvg } from './image';
+import { renderSvg } from './scene';
 import { amountLabel } from '../edges/money';
 test('모든 노드·금액·그룹을 순수 SVG로 만들고 XML 문자를 이스케이프한다', () => {
   const svg = renderSvg({ ...example, name: 'A & <B>' }, new Map());
@@ -9,7 +9,7 @@ test('모든 노드·금액·그룹을 순수 SVG로 만들고 XML 문자를 이
   for (const g of example.groups) expect(svg).toContain(g.color);
   for (const e of example.edges)
     expect(svg).toContain(amountLabel(e.min, e.max));
-  expect(svg.match(/marker-end=/g)).toHaveLength(example.edges.length);
+  expect(svg.match(/<path d="M [^"]+ Z"/g)).toHaveLength(example.edges.length);
   expect(svg).toContain('💳');
   expect(svg).toContain('A &amp; &lt;B&gt;');
   expect(svg).not.toMatch(/foreignObject|react-flow/);

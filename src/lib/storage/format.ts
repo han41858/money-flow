@@ -47,6 +47,7 @@ export function decodeDiagram(input: unknown): Diagram {
     );
   return result.data;
 }
+
 export function parseFile(text: string) {
   let data: unknown;
   try {
@@ -56,9 +57,11 @@ export function parseFile(text: string) {
   }
   return decodeDiagram(data);
 }
+
 export function serializeDiagram(diagram: Diagram) {
   return JSON.stringify(decodeDiagram(diagram), null, 2);
 }
+
 export function copyDiagram(source: Diagram, name = source.name) {
   const now = new Date().toISOString();
   return {
@@ -69,6 +72,7 @@ export function copyDiagram(source: Diagram, name = source.name) {
     updatedAt: now,
   };
 }
+
 export function blankDiagram(): Diagram {
   const now = new Date().toISOString();
   return {

@@ -4,10 +4,18 @@ import {
   useUpdateNodeInternals,
   type NodeProps,
 } from '@xyflow/react';
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import {
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from 'react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
-import { kindNames } from './presentation';
+import { NodeArtwork, browserTextWidth, cardLayout } from './artwork';
+import { defaultNodeSize } from '../groups/geometry';
+import { portFraction } from '../edges/geometry';
 
 function Ports({
   ids,
@@ -25,16 +33,19 @@ function Ports({
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
-      style={{ top: ((i + 1) / (ports.length + 1)) * 100 + '%' }}
+      style={{ top: portFraction(i, ports.length) * 100 + '%' }}
     />
   ));
 }
 
 export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
-  const {
-    node,
-    appearance: { Icon, subtitle, color },
-  } = data;
+  const { node, appearance } = data;
+  const gradientId = useId();
+  const width = defaultNodeSize.width;
+  const card = useMemo(
+    () => cardLayout(data, width, browserTextWidth),
+    [data, width],
+  );
   const update = useUpdateNodeInternals();
   const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
   const lastLayout = useRef(layout);
@@ -46,23 +57,16 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
   return (
     <div
       className={'money-node' + (selected ? ' active' : '')}
-      style={
-        { '--accent': color, '--outline': strokeColor(color) } as CSSProperties
-      }
+      style={{ '--outline': strokeColor(appearance.color) } as CSSProperties}
     >
       {node.type !== 'income' && <Ports ids={data.inputs} />}
-      <div className="node-meta">
-        <span className="node-icon">
-          {node.type === 'card' ? (
-            <span aria-label="카드">💳</span>
-          ) : (
-            <Icon size={18} />
-          )}
-        </span>
-        <span>{kindNames[node.type]}</span>
-      </div>
-      <strong>{node.name}</strong>
-      <small>{subtitle}</small>
+      <NodeArtwork
+        decorative
+        data={data}
+        layout={card}
+        size={{ width, height: card.height }}
+        gradientId={gradientId}
+      />
       {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
     </div>
   );

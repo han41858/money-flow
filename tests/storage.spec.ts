@@ -244,9 +244,9 @@ test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감�
       new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('money-flow');
         req.onsuccess = () => {
-          const db = req.result,
-            tx = db.transaction('diagrams', 'readwrite'),
-            store = tx.objectStore('diagrams');
+          const db = req.result;
+          const tx = db.transaction('diagrams', 'readwrite');
+          const store = tx.objectStore('diagrams');
           const read = store.get(id);
           read.onsuccess = () => {
             const row = read.result;
@@ -287,12 +287,12 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
       new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('money-flow');
         req.onsuccess = () => {
-          const db = req.result,
-            tx = db.transaction(['settings', 'diagrams'], 'readwrite');
+          const db = req.result;
+          const tx = db.transaction(['settings', 'diagrams'], 'readwrite');
           const active = tx.objectStore('settings').get('last');
           active.onsuccess = () => {
-            const store = tx.objectStore('diagrams'),
-              r = store.get(active.result);
+            const store = tx.objectStore('diagrams');
+            const r = store.get(active.result);
             r.onsuccess = () =>
               store.put({
                 ...r.result,

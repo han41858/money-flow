@@ -10,8 +10,8 @@ export function insertionPoint(
   bottomRight: MoneyNode['position'],
   groups: Group[] = [],
 ) {
-  const width = bottomRight.x - topLeft.x,
-    height = bottomRight.y - topLeft.y;
+  const width = bottomRight.x - topLeft.x;
+  const height = bottomRight.y - topLeft.y;
   const ratios = { income: 0.12, account: 0.43, card: 0.57, expense: 0.86 };
   const x = topLeft.x + Math.max(0, width - 185) * ratios[kind];
   const initialY = topLeft.y + Math.max(0, height - 105) * 0.43;
@@ -39,8 +39,8 @@ export function insertionPoint(
     );
   for (const oy of [0, 135, -135, 270, -270]) {
     for (const ox of [0, 215, -215]) {
-      const cx = x + ox,
-        cy = y + oy;
+      const cx = x + ox;
+      const cy = y + oy;
       if (
         cx >= topLeft.x &&
         cx + 185 <= bottomRight.x &&

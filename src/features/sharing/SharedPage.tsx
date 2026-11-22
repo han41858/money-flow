@@ -142,6 +142,7 @@ function Viewer({ diagram }: { diagram: Diagram }) {
     </main>
   );
 }
+
 export function SharedPage({ url }: { url: string }) {
   const [result, setResult] = useState<Diagram | string | null>(null);
   useEffect(() => {

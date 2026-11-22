@@ -26,6 +26,7 @@ const categoryNames = {
   saving: '저축·투자',
   loan: '대출 상환',
 };
+
 export function describe(node: MoneyNode, diagram: Diagram) {
   const institutionId =
     node.type === 'expense' ? undefined : node.institutionId;

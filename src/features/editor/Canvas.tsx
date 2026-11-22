@@ -1,91 +1,148 @@
-import { useCallback, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   ReactFlow,
-  ReactFlowProvider,
   Background,
   Panel,
   useReactFlow,
   useStore,
   BackgroundVariant,
+  type NodeChange,
+  type EdgeChange,
+  type NodeSelectionChange,
+  type XYPosition,
 } from '@xyflow/react';
 import { Grid2X2, Maximize, Minus, Plus, Workflow } from 'lucide-react';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
 import { TransferEdge } from '../edges/TransferEdge';
-import { buildGraph } from './graph';
-import { example } from '../../app/example';
+import { buildGraph, type FlowNode, type FlowEdge } from './graph';
+import { editor, type Selection } from './store';
+import { canConnect } from '../edges/connections';
+import type { Diagram } from '../../types/diagram';
 import '@xyflow/react/dist/style.css';
 
-export type Selection = { type: 'node' | 'edge'; id: string } | null;
-const graph = buildGraph(example);
 const nodeTypes = { money: MoneyNodeCard },
   edgeTypes = { transfer: TransferEdge };
 const fitOptions = { padding: 0.13, maxZoom: 1.25 };
-type Props = { selected: Selection; onSelect: (s: Selection) => void };
-function CanvasContent({ selected, onSelect }: Props) {
+type Props = {
+  diagram: Diagram;
+  selected: Selection;
+  setSelected: Dispatch<SetStateAction<Selection>>;
+  openInspector: () => void;
+};
+export function Canvas({
+  diagram,
+  selected,
+  setSelected,
+  openInspector,
+}: Props) {
   const [grid, setGrid] = useState(true);
+  const [source, setSource] = useState<string | null>(null);
+  const [positions, setPositions] = useState<Map<string, XYPosition>>(
+    new Map(),
+  );
+  const graph = useMemo(() => buildGraph(diagram), [diagram]);
   const [initialFit] = useState(() =>
-    window.matchMedia('(max-width: 720px)').matches
+    window.matchMedia('(max-width:720px)').matches
       ? {
           ...fitOptions,
-          nodes: graph.nodes.filter(
-            (n) =>
-              n.data.node.type === 'income' || n.data.node.type === 'account',
+          nodes: graph.nodes.filter((n) =>
+            ['income', 'account'].includes(n.data.node.type),
           ),
         }
       : fitOptions,
   );
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
-  const refit = useCallback(
-    () => void fitView({ ...fitOptions, duration: 180 }),
-    [fitView],
-  );
+  function selectionChanges(
+    changes: NodeSelectionChange[],
+    key: keyof Selection,
+  ) {
+    if (!changes.length) return;
+    setSelected((previous) => {
+      const ids = new Set(previous[key]);
+      for (const change of changes) {
+        if (change.selected) ids.add(change.id);
+        else ids.delete(change.id);
+      }
+      return { ...previous, [key]: [...ids] };
+    });
+  }
+  function changeNodes(changes: NodeChange<FlowNode>[]) {
+    selectionChanges(
+      changes.filter((c) => c.type === 'select'),
+      'nodes',
+    );
+    const moving = new Map<string, XYPosition>(),
+      finished = new Map<string, XYPosition>();
+    for (const change of changes) {
+      if (change.type === 'position' && change.position) {
+        (change.dragging ? moving : finished).set(change.id, change.position);
+      }
+    }
+    if (moving.size)
+      setPositions((previous) => new Map([...previous, ...moving]));
+    if (finished.size) {
+      editor.move(finished);
+      setPositions((previous) => {
+        const next = new Map(previous);
+        for (const id of finished.keys()) next.delete(id);
+        return next;
+      });
+    }
+  }
+  function changeEdges(changes: EdgeChange<FlowEdge>[]) {
+    selectionChanges(
+      changes.filter((c) => c.type === 'select'),
+      'edges',
+    );
+  }
   return (
     <section className="canvas-shell" aria-label="자금 흐름 캔버스">
       <div className="canvas-heading">
         <span>
-          <Workflow size={17} /> 흐름도
+          <Workflow size={17} />
+          흐름도
         </span>
-        <small>월 기준 · KRW</small>
+        <small>
+          {source ? '연결할 노드의 왼쪽 점을 선택하세요' : '월 기준 · KRW'}
+        </small>
       </div>
       <div className="flow-area">
         <div className="absolute inset-0">
-          <ReactFlow
+          <ReactFlow<FlowNode, FlowEdge>
             nodes={graph.nodes.map((n) => ({
               ...n,
-              selected: selected?.type === 'node' && selected.id === n.id,
+              position: positions.get(n.id) ?? n.position,
+              selected: selected.nodes.includes(n.id),
+              className:
+                source && source !== n.id && !canConnect(diagram, source, n.id)
+                  ? 'invalid-target'
+                  : '',
             }))}
             edges={graph.edges.map((e) => ({
               ...e,
-              selected: selected?.type === 'edge' && selected.id === e.id,
+              selected: selected.edges.includes(e.id),
             }))}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            deleteKeyCode={null}
-            multiSelectionKeyCode={null}
-            onNodeClick={(_, n) => onSelect({ type: 'node', id: n.id })}
-            onEdgeClick={(_, e) => onSelect({ type: 'edge', id: e.id })}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') onSelect(null);
-              const item = (e.target as HTMLElement).closest('[data-id]');
-              if (
-                (e.key === 'Enter' || e.key === ' ') &&
-                item instanceof Element
-              ) {
-                const id = item.getAttribute('data-id');
-                if (id)
-                  onSelect({
-                    type: item.classList.contains('react-flow__edge')
-                      ? 'edge'
-                      : 'node',
-                    id,
-                  });
+            onNodesChange={changeNodes}
+            onEdgesChange={changeEdges}
+            onNodeClick={openInspector}
+            onEdgeClick={openInspector}
+            onConnectStart={(_, p) => setSource(p.nodeId)}
+            onConnectEnd={() => setSource(null)}
+            isValidConnection={(c) => canConnect(diagram, c.source, c.target)}
+            onConnect={(c) => {
+              const id = editor.connect(c.source, c.target);
+              if (id) {
+                setSelected({ nodes: [], edges: [id] });
+                openInspector();
               }
             }}
-            onPaneClick={() => onSelect(null)}
-            fitView
+            onPaneClick={() => setSelected({ nodes: [], edges: [] })}
+            deleteKeyCode={null}
+            multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
+            fitView={graph.nodes.length > 0}
             fitViewOptions={initialFit}
             minZoom={0.15}
             maxZoom={2}
@@ -99,6 +156,11 @@ function CanvasContent({ selected, onSelect }: Props) {
                 variant={BackgroundVariant.Dots}
               />
             )}
+            {!graph.nodes.length && (
+              <div className="empty-canvas">
+                수입 노드를 추가해 자금 흐름을 시작하세요.
+              </div>
+            )}
             <Panel position="bottom-left" className="canvas-controls">
               <button aria-label="축소" onClick={() => void zoomOut()}>
                 <Minus size={16} />
@@ -108,7 +170,11 @@ function CanvasContent({ selected, onSelect }: Props) {
                 <Plus size={16} />
               </button>
               <i />
-              <button aria-label="전체 보기" title="전체 보기" onClick={refit}>
+              <button
+                aria-label="전체 보기"
+                title="전체 보기"
+                onClick={() => void fitView({ ...fitOptions, duration: 180 })}
+              >
                 <Maximize size={15} />
               </button>
               <button
@@ -124,12 +190,5 @@ function CanvasContent({ selected, onSelect }: Props) {
         </div>
       </div>
     </section>
-  );
-}
-export function Canvas(props: Props) {
-  return (
-    <ReactFlowProvider>
-      <CanvasContent {...props} />
-    </ReactFlowProvider>
   );
 }

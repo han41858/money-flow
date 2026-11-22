@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { blankDiagram } from '../../lib/storage/format';
 import {
+  colorPattern,
   edgeSchema,
   nodeSchema,
   type Diagram,
@@ -9,28 +10,23 @@ import {
   type MoneyEdge,
 } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { cardSize, type MeasureText } from '../nodes/sizing';
+import type { MeasureText } from '../nodes/sizing';
 import { newNodeName } from '../nodes/presentation';
 import { institutions } from '../../lib/brands/registry';
-import { arrangeDiagram } from './arrange';
-
 import {
-  absoluteFrom,
-  relativeTo,
   assignGroup,
-  membersAfterResize,
   type NodeSizes,
   type Group,
   type Size,
 } from '../groups/geometry';
+import * as clipboard from './clipboard';
+import type { NodeClipboard } from './clipboard';
+import * as operations from './operations';
 
 type Position = MoneyNode['position'];
 export type Kind = MoneyNode['type'];
 export type Selection = { nodes: string[]; edges: string[]; groups: string[] };
-export type NodeClipboard = Pick<
-  Diagram,
-  'nodes' | 'edges' | 'customInstitutions'
->;
+export type { NodeClipboard };
 export const emptySelection: Selection = { nodes: [], edges: [], groups: [] };
 
 export function nodeOfType(
@@ -72,6 +68,10 @@ export function createEditor(initial: Diagram) {
     });
   }
 
+  function apply(change: Partial<Diagram> | null) {
+    if (change) commit(change);
+  }
+
   function addNode(type: Kind, position: Position) {
     const node = nodeOfType(type, {
       id: crypto.randomUUID(),
@@ -101,7 +101,7 @@ export function createEditor(initial: Diagram) {
   function addInstitution(nodeId: string, name: string, color: string) {
     const d = current();
     const node = d.nodes.find((n) => n.id === nodeId);
-    if (!node || !name.trim() || !/^#[0-9a-f]{6}$/i.test(color)) return false;
+    if (!node || !name.trim() || !colorPattern.test(color)) return false;
     if (
       [...institutions, ...d.customInstitutions].some(
         (b) => b.name === name.trim(),
@@ -147,58 +147,20 @@ export function createEditor(initial: Diagram) {
     bounds: Pick<Group, 'position' | 'width' | 'height'>,
     sizes: NodeSizes,
   ) {
-    const d = current();
-    const colors = ['#92ab86', '#86aabe', '#c2a0ae', '#b6a478'];
-    const group = {
-      ...bounds,
-      id: crypto.randomUUID(),
-      name: '새 그룹',
-      color: colors[d.groups.length % colors.length],
-    };
-    const groups = [...d.groups, group];
-    commit({
-      groups,
-      nodes: membersAfterResize(d.nodes, groups, group, sizes),
-    });
-    return group.id;
+    const { change, id } = operations.addGroup(current(), bounds, sizes);
+    commit(change);
+    return id;
   }
 
   function editGroup(
     id: string,
     patch: Partial<Pick<Group, 'name' | 'color'>>,
   ) {
-    const d = current();
-    const group = d.groups.find((g) => g.id === id);
-    if (!group) return;
-    const name = patch.name?.trim() ?? group.name;
-    const color = patch.color ?? group.color;
-    if (
-      !name ||
-      !/^#[a-f0-9]{6}$/i.test(color) ||
-      (name === group.name && color === group.color)
-    )
-      return;
-    commit({
-      groups: d.groups.map((g) => (g === group ? { ...g, name, color } : g)),
-    });
+    apply(operations.editGroup(current(), id, patch));
   }
 
   function resizeGroup(id: string, size: Size, sizes: NodeSizes) {
-    const d = current();
-    const group = d.groups.find((g) => g.id === id);
-    if (
-      !group ||
-      !(size.width > 0 && size.height > 0) ||
-      !Number.isFinite(size.width + size.height) ||
-      (size.width === group.width && size.height === group.height)
-    )
-      return;
-    const region = { ...group, ...size };
-    const groups = d.groups.map((g) => (g === group ? region : g));
-    commit({
-      groups,
-      nodes: membersAfterResize(d.nodes, groups, region, sizes),
-    });
+    apply(operations.resizeGroup(current(), id, size, sizes));
   }
 
   function move(
@@ -206,181 +168,34 @@ export function createEditor(initial: Diagram) {
     groupPositions: Map<string, Position> = new Map(),
     sizes: NodeSizes = new Map(),
   ) {
-    const d = current();
-    const deltas = new Map<string, Position>();
-    const groups = d.groups.map((g) => {
-      const point = groupPositions.get(g.id);
-      if (!point || (point.x === g.position.x && point.y === g.position.y))
-        return g;
-      deltas.set(g.id, relativeTo(point, g.position));
-      return { ...g, position: point };
-    });
-    const nodes = d.nodes.map((n) => {
-      const delta = n.groupId && deltas.get(n.groupId);
-      if (delta) return { ...n, position: absoluteFrom(n.position, delta) };
-      const point = positions.get(n.id);
-      if (!point) return n;
-      const moved =
-        point.x === n.position.x && point.y === n.position.y
-          ? n
-          : { ...n, position: point };
-      return assignGroup(moved, groups, sizes);
-    });
-    if (deltas.size || nodes.some((n, i) => n !== d.nodes[i]))
-      commit({ groups, nodes });
+    apply(operations.moveItems(current(), positions, groupPositions, sizes));
   }
 
   function autoArrange(sizes: NodeSizes) {
-    const diagram = current();
-    if (!diagram.nodes.length) return;
-    const arranged = arrangeDiagram(diagram, sizes);
-    const moved = (next: Position, previous: Position) =>
-      next.x !== previous.x || next.y !== previous.y;
-    if (
-      arranged.nodes.some((node, i) =>
-        moved(node.position, diagram.nodes[i].position),
-      ) ||
-      arranged.groups.some((group, i) => {
-        const previous = diagram.groups[i];
-        return (
-          moved(group.position, previous.position) ||
-          group.width !== previous.width ||
-          group.height !== previous.height
-        );
-      })
-    )
-      commit(arranged);
+    apply(operations.autoArrange(current(), sizes));
   }
 
-  function copyNodes(selected: readonly string[]): NodeClipboard | null {
-    const diagram = current();
-    const ids = new Set(selected);
-    const nodes = diagram.nodes.filter((node) => ids.has(node.id));
-    if (!nodes.length) return null;
-    const brands = new Set(nodes.map((node) => node.institutionId));
-    return {
-      nodes,
-      edges: diagram.edges.filter(
-        (edge) => ids.has(edge.source) && ids.has(edge.target),
-      ),
-      customInstitutions: diagram.customInstitutions.filter((brand) =>
-        brands.has(brand.id),
-      ),
-    };
+  function copyNodes(selected: readonly string[]) {
+    return clipboard.copyNodes(current(), selected);
   }
 
   function pasteNodes(
-    clipboard: NodeClipboard,
+    copied: NodeClipboard,
     center: Position,
     measure?: MeasureText,
   ) {
-    const diagram = current();
-    const customInstitutions = [...diagram.customInstitutions];
-    const brandIds = new Map(
-      clipboard.customInstitutions.map((brand) => {
-        const existing = [...institutions, ...customInstitutions].find(
-          (item) => item.name === brand.name.trim(),
-        );
-        if (existing) return [brand.id, existing.id];
-        const copy = { ...brand, id: crypto.randomUUID() };
-        customInstitutions.push(copy);
-        return [brand.id, copy.id];
-      }),
+    const { change, ids } = clipboard.pasteNodes(
+      current(),
+      copied,
+      center,
+      measure,
     );
-    const boundsOf = (node: MoneyNode) => ({
-      ...node.position,
-      ...cardSize(node.name, measure),
-    });
-    const copied = clipboard.nodes.map(boundsOf);
-    const origin = {
-      x:
-        (Math.min(...copied.map(({ x }) => x)) +
-          Math.max(...copied.map(({ x, width }) => x + width))) /
-        2,
-      y:
-        (Math.min(...copied.map(({ y }) => y)) +
-          Math.max(...copied.map(({ y, height }) => y + height))) /
-        2,
-    };
-    const occupied = diagram.nodes.map(boundsOf);
-    const positions = copied.map((node) =>
-      absoluteFrom(relativeTo(node, origin), center),
-    );
-    let shift = 0;
-    const shifted = ({ x, y }: Position) => ({ x: x + shift, y: y + shift });
-    while (
-      positions.some((point, index) => {
-        const { x, y } = shifted(point);
-        const { width, height } = copied[index];
-        return occupied.some(
-          (node) =>
-            x < node.x + node.width &&
-            x + width > node.x &&
-            y < node.y + node.height &&
-            y + height > node.y,
-        );
-      })
-    )
-      shift += 28;
-
-    const ids = new Map(
-      clipboard.nodes.map((node) => [node.id, crypto.randomUUID()]),
-    );
-    const sizes = new Map(
-      clipboard.nodes.map((node, i) => {
-        const { width, height } = copied[i];
-        return [ids.get(node.id)!, { width, height }];
-      }),
-    );
-    const nodes = clipboard.nodes.map((node, i) =>
-      assignGroup(
-        {
-          ...node,
-          id: ids.get(node.id)!,
-          position: shifted(positions[i]),
-          institutionId:
-            brandIds.get(node.institutionId ?? '') ?? node.institutionId,
-        },
-        diagram.groups,
-        sizes,
-      ),
-    );
-    const edges = clipboard.edges.map((edge) => ({
-      ...edge,
-      id: crypto.randomUUID(),
-      source: ids.get(edge.source)!,
-      target: ids.get(edge.target)!,
-    }));
-    commit({
-      nodes: [...diagram.nodes, ...nodes],
-      edges: [...diagram.edges, ...edges],
-      customInstitutions,
-    });
-    return nodes.map((node) => node.id);
+    commit(change);
+    return ids;
   }
 
   function remove(selected: Selection) {
-    const d = current();
-    const groups = d.groups.filter((g) => !selected.groups.includes(g.id));
-    const nodes = d.nodes
-      .filter((n) => !selected.nodes.includes(n.id))
-      .map((n) =>
-        n.groupId && selected.groups.includes(n.groupId)
-          ? { ...n, groupId: undefined }
-          : n,
-      );
-    const edges = d.edges.filter(
-      (e) =>
-        !selected.edges.includes(e.id) &&
-        !selected.nodes.includes(e.source) &&
-        !selected.nodes.includes(e.target),
-    );
-    if (
-      groups.length !== d.groups.length ||
-      nodes.length !== d.nodes.length ||
-      edges.length !== d.edges.length
-    )
-      commit({ groups, nodes, edges });
+    apply(operations.removeSelection(current(), selected));
   }
 
   function load(diagram: Diagram) {

@@ -29,6 +29,18 @@ export function absoluteFrom(position: Point, origin: Point): Point {
   return { x: position.x + origin.x, y: position.y + origin.y };
 }
 
+type Rect = Point & Size;
+
+// True when the rectangles overlap, or come closer than the given gaps.
+export function rectsOverlap(a: Rect, b: Rect, gapX = 0, gapY = 0) {
+  return (
+    a.x < b.x + b.width + gapX &&
+    b.x < a.x + a.width + gapX &&
+    a.y < b.y + b.height + gapY &&
+    b.y < a.y + a.height + gapY
+  );
+}
+
 function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {
   const { width, height } = sizes.get(node.id) ?? cardSize(node.name);
   const x = node.position.x + width / 2;

@@ -15,7 +15,12 @@ export type FlowNode = Node<
   'money'
 >;
 export type FlowEdge = Edge<
-  { edge: MoneyEdge; color: string; targetPortCount: number },
+  {
+    edge: MoneyEdge;
+    color: string;
+    targetPortCount: number;
+    readOnly?: boolean;
+  },
   'transfer'
 >;
 

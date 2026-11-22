@@ -414,6 +414,30 @@ h1 {
   font-weight: 650;
   pointer-events: all;
 }
+.edge-amount-editor {
+  padding: 0;
+  cursor: text;
+  z-index: 1;
+}
+.edge-amount-editor input {
+  width: 134px;
+  border: 0;
+  border-radius: inherit;
+  padding: 4px 6px;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+.edge-amount-editor [role='alert'] {
+  position: absolute;
+  top: 100%;
+  inset-inline: 0;
+  background: white;
+  border: 1px solid #943c22;
+  border-radius: 6px;
+  padding: 5px;
+}
+
 .canvas-controls {
   display: flex;
   align-items: center;

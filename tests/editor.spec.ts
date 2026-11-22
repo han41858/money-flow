@@ -150,7 +150,7 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(bank).toHaveValue('카카오뱅크');
   await expect(account).not.toContainText('카카오뱅크');
-  await page.locator('.edge-label').filter({ hasText: '320만' }).click();
+  await page.locator('.react-flow__edge[data-id="salary-a"]').press('Enter');
   await page.getByLabel('월 금액 (원)').fill('-5');
   await page.getByLabel('월 금액 (원)').press('Enter');
   await expect(page.getByRole('alert')).toBeVisible();
@@ -239,4 +239,32 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   ).toContainText('공동 자금');
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect.poll(transforms).toEqual(before);
+});
+
+test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '3,200,000원 금액 수정' }).click();
+  const input = page.getByRole('textbox', { name: '연결선 금액 (원)' });
+  await expect(input).toHaveValue('3200000');
+  await input.fill('900000~800000');
+  await input.press('Enter');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await input.fill('800000~900000');
+  await input.press('Enter');
+  const button = page.getByRole('button', {
+    name: '800,000원 ~ 900,000원 금액 수정',
+  });
+  await expect(button).toBeFocused();
+  await button.click();
+  await input.fill('1234');
+  await input.press('Escape');
+  await expect(button).toBeVisible();
+  await button.click();
+  await input.fill('700000');
+  await input.press('Tab');
+  await expect(
+    page.getByRole('button', { name: '700,000원 금액 수정' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(button).toBeVisible();
 });

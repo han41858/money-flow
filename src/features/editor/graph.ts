@@ -2,6 +2,8 @@ import { MarkerType, type Node, type Edge } from '@xyflow/react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
+import { relativeTo } from '../groups/geometry';
+import type { RegionNode } from '../groups/GroupRegion';
 export type FlowNode = Node<
   {
     node: MoneyNode;
@@ -14,6 +16,21 @@ export type FlowNode = Node<
 export type FlowEdge = Edge<{ edge: MoneyEdge; color: string }, 'transfer'>;
 
 export function buildGraph(diagram: Diagram) {
+  let prefix = 'group:';
+  while (diagram.nodes.some((n) => n.id.startsWith(prefix))) prefix += ':';
+  const groupNodes: RegionNode[] = diagram.groups.map((group) => ({
+    id: prefix + group.id,
+    type: 'region',
+    position: group.position,
+    width: group.width,
+    height: group.height,
+    data: { group },
+    ariaLabel: group.name,
+    connectable: false,
+    dragHandle: '.group-title',
+    zIndex: -1,
+  }));
+  const byGroupId = new Map(groupNodes.map((n) => [n.data.group.id, n]));
   const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
   function sortedPorts(node: MoneyNode, outgoing: boolean) {
     const end = outgoing ? 'source' : 'target',
@@ -26,18 +43,25 @@ export function buildGraph(diagram: Diagram) {
       )
       .map((e) => e.id);
   }
-  const nodes: FlowNode[] = diagram.nodes.map((node) => ({
-    id: node.id,
-    type: 'money',
-    position: node.position,
-    ariaLabel: node.name,
-    data: {
-      node,
-      appearance: describe(node, diagram),
-      inputs: sortedPorts(node, false),
-      outputs: sortedPorts(node, true),
-    },
-  }));
+  const nodes: FlowNode[] = diagram.nodes.map((node) => {
+    const parent = node.groupId ? byGroupId.get(node.groupId) : undefined;
+    return {
+      id: node.id,
+      type: 'money',
+      position: parent
+        ? relativeTo(node.position, parent.position)
+        : node.position,
+      parentId: parent?.id,
+      ariaLabel: node.name,
+      zIndex: 2,
+      data: {
+        node,
+        appearance: describe(node, diagram),
+        inputs: sortedPorts(node, false),
+        outputs: sortedPorts(node, true),
+      },
+    };
+  });
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     return {
@@ -59,5 +83,5 @@ export function buildGraph(diagram: Diagram) {
       },
     };
   });
-  return { nodes, edges };
+  return { nodes, edges, groupNodes };
 }

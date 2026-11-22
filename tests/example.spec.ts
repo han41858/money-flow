@@ -6,7 +6,7 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: '우리 집 자금 흐름' }),
   ).toBeVisible();
-  const nodes = page.locator('.react-flow__node'),
+  const nodes = page.locator('.react-flow__node-money'),
     edges = page.locator('.react-flow__edge');
   await expect(nodes).toHaveCount(7);
   await expect(edges).toHaveCount(6);
@@ -35,7 +35,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
   await page.goto('/');
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
   const account = page
-    .locator('.react-flow__node')
+    .locator('.react-flow__node-money')
     .filter({ hasText: '공동 생활비 통장' });
   await expect(account).toBeInViewport();
   await account.click({ timeout: 5000 });

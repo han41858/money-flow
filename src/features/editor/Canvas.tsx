@@ -27,7 +27,10 @@ import type { Diagram } from '../../types/diagram';
 import '@xyflow/react/dist/style.css';
 import { recordViewport, useLibrary } from '../diagrams/library';
 
-const nodeTypes = { money: MoneyNodeCard },
+import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
+import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
+type CanvasNode = FlowNode | RegionNode;
+const nodeTypes = { money: MoneyNodeCard, region: GroupRegion },
   edgeTypes = { transfer: TransferEdge };
 const fitOptions = { padding: 0.13, maxZoom: 1.25 };
 type Props = {
@@ -53,6 +56,13 @@ export function Canvas({
     new Map(),
   );
   const graph = useMemo(() => buildGraph(diagram), [diagram]);
+  const regions = useMemo(
+    () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
+    [graph],
+  );
+  const [resizing, setResizing] = useState<{ id: string; size: Size } | null>(
+    null,
+  );
   const [initialFit] = useState(() =>
     window.matchMedia('(max-width:720px)').matches
       ? {
@@ -63,7 +73,7 @@ export function Canvas({
         }
       : fitOptions,
   );
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, getInternalNode } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
   function selectionChanges(
     changes: NodeSelectionChange[],
@@ -79,11 +89,34 @@ export function Canvas({
       return { ...previous, [key]: [...ids] };
     });
   }
-  function changeNodes(changes: NodeChange<FlowNode>[]) {
+  function changeNodes(changes: NodeChange<CanvasNode>[]) {
+    const selections = changes.filter((c) => c.type === 'select');
     selectionChanges(
-      changes.filter((c) => c.type === 'select'),
+      selections.filter((c) => !regions.has(c.id)),
       'nodes',
     );
+    selectionChanges(
+      selections.flatMap((c) => {
+        const group = regions.get(c.id);
+        return group ? [{ ...c, id: group.id }] : [];
+      }),
+      'groups',
+    );
+    for (const c of changes) {
+      if (c.type !== 'dimensions' || c.resizing === undefined || !c.dimensions)
+        continue;
+      const group = regions.get(c.id);
+      if (!group) continue;
+      if (c.resizing) setResizing({ id: c.id, size: c.dimensions });
+      else {
+        editor.resizeGroup(
+          group.id,
+          c.dimensions,
+          measuredSizes(diagram.nodes, getInternalNode),
+        );
+        setResizing(null);
+      }
+    }
     const moving = new Map<string, XYPosition>(),
       finished = new Map<string, XYPosition>();
     for (const change of changes) {
@@ -94,7 +127,25 @@ export function Canvas({
     if (moving.size)
       setPositions((previous) => new Map([...previous, ...moving]));
     if (finished.size) {
-      editor.move(finished);
+      const groupPositions = new Map<string, XYPosition>(),
+        nodePositions = new Map<string, XYPosition>();
+      for (const [id, point] of finished) {
+        const group = regions.get(id);
+        if (group) groupPositions.set(group.id, point);
+        else {
+          const parentId = getInternalNode(id)?.parentId;
+          const parent = parentId ? regions.get(parentId) : undefined;
+          nodePositions.set(
+            id,
+            parent ? absoluteFrom(point, parent.position) : point,
+          );
+        }
+      }
+      editor.move(
+        nodePositions,
+        groupPositions,
+        measuredSizes(diagram.nodes, getInternalNode),
+      );
       setPositions((previous) => {
         const next = new Map(previous);
         for (const id of finished.keys()) next.delete(id);
@@ -126,16 +177,27 @@ export function Canvas({
         onKeyDownCapture={trackView}
       >
         <div className="absolute inset-0">
-          <ReactFlow<FlowNode, FlowEdge>
-            nodes={graph.nodes.map((n) => ({
-              ...n,
-              position: positions.get(n.id) ?? n.position,
-              selected: selected.nodes.includes(n.id),
-              className:
-                source && source !== n.id && !canConnect(diagram, source, n.id)
-                  ? 'invalid-target'
-                  : '',
-            }))}
+          <ReactFlow<CanvasNode, FlowEdge>
+            zIndexMode="manual"
+            nodes={[
+              ...graph.groupNodes.map((n) => ({
+                ...n,
+                position: positions.get(n.id) ?? n.position,
+                selected: selected.groups.includes(n.data.group.id),
+                ...(resizing?.id === n.id ? resizing.size : {}),
+              })),
+              ...graph.nodes.map((n) => ({
+                ...n,
+                position: positions.get(n.id) ?? n.position,
+                selected: selected.nodes.includes(n.id),
+                className:
+                  source &&
+                  source !== n.id &&
+                  !canConnect(diagram, source, n.id)
+                    ? 'invalid-target'
+                    : '',
+              })),
+            ]}
             edges={graph.edges.map((e) => ({
               ...e,
               selected: selected.edges.includes(e.id),
@@ -152,18 +214,22 @@ export function Canvas({
             onConnect={(c) => {
               const id = editor.connect(c.source, c.target);
               if (id) {
-                setSelected({ nodes: [], edges: [id] });
+                setSelected({ groups: [], nodes: [], edges: [id] });
                 openInspector();
               }
             }}
-            onPaneClick={() => setSelected({ nodes: [], edges: [] })}
+            onPaneClick={() =>
+              setSelected({ groups: [], nodes: [], edges: [] })
+            }
             deleteKeyCode={null}
             multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
             defaultViewport={diagram.viewport}
             onViewportChange={(vp) =>
               recordViewport(diagram.id, vp, interacted.current)
             }
-            fitView={fit && graph.nodes.length > 0}
+            fitView={
+              fit && (graph.nodes.length > 0 || graph.groupNodes.length > 0)
+            }
             fitViewOptions={initialFit}
             minZoom={0.15}
             maxZoom={2}
@@ -177,7 +243,7 @@ export function Canvas({
                 variant={BackgroundVariant.Dots}
               />
             )}
-            {!graph.nodes.length && (
+            {!graph.nodes.length && !graph.groupNodes.length && (
               <div className="empty-canvas">
                 수입 노드를 추가해 자금 흐름을 시작하세요.
               </div>

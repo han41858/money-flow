@@ -1,3 +1,5 @@
+import { useReactFlow } from '@xyflow/react';
+import { minGroupSize, measuredSizes } from '../groups/geometry';
 import { useState } from 'react';
 import {
   ArrowDownLeft,
@@ -89,7 +91,13 @@ type Props = {
 export function Inspector({ diagram, selected, select, close, remove }: Props) {
   const [error, setError] = useState('');
   const { nodes, edges } = diagram;
-  const count = selected.nodes.length + selected.edges.length;
+  const { getInternalNode } = useReactFlow();
+  const count =
+    selected.nodes.length + selected.edges.length + selected.groups.length;
+  const group =
+    count === 1
+      ? diagram.groups.find((g) => selected.groups.includes(g.id))
+      : undefined;
   const node =
     count === 1 ? nodes.find((n) => selected.nodes.includes(n.id)) : undefined;
   const edge =
@@ -103,7 +111,59 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
           <X size={17} />
         </button>
       </div>
-      <h2>{node?.name ?? (edge ? '연결선 상세' : count + '개 객체 선택')}</h2>
+      <h2>
+        {group?.name ??
+          node?.name ??
+          (edge ? '연결선 상세' : count + '개 객체 선택')}
+      </h2>
+      {group && (
+        <>
+          <TextField
+            key={group.name}
+            label="그룹 이름"
+            value={group.name}
+            commit={(name) => {
+              if (!name) return '그룹 이름을 입력하세요.';
+              editor.editGroup(group.id, { name });
+            }}
+          />
+          <label className="field">
+            배경색
+            <input
+              type="color"
+              value={group.color}
+              onChange={(e) =>
+                editor.editGroup(group.id, { color: e.target.value })
+              }
+            />
+          </label>
+          <div className="group-dimensions">
+            {(['width', 'height'] as const).map((axis) => (
+              <TextField
+                key={axis + group[axis]}
+                label={axis === 'width' ? '너비 (px)' : '높이 (px)'}
+                value={String(group[axis])}
+                commit={(text) => {
+                  const value = Number(text);
+                  if (!Number.isFinite(value) || value < minGroupSize[axis])
+                    return minGroupSize[axis] + 'px 이상 입력하세요.';
+                  editor.resizeGroup(
+                    group.id,
+                    { width: group.width, height: group.height, [axis]: value },
+                    measuredSizes(nodes, getInternalNode),
+                  );
+                }}
+              />
+            ))}
+          </div>
+          <div className="property">
+            <span>소속 노드</span>
+            <strong>
+              {nodes.filter((n) => n.groupId === group.id).length}개
+            </strong>
+          </div>
+        </>
+      )}
       {node && (
         <>
           <TextField
@@ -182,6 +242,13 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
             ))}
           </datalist>
           <dl>
+            <div className="property">
+              <dt>소속 그룹</dt>
+              <dd>
+                {diagram.groups.find((g) => g.id === node.groupId)?.name ??
+                  '없음'}
+              </dd>
+            </div>
             {(['target', 'source'] as const).map((end) => (
               <div className="property" key={end}>
                 <dt>{end === 'target' ? '월 유입' : '월 유출'}</dt>
@@ -197,7 +264,7 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
               <button
                 key={e.id}
                 className="related"
-                onClick={() => select({ nodes: [], edges: [e.id] })}
+                onClick={() => select({ groups: [], nodes: [], edges: [e.id] })}
               >
                 {e.source === node.id ? (
                   <ArrowUpRight size={15} />
@@ -220,14 +287,18 @@ export function Inspector({ diagram, selected, select, close, remove }: Props) {
           <p className="edge-route">
             <button
               className="text-button"
-              onClick={() => select({ nodes: [edge.source], edges: [] })}
+              onClick={() =>
+                select({ groups: [], nodes: [edge.source], edges: [] })
+              }
             >
               {nodes.find((n) => n.id === edge.source)?.name}
             </button>{' '}
             →{' '}
             <button
               className="text-button"
-              onClick={() => select({ nodes: [edge.target], edges: [] })}
+              onClick={() =>
+                select({ groups: [], nodes: [edge.target], edges: [] })
+              }
             >
               {nodes.find((n) => n.id === edge.target)?.name}
             </button>

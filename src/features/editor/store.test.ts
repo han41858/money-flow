@@ -23,7 +23,7 @@ describe('편집 이력', () => {
       ]),
     );
     const moved = ed.current();
-    ed.remove({ nodes: [a, b], edges: [edge] });
+    ed.remove({ groups: [], nodes: [a, b], edges: [edge] });
     expect(ed.current().edges).toHaveLength(0);
     ed.history.getState().undo();
     expect(ed.current()).toEqual(moved);
@@ -33,7 +33,7 @@ describe('편집 이력', () => {
     expect(ed.current().edges.at(-1)?.max).toBe(0);
     ed.history.getState().redo();
     expect(ed.current()).toEqual(before);
-    ed.remove({ nodes: [], edges: [edge] });
+    ed.remove({ groups: [], nodes: [], edges: [edge] });
     expect(ed.history.getState().futureStates).toHaveLength(0);
     ed.newDiagram();
     expect(ed.history.getState().pastStates).toHaveLength(0);

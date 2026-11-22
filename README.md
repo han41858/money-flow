@@ -66,4 +66,4 @@ Vercel Git 연동이 기능 브랜치와 `dev`에 프리뷰를 생성하고, `ma
 
 - [브랜치 룰셋](.github/rulesets): `dev`·`main` 룰셋. 저장소 설정에서 JSON을 가져와 적용합니다.
 - [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md): 변경 내용과 검증 결과를 정리하는 양식
-- [Prettier 설정 템플릿](templates/prettier/prettier.config.mjs): 개발 환경 구성 시 프로젝트 루트로 복사해 사용합니다.
+- [Prettier 설정](prettier.config.mjs)과 `pnpm format:check`로 저장소 포맷을 검사합니다.

@@ -30,15 +30,24 @@ export const emptySelection: Selection = { nodes: [], edges: [], groups: [] };
 
 export function nodeOfType(
   type: Kind,
-  base: Pick<MoneyNode, 'id' | 'name' | 'position' | 'owner' | 'groupId'>,
+  base: Pick<
+    MoneyNode,
+    'id' | 'name' | 'position' | 'owner' | 'groupId' | 'institutionId'
+  >,
 ): MoneyNode {
   const { id, name, position, owner, groupId } = base;
-  const core = { id, name, position, owner, groupId };
+  const core = {
+    id,
+    name,
+    position,
+    owner,
+    groupId,
+    institutionId: base.institutionId,
+  };
   switch (type) {
     case 'account':
-      return { ...core, type, institutionId: 'kakao' };
     case 'card':
-      return { ...core, type, institutionId: 'shinhan-card' };
+      return { ...core, type };
     case 'expense':
       return { ...core, type, category: 'consumption' };
     case 'income':
@@ -61,7 +70,9 @@ export function createEditor(initial: Diagram) {
       name: '새 ' + kindNames[type],
       position,
     });
-    commit({ nodes: [...current().nodes, node] });
+    const diagram = current();
+    const member = assignGroup(node, diagram.groups, new Map());
+    commit({ nodes: [...diagram.nodes, member] });
     return node.id;
   }
   function editNode(node: MoneyNode) {

@@ -124,7 +124,7 @@ test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 �
   await d.getByLabel('JSON 파일 선택').setInputFiles({
     name: 'new.json',
     mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify({ ...json, schemaVersion: 2 })),
+    buffer: Buffer.from(JSON.stringify({ ...json, schemaVersion: 3 })),
   });
   await expect(d.getByRole('alert')).toContainText('최신 버전');
   page.once('dialog', (e) => e.dismiss());

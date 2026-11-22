@@ -1,6 +1,6 @@
 import { diagramSchema } from '../types/diagram';
 export const example = diagramSchema.parse({
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'monthly-example',
   name: '우리 집 자금 흐름',
   description:

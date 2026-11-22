@@ -29,14 +29,13 @@ function BrandField({ node, diagram }: { node: MoneyNode; diagram: Diagram }) {
         key={node.institutionId}
         label="금융사"
         list="institutions"
+        placeholder="미지정 · 금융사 선택"
         value={brand?.name ?? ''}
         commit={(value) => {
           const entry = brands.find((b) => b.name === value);
-          if (!entry && (value || node.type !== 'income'))
+          if (!entry && value)
             return '목록에서 선택하거나 금융사를 등록하세요.';
-          if (entry) editor.editNode({ ...node, institutionId: entry.id });
-          else if (node.type === 'income')
-            editor.editNode({ ...node, institutionId: undefined });
+          editor.editNode({ ...node, institutionId: entry?.id });
         }}
       />
       <datalist id="institutions">

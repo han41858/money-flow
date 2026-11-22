@@ -28,7 +28,7 @@ describe('버전 1 다이어그램', () => {
   });
   it('지원하지 않는 버전과 끊긴 참조를 거부한다', () => {
     expect(
-      diagramSchema.safeParse({ ...example, schemaVersion: 2 }).success,
+      diagramSchema.safeParse({ ...example, schemaVersion: 3 }).success,
     ).toBe(false);
     expect(diagramSchema.safeParse({ ...example, nodes: [] }).success).toBe(
       false,

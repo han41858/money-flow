@@ -49,7 +49,7 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   expect(await viewer.evaluate(() => indexedDB.databases())).toEqual([]);
   await viewer.getByRole('button', { name: '내 다이어그램으로 복사' }).click();
   await expect(
-    viewer.getByRole('heading', { name: '우리 집 자금 흐름 복사본' }),
+    viewer.getByRole('main', { name: '우리 집 자금 흐름 복사본' }),
   ).toBeVisible();
   await viewer.getByRole('button', { name: '내 흐름', exact: true }).click();
   await expect(viewer.locator('.library-list button')).toHaveCount(1);

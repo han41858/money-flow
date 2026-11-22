@@ -12,7 +12,6 @@ import {
   FolderOpen,
   Layers2,
   ListTree,
-  Network,
   PanelLeftOpen,
   Plus,
   Redo2,
@@ -228,7 +227,7 @@ function Workspace() {
           Money Flow
         </div>
         <span className="header-divider" />
-        <span className="workspace-title">워크스페이스</span>
+        <span className="workspace-title">자금 흐름</span>
         <div className="history-tools">
           <button
             aria-label="실행 취소"
@@ -379,27 +378,19 @@ function Workspace() {
             </div>
           </aside>
         </ResponsivePanel>
-        <main id="editor-main" tabIndex={-1}>
+        <main id="editor-main" tabIndex={-1} aria-label={diagram.name}>
           <div className="page-head">
-            <div className="breadcrumb">
-              <Network size={14} />
-              다이어그램 <ChevronRight size={13} />
-              <span>월간 계획</span>
-            </div>
-            <div className="title-row">
-              <h1>{diagram.name}</h1>
-              <button
-                className="mobile-only"
-                aria-label="노드 목록 열기"
-                onClick={() => setMobile('tools')}
-              >
-                <PanelLeftOpen />
-              </button>
-            </div>
             <p>
               노드의 연결점을 끌거나 출발 노드의 속성에서 연결할 노드를
               선택하세요.
             </p>
+            <button
+              className="mobile-only"
+              aria-label="노드 목록 열기"
+              onClick={() => setMobile('tools')}
+            >
+              <PanelLeftOpen />
+            </button>
           </div>
           <div className="metrics">
             <Summary

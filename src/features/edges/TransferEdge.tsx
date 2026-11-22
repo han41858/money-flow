@@ -1,4 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
+import { defaultNodeSize } from '../groups/geometry';
 import { transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth, exactAmount } from './money';
@@ -14,9 +15,9 @@ export function TransferEdge({
   const stroke = edgeWidth(edge);
   const { path, arrow, x, y } = transferGeometry(
     coords.sourceX,
-    coords.sourceY,
+    coords.sourceY + (data.sourcePort - 0.5) * defaultNodeSize.height,
     coords.targetX,
-    coords.targetY,
+    coords.targetY + (data.targetPort - 0.5) * defaultNodeSize.height,
     stroke,
     data.targetPortCount,
   );

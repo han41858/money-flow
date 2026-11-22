@@ -18,27 +18,16 @@ import type { MoneyNode } from '../../types/diagram';
 import { NodeArtwork, browserTextWidth, cardLabel } from './artwork';
 import { kindNames } from './presentation';
 import { defaultNodeSize } from '../groups/geometry';
-import { portFraction } from '../edges/geometry';
 
-function Ports({
-  ids,
-  outgoing = false,
-}: {
-  ids: string[];
-  outgoing?: boolean;
-}) {
-  const ports = ids.length ? ids : [outgoing ? 'new-out' : 'new-in'];
-  return ports.map((id, i) => (
+function Port({ outgoing = false }: { outgoing?: boolean }) {
+  return (
     <Handle
-      key={id}
-      id={id}
       type={outgoing ? 'source' : 'target'}
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
-      style={{ top: portFraction(i, ports.length) * 100 + '%' }}
     />
-  ));
+  );
 }
 
 function CardNameInput({
@@ -142,19 +131,18 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
     [node.name, width],
   );
   const update = useUpdateNodeInternals();
-  const layout = JSON.stringify([node.type, data.inputs, data.outputs]);
-  const lastLayout = useRef(layout);
+  const lastType = useRef(node.type);
   useLayoutEffect(() => {
-    if (lastLayout.current === layout) return;
-    lastLayout.current = layout;
+    if (lastType.current === node.type) return;
+    lastType.current = node.type;
     update(node.id);
-  }, [node.id, layout, update]);
+  }, [node.id, node.type, update]);
   return (
     <div
       className={'money-node' + (selected ? ' active' : '')}
       style={{ '--outline': strokeColor(appearance.color) } as CSSProperties}
     >
-      {node.type !== 'income' && <Ports ids={data.inputs} />}
+      {node.type !== 'income' && <Port />}
       <NodeArtwork
         decorative
         data={data}
@@ -204,7 +192,7 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
           )}
         </>
       )}
-      {node.type !== 'expense' && <Ports ids={data.outputs} outgoing />}
+      {node.type !== 'expense' && <Port outgoing />}
     </div>
   );
 }

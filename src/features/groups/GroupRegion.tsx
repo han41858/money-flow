@@ -39,10 +39,7 @@ export function GroupRegion({ data, selected }: NodeProps<RegionNode>) {
             className="group-name-trigger"
             title={group.name}
             aria-label={group.name + ' 이름 수정'}
-            onClick={(event) => {
-              event.stopPropagation();
-              setDraft(group.name);
-            }}
+            onClick={() => setDraft(group.name)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ')
                 event.stopPropagation();

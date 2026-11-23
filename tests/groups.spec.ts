@@ -17,10 +17,18 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   const income = page.locator('[data-id="income-a"]');
   await selectNode(income);
   await page.getByRole('button', { name: '그룹 추가' }).click();
-  const title = page.locator('.react-flow__node-region.selected .group-title');
+  await page.getByRole('button', { name: '속성 닫기' }).click();
+  const groupId = await page
+    .locator('.react-flow__node-region')
+    .filter({ hasText: '새 그룹' })
+    .getAttribute('data-id');
+  const title = page.locator(`[data-id="${groupId}"] .group-title`);
   await title.getByRole('button', { name: '새 그룹 이름 수정' }).click();
   const name = title.getByRole('textbox', { name: '캔버스 그룹 이름' });
   await expect(name).toBeFocused();
+  await expect(page.getByLabel('그룹 이름', { exact: true })).toHaveValue(
+    '새 그룹',
+  );
   await name.fill('취소할 이름');
   await name.press('Escape');
   await expect(
@@ -106,4 +114,25 @@ test('그룹 안에 만든 계좌가 즉시 함께 이동하고 금융사 선택
   const before = (await account.boundingBox())!;
   await drag(page, group, 55, 25);
   expect((await account.boundingBox())!.x - before.x).toBeGreaterThan(40);
+});
+
+test('모바일에서 그룹 이름을 누르면 속성 모달 없이 편집한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const region = page.locator('[data-id="group:personal-a"]');
+  await region.getByRole('button', { name: '개인 A 이름 수정' }).click();
+  await expect(region).toHaveClass(/selected/);
+  const name = region.getByRole('textbox', { name: '캔버스 그룹 이름' });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveCSS('font-size', '16px');
+  await expect(
+    page.getByRole('dialog', { name: '선택한 객체 속성' }),
+  ).toHaveCount(0);
+  await name.fill('새 개인 그룹');
+  await name.press('Enter');
+  await expect(
+    region.getByRole('button', { name: '새 개인 그룹 이름 수정' }),
+  ).toBeVisible();
 });

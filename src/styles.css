@@ -990,6 +990,12 @@ h1 {
   padding-inline: 3px;
   cursor: text;
 }
+@media (max-width: 720px) {
+  .group-name-input {
+    font-size: 16px;
+    min-height: 24px;
+  }
+}
 .group-title svg {
   flex: none;
 }

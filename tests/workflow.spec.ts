@@ -31,8 +31,12 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   ]) {
     await selectNode(node(member));
     await page.getByRole('button', { name: '그룹 추가' }).click();
-    await page.getByLabel('그룹 이름').fill(name);
-    await page.getByLabel('그룹 이름').press('Enter');
+    await page
+      .getByRole('textbox', { name: '그룹 이름', exact: true })
+      .fill(name);
+    await page
+      .getByRole('textbox', { name: '그룹 이름', exact: true })
+      .press('Enter');
   }
   const handle = page.locator('.group-title').filter({ hasText: '공동 자금' });
   const start = await point(handle);

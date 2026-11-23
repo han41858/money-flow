@@ -415,6 +415,9 @@ h1 {
   opacity: 0;
   pointer-events: none;
 }
+[data-port-mode='idle'] .money-node .source.connectionindicator {
+  pointer-events: auto;
+}
 [data-port-mode='idle'] .money-node:hover .source.connectionindicator,
 [data-port-mode='idle']
   .react-flow__node:focus-visible

@@ -127,7 +127,10 @@ function activate(row: Awaited<ReturnType<typeof db.openDiagram>>) {
 }
 
 async function checkRemote(id?: string) {
-  if (!state().session) return;
+  if (!state().session) {
+    await refresh();
+    return;
+  }
   const active = editor.current().id;
   if (!id || active === id) {
     const actual = await db.revisionOf(active);
@@ -184,18 +187,16 @@ function listen() {
   });
 }
 
-let initialDiagram = blankDiagram;
-
-export async function start(initial: () => Diagram) {
-  initialDiagram = initial;
+export async function start() {
   if (state().session) return true;
   listen();
   return action(async () => {
     await refresh();
-    const { row, first } = await db.restore(initialDiagram);
-    activate(row);
+    if (state().entries.length) return;
+    const { row, first } = await db.restore(blankDiagram);
+    await refresh();
     if (first) {
-      await refresh();
+      activate(row);
       if (navigator.storage?.persist)
         void navigator.storage.persist().catch(() => {});
     }
@@ -281,7 +282,7 @@ export function reloadLatest() {
     const id = editor.current().id;
     activate(
       (await db.revisionOf(id)) === null
-        ? (await db.restore(initialDiagram)).row
+        ? (await db.restore(blankDiagram)).row
         : await db.openDiagram(id),
     );
     await refresh();

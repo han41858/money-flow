@@ -1,3 +1,4 @@
+import { chooseSavedFlow, openExample } from './exampleFixture';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { selectNode } from './gestures';
 async function drag(page: Page, handle: Locator, dx: number, dy: number) {
@@ -13,7 +14,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto('/');
+  await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   await selectNode(income);
   await page.getByRole('button', { name: '그룹 추가' }).click();
@@ -65,6 +66,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
     .filter({ hasText: '이 브라우저에 저장됨' })
     .waitFor();
   await page.reload();
+  await chooseSavedFlow(page, '우리 집 자금 흐름');
   await region.locator('.group-title svg').click();
   await expect(page.getByLabel('배경색')).toHaveValue('#7788bb');
   const pos = (await income.boundingBox())!;
@@ -120,7 +122,7 @@ test('모바일에서 그룹 이름을 누르면 속성 모달 없이 편집한�
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await openExample(page);
   const region = page.locator('[data-id="group:personal-a"]');
   await region.getByRole('button', { name: '개인 A 이름 수정' }).click();
   await expect(region).toHaveClass(/selected/);

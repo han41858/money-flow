@@ -1,0 +1,158 @@
+name: Vercel preview
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, labeled]
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  eligible:
+    if: >-
+      github.repository == 'han41858/money-flow' &&
+      (github.event.action != 'labeled' || github.event.label.name == 'preview')
+    runs-on: ubuntu-latest
+    outputs:
+      prs: ${{ steps.select.outputs.result }}
+    steps:
+      - id: select
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const variables = { owner, repo };
+            const label = 'preview';
+            const pullRequest = context.payload.pull_request;
+            const candidates = pullRequest
+              ? [pullRequest.number]
+              : (await github.paginate(
+                  'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { issue(number: $number) { closedByPullRequestsReferences(first: 50, after: $cursor) { nodes { number repository { nameWithOwner } } pageInfo { hasNextPage endCursor } } } } }',
+                  { ...variables, number: context.payload.issue.number },
+                )).repository.issue.closedByPullRequestsReferences.nodes
+                  .filter((pr) => pr.repository.nameWithOwner === `${owner}/${repo}`)
+                  .map((pr) => pr.number);
+            const result = [];
+            for (const number of candidates) {
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (
+                pr.state !== 'open' ||
+                pr.head.repo?.full_name !== `${owner}/${repo}` ||
+                ['main', 'dev'].includes(pr.head.ref)
+              ) continue;
+              const directlyLabeled = pr.labels.some(({ name }) => name === label);
+              if (!directlyLabeled) {
+                const { repository } = await github.paginate(
+                  'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
+                  { ...variables, number },
+                );
+                if (!repository.pullRequest.closingIssuesReferences.nodes.some(
+                  (issue) => issue.labels?.nodes.some(({ name }) => name === label),
+                )) continue;
+              }
+              result.push({ number, sha: pr.head.sha, ref: pr.head.ref });
+            }
+            return result;
+
+  preview:
+    name: Preview PR #${{ matrix.pr.number }}
+    needs: eligible
+    if: needs.eligible.outputs.prs != '' && needs.eligible.outputs.prs != '[]'
+    strategy:
+      matrix:
+        pr: ${{ fromJSON(needs.eligible.outputs.prs) }}
+    concurrency:
+      group: vercel-preview-${{ matrix.pr.number }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      deployments: write
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PR_NUMBER: ${{ matrix.pr.number }}
+          PR_SHA: ${{ matrix.pr.sha }}
+          PR_REF: ${{ matrix.pr.ref }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = process.env.PR_SHA;
+            const number = Number(process.env.PR_NUMBER);
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            if (pr.state !== 'open' || pr.head.sha !== sha) return;
+            if (!pr.labels.some(({ name }) => name === 'preview')) {
+              const { repository } = await github.paginate(
+                'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
+                { owner, repo, number },
+              );
+              if (!repository.pullRequest.closingIssuesReferences.nodes.some(
+                (issue) => issue.labels?.nodes.some(({ name }) => name === 'preview'),
+              )) return;
+            }
+
+            const environment = 'Preview';
+            const description = 'Money Flow label-gated Vercel preview';
+            const existing = await github.paginate(github.rest.repos.listDeployments, { owner, repo, sha, environment });
+            for (const item of existing.filter((item) => item.description === description)) {
+              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                owner, repo, deployment_id: item.id, per_page: 1,
+              });
+              if (statuses[0]?.state === 'success' && statuses[0].environment_url) {
+                await core.summary.addLink('Vercel preview', statuses[0].environment_url).write();
+                return;
+              }
+            }
+
+            if (!process.env.VERCEL_TOKEN) throw new Error('Set the VERCEL_TOKEN Actions secret to enable labeled previews.');
+            const teamId = 'team_sICp2j4Kxd3OzORQ2RYEhdzl';
+            async function vercel(path, body) {
+              const response = await fetch(`https://api.vercel.com${path}?teamId=${teamId}`, {
+                method: body ? 'POST' : 'GET',
+                headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : undefined,
+              });
+              const value = await response.json();
+              if (!response.ok) throw new Error(`Vercel API ${response.status}: ${value.error?.code ?? 'unknown error'}`);
+              return value;
+            }
+
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner, repo, ref: sha, environment, description,
+              auto_merge: false, required_contexts: [], transient_environment: true,
+            });
+            const status = (state, url) => github.rest.repos.createDeploymentStatus({
+              owner, repo, deployment_id: deployment.id, state, environment_url: url,
+              auto_inactive: false,
+            });
+
+            try {
+              const preview = await vercel('/v13/deployments', {
+                name: 'money-flow', project: 'prj_j7igfCTHa92VK8YUpCtPs8sjkl0g',
+                gitSource: { type: 'github', repoId: pr.base.repo.id, ref: process.env.PR_REF, sha },
+              });
+              const url = `https://${preview.url}`;
+              await status('in_progress', url);
+              for (let attempt = 0; attempt < 60; attempt++) {
+                const result = await vercel(`/v13/deployments/${preview.id}`);
+                if (result.readyState === 'READY') {
+                  await status('success', url);
+                  await core.summary.addLink('Vercel preview', url).write();
+                  return;
+                }
+                if (['ERROR', 'CANCELED'].includes(result.readyState))
+                  throw new Error(`Vercel deployment ended with ${result.readyState}`);
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+              }
+              throw new Error('Timed out waiting for Vercel preview.');
+            } catch (error) {
+              await status('failure');
+              throw error;
+            }

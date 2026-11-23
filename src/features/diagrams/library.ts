@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { editor } from '../editor/store';
 import type { Diagram } from '../../types/diagram';
 import * as db from '../../lib/storage/database';
+import { downloadBlob } from '../../lib/download';
 import {
   blankDiagram,
   copyDiagram,
@@ -310,14 +311,10 @@ export function retrySave() {
 export function exportFile() {
   try {
     const diagram = snapshot();
-    const url = URL.createObjectURL(
+    downloadBlob(
       new Blob([serializeDiagram(diagram)], { type: 'application/json' }),
+      diagram.name + '.json',
     );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = diagram.name + '.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) {
     report(e);
   }

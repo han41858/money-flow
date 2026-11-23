@@ -1,15 +1,7 @@
 import type { Diagram } from '../../types/diagram';
 import type { NodeSizes } from '../groups/geometry';
 import { browserTextWidth } from '../nodes/sizing';
-
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { downloadBlob } from '../../lib/download';
 
 export async function exportImage(
   diagram: Diagram,

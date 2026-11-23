@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { allowsDirection } from '../features/edges/connections';
 
 const id = z.string().trim().min(1);
-const color = z.string().regex(/^#[0-9a-f]{6}$/i);
+export const colorPattern = /^#[0-9a-f]{6}$/i;
+const color = z.string().regex(colorPattern);
 const point = z.object({ x: z.number(), y: z.number() });
 const nodeCore = z.object({
   id,

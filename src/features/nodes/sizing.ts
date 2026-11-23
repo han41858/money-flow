@@ -20,10 +20,10 @@ export const estimatedTextWidth: MeasureText = (value, size) =>
     0,
   );
 
-export const nodeHeight = 48;
+export const nodeHeight = 40;
 export const totalFontSize = 11;
 export const totalLineHeight = 12;
-export const nameX = 38;
+export const nameX = 32;
 export const nameFontSize = 15;
 
 export function cardLabel(name: string) {
@@ -36,8 +36,8 @@ export function cardSize(
 ) {
   return {
     width: Math.max(
-      80,
-      Math.ceil(measure(cardLabel(name), nameFontSize, true)) + nameX + 14,
+      72,
+      Math.ceil(measure(cardLabel(name), nameFontSize, true)) + nameX + 9,
     ),
     height: nodeHeight,
   };

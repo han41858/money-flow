@@ -2,10 +2,10 @@ import type { Diagram, MoneyNode } from '../../types/diagram';
 import { cardSize } from '../nodes/sizing';
 
 export type Group = Diagram['groups'][number];
-export type Point = MoneyNode['position'];
+type Point = MoneyNode['position'];
 export type Size = Pick<Group, 'width' | 'height'>;
 export type NodeSizes = ReadonlyMap<string, Size>;
-export const defaultGroupSize = { width: 320, height: 210 };
+const defaultGroupSize = { width: 320, height: 210 };
 export const minGroupSize = { width: 112, height: 64 };
 
 export function measuredSizes(
@@ -27,6 +27,18 @@ export function relativeTo(position: Point, origin: Point): Point {
 
 export function absoluteFrom(position: Point, origin: Point): Point {
   return { x: position.x + origin.x, y: position.y + origin.y };
+}
+
+type Rect = Point & Size;
+
+// True when the rectangles overlap, or come closer than the given gaps.
+export function rectsOverlap(a: Rect, b: Rect, gapX = 0, gapY = 0) {
+  return (
+    a.x < b.x + b.width + gapX &&
+    b.x < a.x + a.width + gapX &&
+    a.y < b.y + b.height + gapY &&
+    b.y < a.y + a.height + gapY
+  );
 }
 
 function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {

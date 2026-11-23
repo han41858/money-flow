@@ -9,6 +9,13 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   );
   const main = page.getByRole('main', { name: '우리 집 자금 흐름' });
   await expect(main).toBeVisible();
+  await expect(main.getByText('흐름도', { exact: true })).toHaveCount(0);
+  await expect(main.getByText('월 기준 · KRW')).toHaveCount(0);
+  await expect(main.locator('.metrics')).toHaveCSS('position', 'absolute');
+  const canvasBox = (await main.locator('.flow-area').boundingBox())!;
+  const mainBox = (await main.boundingBox())!;
+  for (const side of ['x', 'y', 'width', 'height'] as const)
+    expect(Math.abs(canvasBox[side] - mainBox[side])).toBeLessThan(1);
   await expect(main.getByText('월간 계획', { exact: true })).toHaveCount(0);
   await expect(
     main.getByText('우리 집 자금 흐름', { exact: true }),
@@ -48,8 +55,11 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const initial = await zoom.innerText();
   await page.getByRole('button', { name: '확대', exact: true }).click();
   await expect(zoom).not.toHaveText(initial);
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await expect(zoom).toHaveText('100%');
   await page.getByRole('button', { name: '전체 보기' }).click();
-  await expect(zoom).toHaveText(initial);
+  await expect(zoom).not.toHaveText('100%');
+  for (const node of await nodes.all()) await expect(node).toBeInViewport();
   await page.getByRole('button', { name: '격자 표시' }).click();
   await expect(page.locator('.react-flow__background')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -105,4 +115,43 @@ test('억 단위 수입 범위와 대출 상환을 월간 요약과 연결선에
   await expect(page.locator('.metric.save')).toContainText('0원');
   await page.getByRole('combobox', { name: /^분류/ }).selectOption('saving');
   await expect(page.locator('.metric.loan')).toHaveCount(0);
+});
+
+test('속성 패널을 열고 노드를 추가하거나 전체 보기를 해도 카드가 가려지지 않는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/');
+  const add = page.getByRole('button', { name: '지출 추가' });
+  const panel = page.locator('.detail-wrap');
+  const metrics = page.locator('.metrics');
+  const selected = page.locator('.react-flow__node-money.selected');
+
+  async function expectVisibleCards(cards: typeof selected) {
+    await expect
+      .poll(async () => {
+        const summary = (await metrics.boundingBox())!;
+        const inspector = (await panel.boundingBox())!;
+        const boxes = await Promise.all(
+          (await cards.all()).map((card) => card.boundingBox()),
+        );
+        return (
+          boxes.length > 0 &&
+          boxes.every(
+            (box) =>
+              box &&
+              box.x + box.width <= inspector.x + 1 &&
+              box.y >= summary.y + summary.height - 1,
+          )
+        );
+      })
+      .toBe(true);
+  }
+
+  await add.click();
+  await expectVisibleCards(selected);
+  await add.click();
+  await expectVisibleCards(selected);
+  await page.getByRole('button', { name: '전체 보기' }).click();
+  await expectVisibleCards(page.locator('.react-flow__node-money'));
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { X, Share2 } from 'lucide-react';
 import { snapshot, exportFile } from '../diagrams/library';
@@ -6,6 +6,7 @@ import { measuredSizes } from '../groups/geometry';
 import { exportImage } from '../export/image';
 import { exactAmount } from '../edges/money';
 import { encodeShare } from './codec';
+import { useModalDialog } from '../../lib/editing';
 
 export function ShareDialog({ close }: { close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -16,11 +17,7 @@ export function ShareDialog({ close }: { close: () => void }) {
   const [busy, setBusy] = useState(false);
   const { getInternalNode } = useReactFlow();
   const names = new Map(diagram.nodes.map((n) => [n.id, n.name]));
-  useEffect(() => {
-    const el = dialog.current!;
-    el.showModal();
-    return () => el.close();
-  }, []);
+  useModalDialog(dialog);
 
   async function run(action: () => Promise<void>) {
     setError('');

@@ -1,5 +1,10 @@
 import type { MoneyNode } from '../../types/diagram';
-import type { Group, NodeSizes, Size } from '../groups/geometry';
+import {
+  rectsOverlap,
+  type Group,
+  type NodeSizes,
+  type Size,
+} from '../groups/geometry';
 import { cardSize } from '../nodes/sizing';
 import type { Kind } from './store';
 
@@ -41,11 +46,7 @@ export function insertionPoint(
   const free = (cx: number, cy: number) =>
     !headers.some((h) => coversHeader(cx, cy, h)) &&
     occupied.every(
-      (node) =>
-        cx + size.width + 20 <= node.x ||
-        node.x + node.width + 20 <= cx ||
-        cy + size.height + 24 <= node.y ||
-        node.y + node.height + 24 <= cy,
+      (node) => !rectsOverlap({ x: cx, y: cy, ...size }, node, 20, 24),
     );
   for (const oy of [0, 135, -135, 270, -270]) {
     for (const ox of [0, 215, -215]) {

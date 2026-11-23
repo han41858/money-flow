@@ -107,7 +107,7 @@ describe('편집 이력', () => {
       Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 96,
     );
     expect(position('card').y - position('savings').y).toBeGreaterThanOrEqual(
-      48 + 24,
+      nodeHeight + 24,
     );
     expect(arranged.groups.map((group) => group.id)).toEqual(
       before.groups.map((group) => group.id),

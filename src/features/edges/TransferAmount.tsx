@@ -2,6 +2,7 @@ import { useRef, useState, type CSSProperties } from 'react';
 import type { MoneyEdge } from '../../types/diagram';
 import { editor } from '../editor/store';
 import { amountLabel, exactAmount } from './money';
+import { onEditKey } from '../../lib/editing';
 
 export function TransferAmount({
   edge,
@@ -90,11 +91,7 @@ export function TransferAmount({
         onBlur={() => finish(true, false)}
         onKeyDown={(event) => {
           event.stopPropagation();
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'Enter' || event.key === 'Escape') {
-            event.preventDefault();
-            finish(event.key === 'Enter', true);
-          }
+          onEditKey(event, (save) => finish(save, true));
         }}
       />
       {error && (

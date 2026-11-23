@@ -344,3 +344,63 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
   await expect(d.getByRole('alert')).toContainText('최신 버전');
   await expect(d.getByLabel('흐름 이름')).toHaveValue(example.name);
 });
+
+test('IndexedDB 버전 1의 모든 흐름에서 소유자 값만 제거한다', async ({
+  page,
+}) => {
+  await page.route('**/legacy-db', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html>' }),
+  );
+  await page.goto('/legacy-db');
+  const rows = [
+    example,
+    { ...example, id: 'legacy-other', name: '다른 흐름' },
+  ].map((diagram) => ({ id: diagram.id, diagram, revision: 7, fit: false }));
+  await page.evaluate(async (entries) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('money-flow', 1);
+      request.onerror = () => reject(request.error);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        const docs = db.createObjectStore('diagrams', { keyPath: 'id' });
+        for (const row of entries) {
+          docs.add({
+            ...row,
+            diagram: {
+              ...row.diagram,
+              nodes: row.diagram.nodes.map((node) => ({
+                ...node,
+                owner: '이전 소유자',
+              })),
+            },
+          });
+        }
+        db.createObjectStore('settings').put(entries[0].id, 'last');
+      };
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+    });
+  }, rows);
+  await page.goto('/');
+  await expect(page.getByRole('main', { name: example.name })).toBeVisible();
+  const stored = await page.evaluate(
+    async () =>
+      new Promise<unknown>((resolve, reject) => {
+        const request = indexedDB.open('money-flow', 2);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const result = db
+            .transaction('diagrams')
+            .objectStore('diagrams')
+            .getAll();
+          result.onsuccess = () => resolve(result.result);
+          result.onerror = () => reject(result.error);
+          db.close();
+        };
+      }),
+  );
+  expect(stored).toEqual(expect.arrayContaining(rows));
+});

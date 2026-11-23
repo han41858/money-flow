@@ -33,15 +33,14 @@ export function nodeOfType(
   type: Kind,
   base: Pick<
     MoneyNode,
-    'id' | 'name' | 'position' | 'owner' | 'groupId' | 'institutionId'
+    'id' | 'name' | 'position' | 'groupId' | 'institutionId'
   >,
 ): MoneyNode {
-  const { id, name, position, owner, groupId } = base;
+  const { id, name, position, groupId } = base;
   const core = {
     id,
     name,
     position,
-    owner,
     groupId,
     institutionId: base.institutionId,
   };

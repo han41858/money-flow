@@ -16,7 +16,6 @@ const node: MoneyNode = {
   type: 'account',
   name: '생활비',
   institutionId: 'kakao',
-  owner: '개인 A',
   position: { x: -40, y: 10 },
 };
 const sizes = new Map([['n', { width: 200, height: 140 }]]);
@@ -55,7 +54,6 @@ it('부모·자식을 함께 이동해도 한 번만 이동하고 겹쳐진 외�
   const d = ed.current();
   expect(d.nodes[0]).toMatchObject({
     position: { x: 310, y: 60 },
-    owner: '개인 A',
     groupId: group,
   });
   expect(d.nodes.find((n) => n.id === outsider)?.groupId).toBeUndefined();

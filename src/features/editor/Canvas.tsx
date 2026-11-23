@@ -17,14 +17,7 @@ import {
   type NodeSelectionChange,
   type XYPosition,
 } from '@xyflow/react';
-import {
-  Grid2X2,
-  Maximize,
-  Minus,
-  Plus,
-  WandSparkles,
-  Workflow,
-} from 'lucide-react';
+import { Grid2X2, Maximize, Minus, Plus, WandSparkles } from 'lucide-react';
 import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
 import { TransferEdge } from '../edges/TransferEdge';
@@ -225,15 +218,6 @@ export function Canvas({
 
   return (
     <section className="canvas-shell" aria-label="자금 흐름 캔버스">
-      <div className="canvas-heading">
-        <span>
-          <Workflow size={17} />
-          흐름도
-        </span>
-        <small>
-          {source ? '연결할 노드의 왼쪽 점을 선택하세요' : '월 기준 · KRW'}
-        </small>
-      </div>
       <div
         className="flow-area"
         data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
@@ -311,6 +295,15 @@ export function Canvas({
                   ? '비어 있는 흐름입니다.'
                   : '수입 노드를 추가해 자금 흐름을 시작하세요.'}
               </div>
+            )}
+            {source && (
+              <Panel
+                position="bottom-center"
+                className="connection-hint"
+                role="status"
+              >
+                연결할 노드의 왼쪽 점을 선택하세요
+              </Panel>
             )}
             <Panel position="bottom-left" className="canvas-controls">
               <button aria-label="축소" onClick={() => void zoomOut()}>

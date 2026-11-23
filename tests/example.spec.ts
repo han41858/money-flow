@@ -9,6 +9,12 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   );
   const main = page.getByRole('main', { name: '우리 집 자금 흐름' });
   await expect(main).toBeVisible();
+  await expect(main.getByText('흐름도', { exact: true })).toHaveCount(0);
+  await expect(main.getByText('월 기준 · KRW')).toHaveCount(0);
+  await expect(main.locator('.metrics')).toHaveCSS('position', 'absolute');
+  expect(await main.locator('.flow-area').boundingBox()).toEqual(
+    await main.boundingBox(),
+  );
   await expect(main.getByText('월간 계획', { exact: true })).toHaveCount(0);
   await expect(
     main.getByText('우리 집 자금 흐름', { exact: true }),

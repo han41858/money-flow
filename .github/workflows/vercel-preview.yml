@@ -27,13 +27,27 @@ jobs:
             const { owner, repo } = context.repo;
             const variables = { owner, repo };
             const label = 'preview';
+            async function allNodes(query, number, connection) {
+              const nodes = [];
+              let cursor = null;
+              do {
+                const { repository } = await github.graphql(query, { ...variables, number, cursor });
+                const page = connection(repository);
+                if (!page) break;
+                nodes.push(...page.nodes.filter(Boolean));
+                cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+              } while (cursor);
+              return nodes;
+            }
+
             const pullRequest = context.payload.pull_request;
             const candidates = pullRequest
               ? [pullRequest.number]
-              : (await github.paginate(
+              : (await allNodes(
                   'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { issue(number: $number) { closedByPullRequestsReferences(first: 50, after: $cursor) { nodes { number repository { nameWithOwner } } pageInfo { hasNextPage endCursor } } } } }',
-                  { ...variables, number: context.payload.issue.number },
-                )).repository.issue.closedByPullRequestsReferences.nodes
+                  context.payload.issue.number,
+                  (repository) => repository.issue?.closedByPullRequestsReferences,
+                ))
                   .filter((pr) => pr.repository.nameWithOwner === `${owner}/${repo}`)
                   .map((pr) => pr.number);
             const result = [];
@@ -46,13 +60,12 @@ jobs:
               ) continue;
               const directlyLabeled = pr.labels.some(({ name }) => name === label);
               if (!directlyLabeled) {
-                const { repository } = await github.paginate(
+                const issues = await allNodes(
                   'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
-                  { ...variables, number },
+                  number,
+                  (repository) => repository.pullRequest?.closingIssuesReferences,
                 );
-                if (!repository.pullRequest.closingIssuesReferences.nodes.some(
-                  (issue) => issue.labels?.nodes.some(({ name }) => name === label),
-                )) continue;
+                if (!issues.some((issue) => issue.labels?.nodes.some(({ name }) => name === label))) continue;
               }
               result.push({ number, sha: pr.head.sha, ref: pr.head.ref });
             }
@@ -88,15 +101,21 @@ jobs:
             const number = Number(process.env.PR_NUMBER);
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
             if (pr.state !== 'open' || pr.head.sha !== sha) return;
-            if (!pr.labels.some(({ name }) => name === 'preview')) {
-              const { repository } = await github.paginate(
+            let eligible = pr.labels.some(({ name }) => name === 'preview');
+            let cursor = null;
+            while (!eligible) {
+              const { repository } = await github.graphql(
                 'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
-                { owner, repo, number },
+                { owner, repo, number, cursor },
               );
-              if (!repository.pullRequest.closingIssuesReferences.nodes.some(
-                (issue) => issue.labels?.nodes.some(({ name }) => name === 'preview'),
-              )) return;
+              const issues = repository.pullRequest?.closingIssuesReferences;
+              eligible = issues?.nodes.some(
+                (issue) => issue?.labels?.nodes.some(({ name }) => name === 'preview'),
+              );
+              if (!issues?.pageInfo.hasNextPage) break;
+              cursor = issues.pageInfo.endCursor;
             }
+            if (!eligible) return;
 
             const environment = 'Preview';
             const description = 'Money Flow label-gated Vercel preview';

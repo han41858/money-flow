@@ -1,22 +1,36 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 
 type Item = { id: string; data?: object };
 type Snapshot<T> = { list: T[]; byId: Map<string, T> };
 
-function shallowEqual(a: object | undefined, b: object | undefined) {
-  if (a === b) return true;
-  if (!a || !b) return false;
+function isPlain(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+// Structural equality for the plain objects and arrays that make up a node or
+// edge. Anything else (functions, components, class instances) is compared by
+// identity.
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a))
+    return (
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((value, index) => sameValue(value, b[index]))
+    );
+  if (!isPlain(a) || !isPlain(b)) return false;
   const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  return keys.every(
-    (key) => Object.hasOwn(right, key) && Object.is(left[key], right[key]),
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => Object.hasOwn(b, key) && sameValue(a[key], b[key]))
   );
 }
 
-// Returns the previous object for every item whose fields (and `data` fields)
-// are unchanged, and the previous list itself when nothing changed at all.
+// Returns the previous object for every item whose value is unchanged, the
+// previous `data` when only other fields changed, and the previous snapshot
+// itself when nothing changed at all.
 export function reuseUnchanged<T extends Item>(
   previous: Snapshot<T>,
   items: T[],
@@ -25,12 +39,9 @@ export function reuseUnchanged<T extends Item>(
   const list = items.map((item) => {
     const old = previous.byId.get(item.id);
     let stable = item;
-    if (old) {
-      const candidate = shallowEqual(old.data, item.data)
-        ? { ...item, data: old.data }
-        : item;
-      stable = shallowEqual(old, candidate) ? old : candidate;
-    }
+    if (old && sameValue(old, item)) stable = old;
+    else if (old && sameValue(old.data, item.data))
+      stable = { ...item, data: old.data };
     byId.set(item.id, stable);
     return stable;
   });
@@ -41,9 +52,15 @@ export function reuseUnchanged<T extends Item>(
 }
 
 // React Flow re-renders a node or edge whenever it receives a new object for
-// it. Reusing unchanged objects keeps a drag from re-rendering everything.
+// it. Reusing unchanged objects keeps a drag or a single edit from
+// re-rendering everything. The snapshot lives in state and is replaced during
+// render, which React supports for values derived from the previous render.
 export function useStableItems<T extends Item>(items: T[]): T[] {
-  const previous = useRef<Snapshot<T>>({ list: [], byId: new Map() });
-  previous.current = reuseUnchanged(previous.current, items);
-  return previous.current.list;
+  const [snapshot, setSnapshot] = useState<Snapshot<T>>({
+    list: [],
+    byId: new Map(),
+  });
+  const next = reuseUnchanged(snapshot, items);
+  if (next !== snapshot) setSnapshot(next);
+  return next.list;
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { reuseUnchanged } from './stable';
+import { reuseUnchanged, sameValue } from './stable';
 
 type Item = {
   id: string;
@@ -69,4 +69,35 @@ test('키가 사라지거나 생기면 다른 항목으로 본다', () => {
   const back = reuseUnchanged(withWidth, [make('a')]);
   expect(back.list[0]).not.toBe(withWidth.list[0]);
   expect('width' in back.list[0]).toBe(false);
+});
+
+test('내용이 같은 새 객체·배열은 같은 값으로 보고 이전 항목을 유지한다', () => {
+  type Rich = {
+    id: string;
+    position: { x: number; y: number };
+    data: { ports: string[]; totals: { label: string }[]; icon: () => void };
+  };
+  const icon = () => {};
+  const rich = (label: string): Rich => ({
+    id: 'a',
+    position: { x: 1, y: 2 },
+    data: { ports: ['e1', 'e2'], totals: [{ label }], icon },
+  });
+  const none = { list: [] as Rich[], byId: new Map<string, Rich>() };
+  const first = reuseUnchanged(none, [rich('10만')]);
+  expect(reuseUnchanged(first, [rich('10만')])).toBe(first);
+  const changed = reuseUnchanged(first, [rich('20만')]);
+  expect(changed.list[0]).not.toBe(first.list[0]);
+  expect(changed.list[0].data.totals[0].label).toBe('20만');
+});
+
+test('함수와 클래스 인스턴스는 참조가 같을 때만 같은 값이다', () => {
+  expect(sameValue({ run: () => {} }, { run: () => {} })).toBe(false);
+  expect(sameValue(new Map(), new Map())).toBe(false);
+  expect(
+    sameValue([1, [2, { a: undefined }]], [1, [2, { a: undefined }]]),
+  ).toBe(true);
+  expect(sameValue({ a: undefined }, { b: undefined })).toBe(false);
+  expect(sameValue([1, 2], [1, 2, 3])).toBe(false);
+  expect(sameValue(NaN, NaN)).toBe(true);
 });

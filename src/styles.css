@@ -36,8 +36,6 @@ button:focus-visible {
 .side-head span,
 .node-row,
 .metric,
-.canvas-heading,
-.canvas-heading > span,
 .related,
 .back {
   display: flex;
@@ -121,8 +119,7 @@ button:focus-visible {
   font-weight: 650;
   padding: 0 6px;
 }
-.side-head span,
-.canvas-heading > span {
+.side-head span {
   gap: 8px;
 }
 .sidebar-summary {
@@ -210,11 +207,36 @@ h1 {
   font-weight: 740;
   margin: 14px 0 6px;
 }
+#editor-main {
+  --inspector-width: 226px;
+  position: relative;
+  isolation: isolate;
+  padding: 0;
+}
+#editor-main > .metrics {
+  position: absolute;
+  z-index: 6;
+  inset: 12px 12px auto;
+  margin: 0;
+  pointer-events: none;
+}
+@media (max-width: 900px) {
+  #editor-main {
+    --inspector-width: 195px;
+  }
+}
+@media (max-width: 720px) {
+  #editor-main {
+    --inspector-width: 0px;
+  }
+}
+#editor-main:has(.editor-area > .detail-wrap) > .metrics {
+  right: calc(var(--inspector-width) + 12px);
+}
 .metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 13px;
-  margin: 21px 0;
 }
 .metrics:has(.loan) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -235,12 +257,13 @@ h1 {
   border: 1px solid #dce2d9;
   border-radius: 12px;
   background: white;
-  padding: 15px 17px;
-  gap: 13px;
+  padding: 8px 12px;
+  gap: 10px;
+  box-shadow: 0 2px 8px #20332e12;
 }
 .metric-icon {
-  width: 39px;
-  height: 39px;
+  width: 32px;
+  height: 32px;
   border-radius: 11px;
   display: grid;
   place-items: center;
@@ -281,18 +304,6 @@ h1 {
   display: flex;
   flex-direction: column;
   min-height: 440px;
-}
-.canvas-heading {
-  justify-content: space-between;
-  border-bottom: 1px solid #dce3d9;
-  padding: 13px 18px;
-  font-size: 14px;
-  font-weight: 700;
-}
-.canvas-heading small {
-  font-size: 11px;
-  font-weight: 500;
-  color: #65756b;
 }
 .flow-area {
   flex: 1;
@@ -545,7 +556,10 @@ h1 {
     padding: 6px;
   }
   .node-list-toggle {
-    align-self: flex-end;
+    position: absolute;
+    z-index: 6;
+    right: 12px;
+    bottom: 28px;
     border: 1px solid #d8dfd6;
     border-radius: 6px;
     background: white;
@@ -556,7 +570,6 @@ h1 {
   }
   .metrics {
     gap: 6px;
-    margin: 15px 0;
   }
   .metric {
     display: block;
@@ -577,9 +590,6 @@ h1 {
   }
   .flow-area {
     min-height: 295px;
-  }
-  .canvas-heading {
-    padding: 10px 12px;
   }
 }
 .history-tools,
@@ -639,13 +649,23 @@ h1 {
 }
 .editor-area .canvas-shell {
   min-width: 0;
+  border: 0;
+  border-radius: 0;
+}
+.connection-hint {
+  bottom: 38px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  pointer-events: none;
 }
 .detail-wrap {
-  width: 226px;
-  flex: none;
-  margin-left: 10px;
-  position: relative;
-  border-radius: 12px;
+  width: var(--inspector-width);
+  position: absolute;
+  z-index: 7;
+  inset: 0 0 0 auto;
+  border-radius: 0;
   border: 1px solid #dce2da;
   background: white;
 }
@@ -735,9 +755,6 @@ h1 {
   opacity: 0.48;
 }
 @media (max-width: 900px) {
-  .detail-wrap {
-    width: 195px;
-  }
   .inspector {
     padding: 12px;
   }

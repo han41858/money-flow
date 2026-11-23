@@ -8,6 +8,7 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useShortcuts } from './useShortcuts';
 import { ShareDialog } from '../features/sharing/ShareDialog';
+import { visibleArea } from '../features/editor/visibleArea';
 import { Canvas } from '../features/editor/Canvas';
 import { Inspector } from '../features/editor/Inspector';
 import {
@@ -111,10 +112,10 @@ function Workspace({
   };
 
   function addGroup() {
-    const area = document.querySelector('.flow-area')!.getBoundingClientRect();
+    const area = visibleArea(document.querySelector('.flow-area')!, true);
     const center = screenToFlowPosition({
-      x: area.left + area.width / 2,
-      y: area.top + area.height / 2,
+      x: (area.left + area.right) / 2,
+      y: (area.top + area.bottom) / 2,
     });
     const sizes = measuredSizes(nodes, getInternalNode);
     const bounds = newGroupBounds(
@@ -127,7 +128,8 @@ function Workspace({
   }
 
   function add(kind: Kind) {
-    const box = document.querySelector('.flow-area')!.getBoundingClientRect();
+    const canvas = document.querySelector('.flow-area')!;
+    const box = visibleArea(canvas, true);
     const size = cardSize(newNodeName(kind), browserTextWidth);
     const point = insertionPoint(
       kind,
@@ -141,19 +143,17 @@ function Workspace({
     const id = editor.addNode(kind, point);
     select({ groups: [], nodes: [id], edges: [] });
     requestAnimationFrame(() => {
-      const area = document
-        .querySelector('.flow-area')!
-        .getBoundingClientRect();
+      const area = visibleArea(canvas);
       const top = flowToScreenPosition(point);
       const viewport = getViewport();
       const dx = Math.min(
         0,
         area.right - 10 - top.x - size.width * viewport.zoom,
       );
-      const dy = Math.min(
-        0,
-        area.bottom - 10 - top.y - size.height * viewport.zoom,
-      );
+      const dy =
+        top.y < area.top
+          ? area.top + 10 - top.y
+          : Math.min(0, area.bottom - 10 - top.y - size.height * viewport.zoom);
       if (dx || dy)
         void setViewport({
           ...viewport,

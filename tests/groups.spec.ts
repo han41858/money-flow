@@ -17,8 +17,21 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   const income = page.locator('[data-id="income-a"]');
   await selectNode(income);
   await page.getByRole('button', { name: '그룹 추가' }).click();
-  await page.getByLabel('그룹 이름').fill('급여 영역');
-  await page.getByLabel('그룹 이름').press('Enter');
+  const title = page.locator('.react-flow__node-region.selected .group-title');
+  await title.getByRole('button', { name: '새 그룹 이름 수정' }).click();
+  const name = title.getByRole('textbox', { name: '캔버스 그룹 이름' });
+  await expect(name).toBeFocused();
+  await name.fill('취소할 이름');
+  await name.press('Escape');
+  await expect(
+    title.getByRole('button', { name: '새 그룹 이름 수정' }),
+  ).toBeFocused();
+  await title.getByRole('button', { name: '새 그룹 이름 수정' }).click();
+  await name.fill('급여 영역');
+  await name.press('Enter');
+  await expect(page.getByLabel('그룹 이름', { exact: true })).toHaveValue(
+    '급여 영역',
+  );
   await page.getByLabel('배경색').fill('#7788bb');
   const region = page
     .locator('.react-flow__node-region')
@@ -28,6 +41,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   const before = (await income.boundingBox())!;
   const groupBefore = (await region.boundingBox())!;
   await drag(page, region.locator('.group-title'), 40, 18);
+  await expect(name).toHaveCount(0);
   const dx = (await region.boundingBox())!.x - groupBefore.x;
   expect(dx).toBeGreaterThan(30);
   expect((await income.boundingBox())!.x - before.x).toBeCloseTo(dx, 0);
@@ -43,7 +57,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
     .filter({ hasText: '이 브라우저에 저장됨' })
     .waitFor();
   await page.reload();
-  await region.locator('.group-title').click();
+  await region.locator('.group-title svg').click();
   await expect(page.getByLabel('배경색')).toHaveValue('#7788bb');
   const pos = (await income.boundingBox())!;
   await page.getByRole('button', { name: '선택 삭제' }).click();

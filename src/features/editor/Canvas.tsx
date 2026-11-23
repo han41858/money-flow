@@ -301,7 +301,22 @@ export function Canvas({
             edgeTypes={edgeTypes}
             onNodesChange={changeNodes}
             onEdgesChange={changeEdges}
-            onNodeClick={openInspector}
+            onNodeClick={(event, node) => {
+              if (
+                !readOnly &&
+                node.type === 'region' &&
+                event.target instanceof Element &&
+                event.target.closest('.group-name-trigger')
+              ) {
+                setSelected({
+                  groups: [node.data.group.id],
+                  nodes: [],
+                  edges: [],
+                });
+                if (window.matchMedia('(max-width:720px)').matches) return;
+              }
+              openInspector();
+            }}
             onEdgeClick={openInspector}
             onConnectStart={(_, p) => setSource(p.nodeId)}
             onConnectEnd={() => setSource(null)}

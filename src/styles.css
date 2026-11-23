@@ -966,10 +966,35 @@ h1 {
   font-size: 13px;
   cursor: grab;
 }
-.group-title strong {
+.group-title strong,
+.group-name-trigger {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.group-name-trigger,
+.group-name-input {
+  min-width: 0;
+  font-weight: 700;
+}
+.group-name-trigger {
+  cursor: text;
+}
+.group-title:has(.group-name-input) {
+  width: 100%;
+}
+.group-name-input {
+  width: 100%;
+  border-radius: 3px;
+  background: white;
+  padding-inline: 3px;
+  cursor: text;
+}
+@media (max-width: 720px) {
+  .group-name-input {
+    font-size: 16px;
+    min-height: 24px;
+  }
 }
 .group-title svg {
   flex: none;

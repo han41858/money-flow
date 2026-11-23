@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { test, expect } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
 test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 전용 링크와 이미지로 전달한다', async ({
@@ -82,7 +83,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
 test('키보드로 대상 노드 선택·연결·이동·실행 취소가 가능하다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await page.getByRole('button', { name: '급여 A', exact: true }).focus();
   await page.keyboard.press('Enter');
   const select = page.getByLabel('연결할 노드');
@@ -112,7 +113,7 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/');
+  await openExample(page);
   const trigger = page.getByRole('button', { name: '노드 목록 열기' });
   await trigger.focus();
   await page.keyboard.press('Enter');

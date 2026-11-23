@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { PanelLeftOpen } from 'lucide-react';
-import { example } from './example';
 import { Metrics } from './Metrics';
 import { ResponsivePanel } from './ResponsivePanel';
 import { Sidebar } from './Sidebar';
@@ -245,12 +244,10 @@ function Workspace({
   );
 }
 
-const initialDiagram = () => example;
-
 export function App() {
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   useEffect(() => {
-    void start(initialDiagram);
+    void start();
   }, []);
   const session = useLibrary((s) => s.session);
   const error = useLibrary((s) => s.error);
@@ -262,9 +259,7 @@ export function App() {
         {error ? (
           <>
             <p>{error}</p>
-            <button onClick={() => void start(initialDiagram)}>
-              다시 열기
-            </button>
+            <button onClick={() => void start()}>다시 열기</button>
             {entries.length > 0 && (
               <div>
                 <h2>저장된 흐름 열기</h2>

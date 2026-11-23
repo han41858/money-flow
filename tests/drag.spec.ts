@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { expect, test } from '@playwright/test';
 import { point } from './gestures';
 
@@ -7,7 +8,7 @@ for (const { name, id, handle } of [
 ]) {
   test(`${name} 드래그하고 놓을 때 연결선이 유지된다`, async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.goto('/');
+    await openExample(page);
     const node = page.locator(`[data-id="${id}"]`);
     const canvas = page.locator('.react-flow');
     const paths = canvas.locator('.react-flow__edge-path');

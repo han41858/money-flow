@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -17,7 +18,7 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   browser,
   context,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   const url = await share(page);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: '링크 복사' }).click();
@@ -73,7 +74,7 @@ test('손상된 공유 링크에서도 편집기를 열거나 로컬 데이터�
 test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다', async ({
   page,
 }, info) => {
-  await page.goto('/');
+  await openExample(page);
   await page.getByRole('button', { name: '확대', exact: true }).click();
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
   const svgDownload = page.waitForEvent('download');
@@ -94,7 +95,7 @@ test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다
 test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화살촉이 캔버스와 SVG에서 일치한다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await page
     .getByRole('button', { name: '공동 생활비 통장', exact: true })
     .click();

@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { example } from '../src/app/example';
@@ -30,7 +31,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await title.getByRole('button').click();
   const input = title.getByRole('textbox', { name: '현재 흐름 이름' });
   await expect(input).toBeFocused();
-  await expect(input).toHaveValue(example.name);
+  await expect(input).toHaveValue('새 자금 흐름');
   await input.fill('   ');
   await input.press('Enter');
   await expect(input).toBeFocused();
@@ -38,7 +39,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await expect(title.getByRole('status')).toHaveText('흐름 이름을 입력하세요.');
   await input.fill('취소할 이름');
   await input.press('Escape');
-  await expect(title.getByRole('button')).toHaveText(example.name);
+  await expect(title.getByRole('button')).toHaveText('새 자금 흐름');
   await expect(title.getByRole('button')).toBeFocused();
   await title.getByRole('button').click();
   await input.fill('  12월 자금 계획  ');
@@ -69,7 +70,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
   let context = await launch();
   try {
     const page = await context.newPage();
-    await page.goto('/');
+    await openExample(page);
     await page.getByRole('button', { name: '새 흐름', exact: true }).click();
     await page.getByRole('button', { name: '계좌 추가' }).click();
     await page.getByLabel('이름', { exact: true }).fill('저장된 통장');
@@ -118,7 +119,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
 test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 가져온다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await rename(page, '11월 계획');
   let d = await library(page);
   const download = page.waitForEvent('download');
@@ -173,7 +174,7 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   page,
   context,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
@@ -199,7 +200,7 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   ).toHaveCount(0);
 });
 test('파일 손상 시 열려 있는 흐름을 유지한다', async ({ page }) => {
-  await page.goto('/');
+  await openExample(page);
   const d = await library(page);
   await d.getByLabel('JSON 파일 선택').setInputFiles({
     name: 'broken.json',
@@ -214,7 +215,7 @@ test('파일 손상 시 열려 있는 흐름을 유지한다', async ({ page }) 
 test('저장 공간 부족 시 편집을 유지하고 재시도하면 복원된다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
@@ -239,7 +240,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
   page,
   context,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
@@ -267,7 +268,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
 test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감지한다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   await page.evaluate(
     (id) =>
@@ -307,7 +308,7 @@ test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감�
 test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수 있다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await page.getByRole('button', { name: '새 흐름', exact: true }).click();
   await expect(page.getByRole('main', { name: '새 자금 흐름' })).toBeVisible();
   await page.evaluate(

@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { selectNode } from './gestures';
 async function drag(page: Page, handle: Locator, dx: number, dy: number) {
@@ -13,7 +14,7 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto('/');
+  await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   await selectNode(income);
   await page.getByRole('button', { name: '그룹 추가' }).click();

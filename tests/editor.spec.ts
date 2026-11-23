@@ -1,3 +1,4 @@
+import { openExample } from './exampleFixture';
 import { test, expect, type Locator } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
 test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·배치·삭제를 되돌린다', async ({
@@ -5,7 +6,10 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
   await page.goto('/');
-  await page.getByRole('button', { name: '새 흐름' }).click();
+  await expect(page.getByRole('main', { name: '새 자금 흐름' })).toBeVisible();
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(0);
+  await expect(page.locator('.react-flow__node-region')).toHaveCount(0);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(0);
   for (const [type, name] of [
     ['수입', '급여'],
     ['계좌', '공동 계좌'],
@@ -74,7 +78,7 @@ test('여러 노드를 함께 이동·삭제하고 입력 중 삭제 키는 글�
   page,
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
-  await page.goto('/');
+  await openExample(page);
   const a = page.locator('[data-id="income-a"]');
   const b = page.locator('[data-id="income-b"]');
   await selectNode(a);
@@ -112,7 +116,7 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   page,
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
-  await page.goto('/');
+  await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   const account = page.locator('[data-id="joint"]');
   const sourcePort = income.locator('.source');
@@ -168,7 +172,7 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
 test('카드에서 이름과 유형을 편집하고 연결 제한과 실행 취소를 적용한다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   const node = page.locator('[data-id="joint"]');
   await selectNode(node);
   const edit = node.getByRole('button', { name: /이름 수정$/ });
@@ -209,7 +213,7 @@ test('자동 정렬은 흐름 방향과 그룹 소속을 유지하고 한 번에
   page,
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
-  await page.goto('/');
+  await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   const partner = page.locator('[data-id="income-b"]');
   const account = page.locator('[data-id="joint"]');
@@ -256,7 +260,7 @@ test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번
   page,
 }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
-  await page.goto('/');
+  await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   const account = page.locator('[data-id="joint"]');
   const nodes = page.locator('.react-flow__node-money');
@@ -290,7 +294,7 @@ test('선택 노드를 복사하면 내부 연결과 함께 붙여넣고 한 번
 });
 
 test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다', async ({ page }) => {
-  await page.goto('/');
+  await openExample(page);
   const totals = page.locator('[data-id="joint"] .node-totals text');
   await expect(totals).toHaveText(['560만', '228~258만']);
   await expect(totals.first()).toHaveAttribute('text-anchor', 'start');

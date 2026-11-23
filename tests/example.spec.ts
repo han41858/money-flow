@@ -1,9 +1,10 @@
+import { openExample } from './exampleFixture';
 import { test, expect } from '@playwright/test';
 import { selectNode } from './gestures';
 test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await openExample(page);
   await expect(page.locator('.workspace-title')).toHaveText(
     '우리 집 자금 흐름',
   );
@@ -66,7 +67,7 @@ test('예제의 월간 자금 흐름을 탐색한다', async ({ page }) => {
 });
 test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await openExample(page);
   await expect(page.locator('.react-flow__edge')).toHaveCount(6);
   const account = page
     .locator('.react-flow__node-money')
@@ -97,7 +98,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
 test('억 단위 수입 범위와 대출 상환을 월간 요약과 연결선에 반영한다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await page.locator('.react-flow__edge[data-id="salary-a"]').press('Enter');
   await page.getByLabel('금액 방식').selectOption('range');
   await page.getByLabel('월 최소 금액').fill('100000000');
@@ -121,7 +122,7 @@ test('속성 패널을 열고 노드를 추가하거나 전체 보기를 해도 
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/');
+  await openExample(page);
   const add = page.getByRole('button', { name: '지출 추가' });
   const panel = page.locator('.detail-wrap');
   const metrics = page.locator('.metrics');

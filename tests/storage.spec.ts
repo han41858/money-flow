@@ -1,4 +1,4 @@
-import { openExample } from './exampleFixture';
+import { chooseSavedFlow, openExample } from './exampleFixture';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { example } from '../src/app/example';
@@ -50,6 +50,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await tools.click();
   await saved(page);
   await page.reload();
+  await chooseSavedFlow(page, '12월 자금 계획');
   await expect(title.getByRole('button')).toHaveText('12월 자금 계획');
   await title.getByRole('button').click();
   await input.fill('다음 달 자금 계획');
@@ -92,6 +93,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
     context = await launch();
     const next = await context.newPage();
     await next.goto('/');
+    await chooseSavedFlow(next, '새 자금 흐름');
     await expect(
       next.getByRole('main', { name: '새 자금 흐름' }),
     ).toBeVisible();
@@ -178,6 +180,7 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
+  await chooseSavedFlow(other, example.name);
   await saved(other);
   await page.getByRole('button', { name: '카드 추가' }).click();
   await saved(page);
@@ -233,6 +236,7 @@ test('저장 공간 부족 시 편집을 유지하고 재시도하면 복원된�
   await page.getByRole('button', { name: '저장 다시 시도' }).click();
   await saved(page);
   await page.reload();
+  await chooseSavedFlow(page, example.name);
   await expect(page.locator('.react-flow__node-money')).toHaveCount(8);
 });
 
@@ -244,6 +248,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
+  await chooseSavedFlow(other, example.name);
   await saved(other);
   const d = await library(page);
   page.once('dialog', (e) => e.accept());
@@ -337,6 +342,7 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
       }),
   );
   await page.reload();
+  await chooseSavedFlow(page, '새 자금 흐름');
   await expect(page.getByText(/더 최신 버전의 다이어그램/)).toBeVisible();
   await page.getByRole('button', { name: example.name }).click();
   await expect(page.getByRole('main', { name: example.name })).toBeVisible();
@@ -385,6 +391,7 @@ test('IndexedDB 버전 1의 모든 흐름에서 소유자 값만 제거한다', 
     });
   }, rows);
   await page.goto('/');
+  await chooseSavedFlow(page, example.name);
   await expect(page.getByRole('main', { name: example.name })).toBeVisible();
   const stored = await page.evaluate(
     async () =>
@@ -404,4 +411,35 @@ test('IndexedDB 버전 1의 모든 흐름에서 소유자 값만 제거한다', 
       }),
   );
   expect(stored).toEqual(expect.arrayContaining(rows));
+});
+
+test('새로고침 후 저장된 여러 흐름 중 하나를 고르거나 빈 흐름을 시작한다', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.getByRole('button', { name: '새 흐름', exact: true }).click();
+  await rename(page, '두 번째 흐름');
+  await page.reload();
+
+  const choices = page.locator('.startup-flow-list');
+  await expect(
+    page.getByRole('heading', { name: '저장된 흐름 이어서 편집' }),
+  ).toBeVisible();
+  await expect(choices.getByRole('button')).toHaveCount(2);
+  await expect(choices.locator('time')).toHaveCount(2);
+  await expect(page.locator('#editor-main')).toHaveCount(0);
+  await chooseSavedFlow(page, example.name);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(7);
+
+  await page.reload();
+  await page.getByRole('button', { name: '새 흐름 시작' }).click();
+  await expect(page.locator('#editor-main')).toBeVisible();
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(0);
+  const dialog = await library(page);
+  await expect(
+    dialog.getByRole('button', { name: example.name + ' 열기' }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: '두 번째 흐름 열기' }),
+  ).toBeVisible();
 });

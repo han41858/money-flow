@@ -127,7 +127,10 @@ function activate(row: Awaited<ReturnType<typeof db.openDiagram>>) {
 }
 
 async function checkRemote(id?: string) {
-  if (!state().session) return;
+  if (!state().session) {
+    await refresh();
+    return;
+  }
   const active = editor.current().id;
   if (!id || active === id) {
     const actual = await db.revisionOf(active);
@@ -189,10 +192,11 @@ export async function start() {
   listen();
   return action(async () => {
     await refresh();
+    if (state().entries.length) return;
     const { row, first } = await db.restore(blankDiagram);
-    activate(row);
+    await refresh();
     if (first) {
-      await refresh();
+      activate(row);
       if (navigator.storage?.persist)
         void navigator.storage.persist().catch(() => {});
     }

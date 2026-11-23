@@ -1,4 +1,4 @@
-import { openExample } from './exampleFixture';
+import { chooseSavedFlow, openExample } from './exampleFixture';
 import { test, expect } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
 test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 전용 링크와 이미지로 전달한다', async ({
@@ -7,7 +7,6 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
 }) => {
   await page.setViewportSize({ width: 1680, height: 1000 });
   await page.goto('/');
-  await page.getByRole('button', { name: '새 흐름' }).click();
   for (const [kind, name] of [
     ['수입', '급여 A'],
     ['계좌', '공동 통장'],
@@ -50,6 +49,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     .filter({ hasText: '이 브라우저에 저장됨' })
     .waitFor();
   await page.reload();
+  await chooseSavedFlow(page, '새 자금 흐름');
   await expect(handle).toBeVisible();
   await expect(page.getByText('280만', { exact: true })).toBeVisible();
   await selectNode(node('공동 통장'));
@@ -78,7 +78,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   }
   await page.getByRole('button', { name: '공유 창 닫기' }).click();
   await page.getByRole('button', { name: '내 흐름', exact: true }).click();
-  await expect(page.locator('.library-list button')).toHaveCount(2);
+  await expect(page.locator('.library-list button')).toHaveCount(1);
 });
 test('키보드로 대상 노드 선택·연결·이동·실행 취소가 가능하다', async ({
   page,

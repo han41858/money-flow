@@ -1,4 +1,4 @@
-import { openExample } from './exampleFixture';
+import { chooseSavedFlow, openExample } from './exampleFixture';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -58,6 +58,8 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   await page.goto(url);
   await expect(page.getByText('Money Flow · 읽기 전용')).toBeVisible();
   await page.goto('/');
+  await page.reload();
+  await chooseSavedFlow(page, '우리 집 자금 흐름');
   await page.getByRole('button', { name: '내 흐름', exact: true }).click();
   await expect(page.locator('.library-list button')).toHaveCount(1);
   await expect(page.locator('.library-list')).toContainText(

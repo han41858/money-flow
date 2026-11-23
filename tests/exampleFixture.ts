@@ -31,4 +31,12 @@ export async function openExample(page: Page) {
   );
   await page.unroute(fixture);
   await page.goto('/');
+  await chooseSavedFlow(page, example.name);
+}
+
+export async function chooseSavedFlow(page: Page, name: string) {
+  await page
+    .locator('.startup-flow-list')
+    .getByRole('button', { name })
+    .click();
 }

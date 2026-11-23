@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
 import { nodeHeight } from '../nodes/sizing';
 import { transferGeometry } from './geometry';
@@ -5,7 +6,7 @@ import type { FlowEdge } from '../editor/graph';
 import { edgeWidth, exactAmount } from './money';
 import { TransferAmount } from './TransferAmount';
 
-export function TransferEdge({
+export const TransferEdge = memo(function TransferEdge({
   id,
   data,
   selected,
@@ -61,4 +62,4 @@ export function TransferEdge({
       </EdgeLabelRenderer>
     </>
   );
-}
+});

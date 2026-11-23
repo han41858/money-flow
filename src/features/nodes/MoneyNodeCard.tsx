@@ -5,6 +5,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import {
+  memo,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -108,7 +109,10 @@ function CardKinds({
   );
 }
 
-export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
+export const MoneyNodeCard = memo(function MoneyNodeCard({
+  data,
+  selected,
+}: NodeProps<FlowNode>) {
   const { node, appearance } = data;
   const [editing, setEditing] = useState<'name' | 'kind' | null>(null);
   const nameButton = useRef<HTMLButtonElement>(null);
@@ -193,4 +197,4 @@ export function MoneyNodeCard({ data, selected }: NodeProps<FlowNode>) {
       {node.type !== 'expense' && <Port outgoing />}
     </div>
   );
-}
+});

@@ -35,6 +35,7 @@ import type { Diagram } from '../../types/diagram';
 import '@xyflow/react/dist/style.css';
 import { recordViewport, useLibrary } from '../diagrams/library';
 
+import { useStableItems } from './stable';
 import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
 import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
@@ -89,6 +90,36 @@ export function Canvas({
       : fitOptions,
   );
   const { fitView, zoomIn, zoomOut, zoomTo, getInternalNode } = useReactFlow();
+  const flowNodes = useStableItems<CanvasNode>([
+    ...graph.groupNodes.map((n) => ({
+      ...n,
+      position: positions.get(n.id) ?? n.position,
+      measured: measurements.get(n.id),
+      data: { ...n.data, readOnly },
+      selected: selected.groups.includes(n.data.group.id),
+      ...(resizing?.id === n.id ? resizing.size : {}),
+    })),
+    ...graph.nodes.map((n) => ({
+      ...n,
+      position: positions.get(n.id) ?? n.position,
+      measured: measurements.get(n.id),
+      data: { ...n.data, readOnly },
+      selected: selected.nodes.includes(n.id),
+      className:
+        source && source !== n.id
+          ? canConnect(diagram, source, n.id)
+            ? 'valid-target'
+            : 'invalid-target'
+          : '',
+    })),
+  ]);
+  const flowEdges = useStableItems<FlowEdge>(
+    graph.edges.map((e) => ({
+      ...e,
+      data: { ...e.data!, readOnly },
+      selected: selected.edges.includes(e.id),
+    })),
+  );
   const zoom = useStore((s) => s.transform[2]);
 
   function selectionChanges(
@@ -225,34 +256,8 @@ export function Canvas({
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}
             edgesReconnectable={!readOnly}
-            nodes={[
-              ...graph.groupNodes.map((n) => ({
-                ...n,
-                position: positions.get(n.id) ?? n.position,
-                measured: measurements.get(n.id),
-                data: { ...n.data, readOnly },
-                selected: selected.groups.includes(n.data.group.id),
-                ...(resizing?.id === n.id ? resizing.size : {}),
-              })),
-              ...graph.nodes.map((n) => ({
-                ...n,
-                position: positions.get(n.id) ?? n.position,
-                measured: measurements.get(n.id),
-                data: { ...n.data, readOnly },
-                selected: selected.nodes.includes(n.id),
-                className:
-                  source && source !== n.id
-                    ? canConnect(diagram, source, n.id)
-                      ? 'valid-target'
-                      : 'invalid-target'
-                    : '',
-              })),
-            ]}
-            edges={graph.edges.map((e) => ({
-              ...e,
-              data: { ...e.data!, readOnly },
-              selected: selected.edges.includes(e.id),
-            }))}
+            nodes={flowNodes}
+            edges={flowEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={changeNodes}

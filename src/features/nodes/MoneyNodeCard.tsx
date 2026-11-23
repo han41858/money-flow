@@ -17,7 +17,7 @@ import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
 import { NodeArtwork } from './artwork';
-import { browserTextWidth, cardLabel, cardSize } from './sizing';
+import { browserTextWidth, cardLabel, cardSize, portSize } from './sizing';
 import { kindNames } from './presentation';
 import { onEditKey } from '../../lib/editing';
 
@@ -28,6 +28,7 @@ function Port({ outgoing = false }: { outgoing?: boolean }) {
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
+      style={{ width: portSize, height: portSize }}
     />
   );
 }

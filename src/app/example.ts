@@ -13,7 +13,6 @@ export const example = diagramSchema.parse({
       id: 'income-a',
       type: 'income',
       name: '급여 A',
-      owner: '개인 A',
       position: { x: 0, y: 60 },
     },
     {
@@ -21,7 +20,6 @@ export const example = diagramSchema.parse({
       id: 'income-b',
       type: 'income',
       name: '급여 B',
-      owner: '개인 B',
       position: { x: 0, y: 270 },
     },
     {
@@ -29,7 +27,6 @@ export const example = diagramSchema.parse({
       id: 'joint',
       type: 'account',
       name: '공동 생활비 통장',
-      owner: '공동',
       institutionId: 'kakao',
       position: { x: 340, y: 165 },
     },
@@ -38,7 +35,6 @@ export const example = diagramSchema.parse({
       id: 'card',
       type: 'card',
       name: '생활비 카드',
-      owner: '공동',
       institutionId: 'shinhan-card',
       position: { x: 680, y: 70 },
     },

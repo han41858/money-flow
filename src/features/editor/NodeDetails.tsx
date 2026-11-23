@@ -88,7 +88,6 @@ export function NodeDetails({
   setError: (message: string) => void;
 }) {
   const { nodes, edges } = diagram;
-  const owners = [...new Set(nodes.map((n) => n.owner).filter(Boolean))];
   return (
     <>
       <TextField
@@ -150,20 +149,6 @@ export function NodeDetails({
           </select>
         </label>
       )}
-      <TextField
-        key={'owner' + node.owner}
-        label="소유자"
-        list="owners"
-        value={node.owner ?? ''}
-        commit={(owner) => {
-          editor.editNode({ ...node, owner: owner || undefined });
-        }}
-      />
-      <datalist id="owners">
-        {owners.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
       <OutgoingConnection
         diagram={diagram}
         source={node}

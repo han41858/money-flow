@@ -208,6 +208,7 @@ h1 {
   margin: 14px 0 6px;
 }
 #editor-main {
+  --inspector-width: 226px;
   position: relative;
   isolation: isolate;
   padding: 0;
@@ -219,15 +220,18 @@ h1 {
   margin: 0;
   pointer-events: none;
 }
-@media (min-width: 721px) {
-  #editor-main:has(.detail-wrap) > .metrics {
-    right: 238px;
+@media (max-width: 900px) {
+  #editor-main {
+    --inspector-width: 195px;
   }
 }
-@media (min-width: 721px) and (max-width: 900px) {
-  #editor-main:has(.detail-wrap) > .metrics {
-    right: 207px;
+@media (max-width: 720px) {
+  #editor-main {
+    --inspector-width: 0px;
   }
+}
+#editor-main:has(.editor-area > .detail-wrap) > .metrics {
+  right: calc(var(--inspector-width) + 12px);
 }
 .metrics {
   display: grid;
@@ -657,7 +661,7 @@ h1 {
   pointer-events: none;
 }
 .detail-wrap {
-  width: 226px;
+  width: var(--inspector-width);
   position: absolute;
   z-index: 7;
   inset: 0 0 0 auto;
@@ -751,9 +755,6 @@ h1 {
   opacity: 0.48;
 }
 @media (max-width: 900px) {
-  .detail-wrap {
-    width: 195px;
-  }
   .inspector {
     padding: 12px;
   }

@@ -1,3 +1,5 @@
+import { visibleArea } from './visibleArea';
+import { cardSize } from '../nodes/sizing';
 import {
   useRef,
   useMemo,
@@ -50,6 +52,7 @@ export function Canvas({
   openInspector,
   readOnly = false,
 }: Props) {
+  const areaRef = useRef<HTMLDivElement>(null);
   const interacted = useRef(false);
   const trackView = () => {
     interacted.current = true;
@@ -82,7 +85,16 @@ export function Canvas({
         }
       : fitOptions,
   );
-  const { fitView, zoomIn, zoomOut, zoomTo, getInternalNode } = useReactFlow();
+  const {
+    fitView,
+    zoomIn,
+    zoomOut,
+    zoomTo,
+    getInternalNode,
+    getViewport,
+    setViewport,
+    flowToScreenPosition,
+  } = useReactFlow();
   const flowNodes = useStableItems<CanvasNode>([
     ...graph.groupNodes.map((n) => ({
       ...n,
@@ -114,6 +126,48 @@ export function Canvas({
     })),
   );
   const zoom = useStore((s) => s.transform[2]);
+
+  function fitVisibleArea() {
+    const area = areaRef.current!;
+    const canvas = area.getBoundingClientRect();
+    const visible = visibleArea(area);
+    void fitView({
+      ...fitOptions,
+      duration: 180,
+      padding: {
+        top: `${Math.ceil(visible.top - canvas.top) + 16}px`,
+        right: `${Math.ceil(canvas.right - visible.right) + 16}px`,
+        bottom: '56px',
+        left: '16px',
+      },
+    });
+  }
+
+  function arrange() {
+    trackView();
+    const sizes = measuredSizes(diagram.nodes, getInternalNode);
+    editor.autoArrange(sizes);
+    const arranged = editor.current();
+    if (arranged.nodes === diagram.nodes) return;
+
+    const area = areaRef.current!;
+    const { top } = area.getBoundingClientRect();
+    const visible = visibleArea(area);
+    const viewport = getViewport();
+    let dy = 0;
+    for (const node of arranged.nodes) {
+      const point = flowToScreenPosition(node.position);
+      const size = sizes.get(node.id) ?? cardSize(node.name);
+      if (
+        point.x < visible.right &&
+        point.x + size.width * viewport.zoom > visible.left &&
+        point.y + size.height * viewport.zoom > top &&
+        point.y < visible.top
+      )
+        dy = Math.max(dy, visible.top + 8 - point.y);
+    }
+    if (dy) void setViewport({ ...viewport, y: viewport.y + dy });
+  }
 
   function selectionChanges(
     changes: NodeSelectionChange[],
@@ -219,6 +273,7 @@ export function Canvas({
   return (
     <section className="canvas-shell" aria-label="자금 흐름 캔버스">
       <div
+        ref={areaRef}
         className="flow-area"
         data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
         onPointerDownCapture={trackView}
@@ -325,7 +380,11 @@ export function Canvas({
               <button
                 aria-label="전체 보기"
                 title="전체 보기"
-                onClick={() => void fitView({ ...fitOptions, duration: 180 })}
+                onClick={
+                  readOnly
+                    ? () => void fitView({ ...fitOptions, duration: 180 })
+                    : fitVisibleArea
+                }
               >
                 <Maximize size={15} />
               </button>
@@ -334,12 +393,7 @@ export function Canvas({
                   aria-label="자동 정렬"
                   title="자동 정렬"
                   disabled={!graph.nodes.length}
-                  onClick={() => {
-                    trackView();
-                    editor.autoArrange(
-                      measuredSizes(diagram.nodes, getInternalNode),
-                    );
-                  }}
+                  onClick={arrange}
                 >
                   <WandSparkles size={15} />
                 </button>

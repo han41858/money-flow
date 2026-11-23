@@ -21,10 +21,47 @@ interface LocalDB extends DBSchema {
 let connection: Promise<IDBPDatabase<LocalDB>> | undefined;
 
 function db() {
-  return (connection ??= openDB<LocalDB>('money-flow', 1, {
-    upgrade(db) {
-      db.createObjectStore('diagrams', { keyPath: 'id' });
-      db.createObjectStore('settings');
+  return (connection ??= openDB<LocalDB>('money-flow', 2, {
+    async upgrade(database, oldVersion, _newVersion, tx) {
+      if (oldVersion === 0) {
+        database.createObjectStore('diagrams', { keyPath: 'id' });
+        database.createObjectStore('settings');
+        return;
+      }
+
+      try {
+        for await (const cursor of tx.objectStore('diagrams')) {
+          const row = cursor.value;
+          const diagram = row.diagram;
+          if (!Array.isArray(diagram?.nodes)) continue;
+
+          let changed = false;
+          const nodes = diagram.nodes.map((node) => {
+            if (
+              !node ||
+              typeof node !== 'object' ||
+              !Object.hasOwn(node, 'owner')
+            )
+              return node;
+            const clean: typeof node & { owner?: unknown } = { ...node };
+            delete clean.owner;
+            changed = true;
+            return clean;
+          });
+          if (changed)
+            await cursor.update({ ...row, diagram: { ...diagram, nodes } });
+        }
+      } catch {
+        try {
+          tx.abort();
+        } catch (abortError) {
+          if (!(
+            abortError instanceof DOMException &&
+            abortError.name === 'InvalidStateError'
+          ))
+            throw abortError;
+        }
+      }
     },
     blocking() {
       void connection?.then((db) => db.close());

@@ -9,7 +9,6 @@ const nodeCore = z.object({
   id,
   name: id,
   position: point,
-  owner: id.optional(),
   groupId: id.optional(),
   institutionId: id.optional(),
 });

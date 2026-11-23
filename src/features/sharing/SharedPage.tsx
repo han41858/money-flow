@@ -111,7 +111,6 @@ function Viewer({ diagram }: { diagram: Diagram }) {
             <span>
               {appearance.kind} · {appearance.subtitle}
             </span>
-            {node.owner && <span>소유자 {node.owner}</span>}
             {node.groupId && (
               <span>
                 소속 그룹{' '}

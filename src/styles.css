@@ -399,11 +399,11 @@ h1 {
 }
 .money-node .react-flow__handle-right {
   right: 0;
-  transform: translate(0, -50%);
+  transform: translate(100%, -50%);
 }
 .money-node .react-flow__handle-left {
   left: 0;
-  transform: translate(0, -50%);
+  transform: translate(-100%, -50%);
 }
 .money-node.active {
   outline: 3px solid #285d48;
@@ -411,11 +411,12 @@ h1 {
 }
 .flow-area .money-node .react-flow__handle {
   background: white;
-  width: 12px;
-  height: 12px;
   border: 2px solid var(--outline);
   opacity: 0;
   pointer-events: none;
+}
+[data-port-mode='idle'] .money-node .source.connectionindicator {
+  pointer-events: auto;
 }
 [data-port-mode='idle'] .money-node:hover .source.connectionindicator,
 [data-port-mode='idle']
@@ -898,6 +899,35 @@ h1 {
   align-items: flex-start;
   gap: 12px;
 }
+.startup-flow-list {
+  align-self: stretch;
+  display: grid;
+  gap: 6px;
+}
+.startup-flow-list button {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.startup-flow-list time {
+  color: #52655a;
+  font-size: 12px;
+}
+.library-start .startup-new-flow {
+  color: white;
+  background: #1b604c;
+  border-color: #1b604c;
+}
+.library-start button:disabled {
+  opacity: 0.55;
+}
 @media (max-width: 560px) {
   .topbar {
     display: grid;
@@ -965,10 +995,35 @@ h1 {
   font-size: 13px;
   cursor: grab;
 }
-.group-title strong {
+.group-title strong,
+.group-name-trigger {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.group-name-trigger,
+.group-name-input {
+  min-width: 0;
+  font-weight: 700;
+}
+.group-name-trigger {
+  cursor: text;
+}
+.group-title:has(.group-name-input) {
+  width: 100%;
+}
+.group-name-input {
+  width: 100%;
+  border-radius: 3px;
+  background: white;
+  padding-inline: 3px;
+  cursor: text;
+}
+@media (max-width: 720px) {
+  .group-name-input {
+    font-size: 16px;
+    min-height: 24px;
+  }
 }
 .group-title svg {
   flex: none;

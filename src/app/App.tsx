@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { PanelLeftOpen } from 'lucide-react';
-import { example } from './example';
 import { Metrics } from './Metrics';
 import { ResponsivePanel } from './ResponsivePanel';
 import { Sidebar } from './Sidebar';
@@ -245,40 +244,62 @@ function Workspace({
   );
 }
 
-const initialDiagram = () => example;
+const savedAt = new Intl.DateTimeFormat('ko-KR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
 
 export function App() {
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   useEffect(() => {
-    void start(initialDiagram);
+    void start();
   }, []);
   const session = useLibrary((s) => s.session);
   const error = useLibrary((s) => s.error);
+  const busy = useLibrary((s) => s.busy);
   const entries = useLibrary((s) => s.entries);
   if (!session)
     return (
-      <main className="library-start" aria-live="polite">
+      <main className="library-start">
         <h1>Money Flow</h1>
-        {error ? (
+        {error && <p role="alert">{error}</p>}
+        {entries.length ? (
           <>
-            <p>{error}</p>
-            <button onClick={() => void start(initialDiagram)}>
-              다시 열기
+            <h2>저장된 흐름 이어서 편집</h2>
+            <ul className="startup-flow-list">
+              {entries.map((entry) => {
+                const timestamp = Date.parse(entry.updatedAt);
+                return (
+                  <li key={entry.id}>
+                    <button
+                      disabled={busy}
+                      onClick={() => void openDiagram(entry.id)}
+                    >
+                      <span>{entry.name}</span>
+                      {Number.isFinite(timestamp) && (
+                        <time dateTime={entry.updatedAt}>
+                          {savedAt.format(timestamp)}
+                        </time>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              className="startup-new-flow"
+              disabled={busy}
+              onClick={() => void createBlank()}
+            >
+              새 흐름 시작
             </button>
-            {entries.length > 0 && (
-              <div>
-                <h2>저장된 흐름 열기</h2>
-                <button onClick={() => void createBlank()}>새 흐름</button>
-                {entries.map((d) => (
-                  <button key={d.id} onClick={() => void openDiagram(d.id)}>
-                    {d.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </>
+        ) : error ? (
+          <button disabled={busy} onClick={() => void start()}>
+            다시 열기
+          </button>
         ) : (
-          <p>저장된 흐름을 여는 중…</p>
+          <p role="status">저장된 흐름을 여는 중…</p>
         )}
       </main>
     );

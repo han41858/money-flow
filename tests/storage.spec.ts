@@ -1,3 +1,4 @@
+import { chooseSavedFlow, openExample } from './exampleFixture';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { example } from '../src/app/example';
@@ -30,7 +31,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await title.getByRole('button').click();
   const input = title.getByRole('textbox', { name: '현재 흐름 이름' });
   await expect(input).toBeFocused();
-  await expect(input).toHaveValue(example.name);
+  await expect(input).toHaveValue('새 자금 흐름');
   await input.fill('   ');
   await input.press('Enter');
   await expect(input).toBeFocused();
@@ -38,7 +39,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await expect(title.getByRole('status')).toHaveText('흐름 이름을 입력하세요.');
   await input.fill('취소할 이름');
   await input.press('Escape');
-  await expect(title.getByRole('button')).toHaveText(example.name);
+  await expect(title.getByRole('button')).toHaveText('새 자금 흐름');
   await expect(title.getByRole('button')).toBeFocused();
   await title.getByRole('button').click();
   await input.fill('  12월 자금 계획  ');
@@ -49,6 +50,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await tools.click();
   await saved(page);
   await page.reload();
+  await chooseSavedFlow(page, '12월 자금 계획');
   await expect(title.getByRole('button')).toHaveText('12월 자금 계획');
   await title.getByRole('button').click();
   await input.fill('다음 달 자금 계획');
@@ -69,7 +71,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
   let context = await launch();
   try {
     const page = await context.newPage();
-    await page.goto('/');
+    await openExample(page);
     await page.getByRole('button', { name: '새 흐름', exact: true }).click();
     await page.getByRole('button', { name: '계좌 추가' }).click();
     await page.getByLabel('이름', { exact: true }).fill('저장된 통장');
@@ -91,6 +93,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
     context = await launch();
     const next = await context.newPage();
     await next.goto('/');
+    await chooseSavedFlow(next, '새 자금 흐름');
     await expect(
       next.getByRole('main', { name: '새 자금 흐름' }),
     ).toBeVisible();
@@ -118,7 +121,7 @@ test('브라우저를 닫고 다시 열면 편집 내용과 뷰포트가 복원�
 test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 가져온다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await rename(page, '11월 계획');
   let d = await library(page);
   const download = page.waitForEvent('download');
@@ -173,10 +176,11 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   page,
   context,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
+  await chooseSavedFlow(other, example.name);
   await saved(other);
   await page.getByRole('button', { name: '카드 추가' }).click();
   await saved(page);
@@ -199,7 +203,7 @@ test('두 탭에서 같은 흐름을 편집하면 최신 내용 또는 현재 �
   ).toHaveCount(0);
 });
 test('파일 손상 시 열려 있는 흐름을 유지한다', async ({ page }) => {
-  await page.goto('/');
+  await openExample(page);
   const d = await library(page);
   await d.getByLabel('JSON 파일 선택').setInputFiles({
     name: 'broken.json',
@@ -214,7 +218,7 @@ test('파일 손상 시 열려 있는 흐름을 유지한다', async ({ page }) 
 test('저장 공간 부족 시 편집을 유지하고 재시도하면 복원된다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
@@ -232,6 +236,7 @@ test('저장 공간 부족 시 편집을 유지하고 재시도하면 복원된�
   await page.getByRole('button', { name: '저장 다시 시도' }).click();
   await saved(page);
   await page.reload();
+  await chooseSavedFlow(page, example.name);
   await expect(page.locator('.react-flow__node-money')).toHaveCount(8);
 });
 
@@ -239,10 +244,11 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
   page,
   context,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   const other = await context.newPage();
   await other.goto('/');
+  await chooseSavedFlow(other, example.name);
   await saved(other);
   const d = await library(page);
   page.once('dialog', (e) => e.accept());
@@ -267,7 +273,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
 test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감지한다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await saved(page);
   await page.evaluate(
     (id) =>
@@ -307,7 +313,7 @@ test('알림을 받기 전의 쓰기도 저장 트랜잭션에서 충돌을 감�
 test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수 있다', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openExample(page);
   await page.getByRole('button', { name: '새 흐름', exact: true }).click();
   await expect(page.getByRole('main', { name: '새 자금 흐름' })).toBeVisible();
   await page.evaluate(
@@ -336,6 +342,7 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
       }),
   );
   await page.reload();
+  await chooseSavedFlow(page, '새 자금 흐름');
   await expect(page.getByText(/더 최신 버전의 다이어그램/)).toBeVisible();
   await page.getByRole('button', { name: example.name }).click();
   await expect(page.getByRole('main', { name: example.name })).toBeVisible();
@@ -343,4 +350,96 @@ test('지원하지 않는 로컬 버전을 보존하고 다른 흐름을 열 수
   await d.getByRole('button', { name: '새 자금 흐름 열기' }).click();
   await expect(d.getByRole('alert')).toContainText('최신 버전');
   await expect(d.getByLabel('흐름 이름')).toHaveValue(example.name);
+});
+
+test('IndexedDB 버전 1의 모든 흐름에서 소유자 값만 제거한다', async ({
+  page,
+}) => {
+  await page.route('**/legacy-db', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html>' }),
+  );
+  await page.goto('/legacy-db');
+  const rows = [
+    example,
+    { ...example, id: 'legacy-other', name: '다른 흐름' },
+  ].map((diagram) => ({ id: diagram.id, diagram, revision: 7, fit: false }));
+  await page.evaluate(async (entries) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('money-flow', 1);
+      request.onerror = () => reject(request.error);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        const docs = db.createObjectStore('diagrams', { keyPath: 'id' });
+        for (const row of entries) {
+          docs.add({
+            ...row,
+            diagram: {
+              ...row.diagram,
+              nodes: row.diagram.nodes.map((node) => ({
+                ...node,
+                owner: '이전 소유자',
+              })),
+            },
+          });
+        }
+        db.createObjectStore('settings').put(entries[0].id, 'last');
+      };
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+    });
+  }, rows);
+  await page.goto('/');
+  await chooseSavedFlow(page, example.name);
+  await expect(page.getByRole('main', { name: example.name })).toBeVisible();
+  const stored = await page.evaluate(
+    async () =>
+      new Promise<unknown>((resolve, reject) => {
+        const request = indexedDB.open('money-flow', 2);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const result = db
+            .transaction('diagrams')
+            .objectStore('diagrams')
+            .getAll();
+          result.onsuccess = () => resolve(result.result);
+          result.onerror = () => reject(result.error);
+          db.close();
+        };
+      }),
+  );
+  expect(stored).toEqual(expect.arrayContaining(rows));
+});
+
+test('새로고침 후 저장된 여러 흐름 중 하나를 고르거나 빈 흐름을 시작한다', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.getByRole('button', { name: '새 흐름', exact: true }).click();
+  await rename(page, '두 번째 흐름');
+  await page.reload();
+
+  const choices = page.locator('.startup-flow-list');
+  await expect(
+    page.getByRole('heading', { name: '저장된 흐름 이어서 편집' }),
+  ).toBeVisible();
+  await expect(choices.getByRole('button')).toHaveCount(2);
+  await expect(choices.locator('time')).toHaveCount(2);
+  await expect(page.locator('#editor-main')).toHaveCount(0);
+  await chooseSavedFlow(page, example.name);
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(7);
+
+  await page.reload();
+  await page.getByRole('button', { name: '새 흐름 시작' }).click();
+  await expect(page.locator('#editor-main')).toBeVisible();
+  await expect(page.locator('.react-flow__node-money')).toHaveCount(0);
+  const dialog = await library(page);
+  await expect(
+    dialog.getByRole('button', { name: example.name + ' 열기' }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: '두 번째 흐름 열기' }),
+  ).toBeVisible();
 });

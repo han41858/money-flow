@@ -18,6 +18,7 @@ import type { MoneyNode } from '../../types/diagram';
 import { NodeArtwork } from './artwork';
 import { browserTextWidth, cardLabel, cardSize } from './sizing';
 import { kindNames } from './presentation';
+import { onEditKey } from '../../lib/editing';
 
 function Port({ outgoing = false }: { outgoing?: boolean }) {
   return (
@@ -57,11 +58,7 @@ function CardNameInput({
       onBlur={() => finish(true, false)}
       onKeyDown={(event) => {
         event.stopPropagation();
-        if (event.nativeEvent.isComposing) return;
-        if (event.key === 'Enter' || event.key === 'Escape') {
-          event.preventDefault();
-          finish(event.key === 'Enter', true);
-        }
+        onEditKey(event, (save) => finish(save, true));
       }}
     />
   );

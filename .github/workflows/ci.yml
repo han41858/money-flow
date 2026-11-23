@@ -1,5 +1,11 @@
 name: CI
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ${{ github.event_name == 'push' && 'main-release' || github.run_id }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -20,3 +26,53 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+
+  release:
+    name: Publish latest release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Publish release and retain its predecessors as Git tags
+        shell: bash
+        run: |
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "A newer commit is on main."
+            exit 0
+          fi
+
+          tag="main-$GITHUB_SHA"
+          marker='<!-- money-flow:main-release -->'
+          release_api="repos/$GITHUB_REPOSITORY/releases"
+          existing_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" \
+            --jq ".[] | select(.ref == \"refs/tags/$tag\") | .ref")
+          if [[ -n "$existing_ref" ]]; then
+            tagged_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
+            if [[ "$tagged_sha" != "$GITHUB_SHA" ]]; then
+              echo "::error::The release tag already points to a different commit."
+              exit 1
+            fi
+          fi
+
+          releases=$(gh api --paginate "$release_api" --jq '.[] | @json')
+          current=$(jq -c --arg tag "$tag" 'select(.tag_name == $tag)' <<< "$releases")
+          if [[ -z "$current" ]]; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Money Flow · ${GITHUB_SHA:0:12}" --latest --generate-notes --notes "$marker"
+          elif [[ "$current" != *"$marker"* ]]; then
+            echo "::error::A release already exists for this tag outside this workflow."
+            exit 1
+          fi
+
+          jq -r --arg tag "$tag" --arg marker "$marker" '
+            select(.tag_name != $tag and (.tag_name | test("^main-[0-9a-f]{40}$")))
+            | select((.body // "") | contains($marker))
+            | .id
+          ' <<< "$releases" | while IFS= read -r id; do
+            gh api --method DELETE "$release_api/$id"
+          done

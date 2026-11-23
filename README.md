@@ -50,7 +50,7 @@ pnpm dev
 
 `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`로 검사합니다. 빌드 후 `pnpm exec playwright install chromium`과 `pnpm test:e2e`로 브라우저 테스트를 실행합니다.
 
-Vercel Git 연동이 기능 브랜치와 `dev`에 프리뷰를 생성하고, `main` 병합 시 프로덕션을 배포합니다. PR·커밋 댓글은 꺼 두며 배포 상태는 GitHub 체크와 Vercel에서 확인합니다.
+Vercel Git 연동은 `dev`에 프리뷰를, `main`에 프로덕션을 배포합니다. 같은 저장소의 작업 브랜치는 PR이나 해당 PR이 닫는 이슈에 `preview` 라벨을 붙이면 프리뷰를 생성합니다. 링크는 PR의 배포 상태에서 확인합니다. 설정은 [개발 명세서](docs/spec.md#24-브랜치-전략)를 참고하세요.
 
 ## 문서
 

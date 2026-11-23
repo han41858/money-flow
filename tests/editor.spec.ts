@@ -125,13 +125,25 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   const accountPort = account.locator('.target');
   const cardPort = page.locator('[data-id="card"] .target').first();
   await expect(sourcePort).toHaveCSS('opacity', '0');
-  await expect(sourcePort).toHaveCSS('pointer-events', 'none');
-  await income.hover();
-  await expect(sourcePort).toHaveCSS('opacity', '1');
-  await expect(accountPort).toHaveCSS('opacity', '0');
+  const sourceCard = (await income.locator('.money-node > svg').boundingBox())!;
+  const targetCard = (await account
+    .locator('.money-node > svg')
+    .boundingBox())!;
+  const sourceHandle = (await sourcePort.boundingBox())!;
+  const targetHandle = (await accountPort.boundingBox())!;
+  expect(sourceHandle.x).toBeGreaterThanOrEqual(
+    sourceCard.x + sourceCard.width - 0.5,
+  );
+  expect(targetHandle.x + targetHandle.width).toBeLessThanOrEqual(
+    targetCard.x + 0.5,
+  );
   const from = await point(sourcePort);
   const to = await point(accountPort);
+  await page.mouse.move(from.x + 24, from.y);
+  await expect(sourcePort).toHaveCSS('opacity', '0');
   await page.mouse.move(from.x, from.y);
+  await expect(sourcePort).toHaveCSS('opacity', '1');
+  await expect(accountPort).toHaveCSS('opacity', '0');
   await page.mouse.down();
   await page.mouse.move(from.x + 25, from.y, { steps: 4 });
   await expect(account).toHaveClass(/invalid-target/);

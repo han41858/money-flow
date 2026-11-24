@@ -12,6 +12,27 @@ import { dirname, join } from 'node:path';
 import { Stop } from './github.mjs';
 
 const image = 'money-flow-ai-validation';
+const stages = [
+  'format:check',
+  'typecheck',
+  'lint',
+  'test',
+  'build',
+  'test:e2e',
+];
+
+export class ValidationFailure extends Stop {
+  constructor(status) {
+    const stage = stages[status - 20];
+    const description = stage
+      ? `격리 검사 실패 · ${stage}`
+      : status === 19
+        ? '격리 검사 실패 · 후보 파일 복사'
+        : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
+    super(description + '. Actions 로그에서 상세 내용을 확인하세요.');
+    this.stage = stage;
+  }
+}
 const run = (file, args, options = {}) =>
   execFileSync(file, args, {
     timeout: 12 * 60_000,
@@ -41,8 +62,9 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright CI=true
 RUN npm install --global pnpm@11.25.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
-RUN chown node:node /app package.json pnpm-lock.yaml pnpm-workspace.yaml && chmod -R a+rX /opt/playwright
+RUN chown -R node:node /app && chmod -R a+rX /opt/playwright
 USER node
+RUN test -w /app/node_modules
 `,
     );
     run('docker', ['build', '--tag', image, context]);
@@ -85,20 +107,20 @@ export function validateCandidate(head, changes) {
         'sh',
         '-ec',
         `
-        cp -R /candidate/. /app/
-        for stage in format:check typecheck lint test build test:e2e; do
+        cp -R /candidate/. /app/ || exit 19
+        status=20
+        for stage in ${stages.join(' ')}; do
           printf 'Running isolated check %s\n' "$stage"
-          pnpm "$stage"
+          pnpm "$stage" || exit "$status"
+          status=$((status + 1))
         done
       `,
       ]);
+    } catch (error) {
+      throw new ValidationFailure(error.status);
     } finally {
       console.log(`::${marker}::`);
     }
-  } catch {
-    throw new Stop(
-      '후보 코드의 격리 검사가 실패했습니다. 실행 로그에서 실패 단계를 확인하세요.',
-    );
   } finally {
     rmSync(path, { recursive: true, force: true });
   }

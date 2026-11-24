@@ -1,3 +1,4 @@
+import { ValidationFailure } from './validation.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -5,7 +6,7 @@ import {
   approvalLabel,
   assertPull,
   authorized,
-  canRestartPreflight,
+  canRestartUnpublished,
   baseBranch,
   createGitHub,
   fingerprint,
@@ -122,7 +123,7 @@ async function develop() {
   )
     throw new Stop('ai:develop가 붙은 이슈 이벤트가 필요합니다.');
   const approval = await gh.approval(issueNumber);
-  const restarting = state && canRestartPreflight(state, event, approval);
+  const restarting = state && canRestartUnpublished(state, event, approval);
   if (state && !restarting) {
     console.log(
       `이슈 #${issueNumber}의 작업 기록이 있어 중복 실행을 건너뜁니다. 현재 상태: ${safeText(state.status)}. 이슈의 마지막 AI 개발 기록을 확인하세요.`,
@@ -171,6 +172,7 @@ async function develop() {
   });
   models.verify();
 
+  const restartingValidation = restarting && state.code === 'validation_failed';
   state = {
     version: 1,
     issue: issueNumber,
@@ -181,7 +183,11 @@ async function develop() {
     branch,
     head: base,
     attempts: 0,
-    preflightRestarts: restarting ? 1 : 0,
+    preflightRestarts:
+      state?.preflightRestarts ||
+      Number(Boolean(restarting && !restartingValidation)),
+    validationRestarts:
+      state?.validationRestarts || Number(Boolean(restartingValidation)),
   };
   await gh.record(state, 'developing', '격리 검증 환경을 준비합니다.');
   prepareValidation();
@@ -477,7 +483,9 @@ try {
         : error instanceof Stop
           ? 'needs_human'
           : 'failed';
-    await gh.record(state, status, message, 'run_error').catch(() => {});
+    const code =
+      error instanceof ValidationFailure ? 'validation_failed' : 'run_error';
+    await gh.record(state, status, message, code).catch(() => {});
   }
   console.error(message);
   process.exitCode = 1;

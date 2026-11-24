@@ -7,6 +7,8 @@ export const approvalLabel = 'ai:develop';
 const stateMarker = '<!-- money-flow-ai-state:';
 const bot = 'github-actions[bot]';
 const api = 'https://api.github.com';
+const legacyValidationMessage =
+  '후보 코드의 격리 검사가 실패했습니다. 실행 로그에서 실패 단계를 확인하세요.';
 
 export class Stop extends Error {}
 
@@ -46,7 +48,14 @@ export function readState(comments, issue) {
     if (!line?.startsWith(stateMarker) || !line.endsWith(' -->')) continue;
     const encoded = line.slice(stateMarker.length, -4);
     const state = JSON.parse(Buffer.from(encoded, 'base64').toString());
-    if (state.version === 1 && state.issue === issue) return state;
+    if (state.version !== 1 || state.issue !== issue) continue;
+    if (
+      state.status === 'needs_human' &&
+      state.code === 'run_error' &&
+      body.split('\n\n')[1] === legacyValidationMessage
+    )
+      state.code = 'validation_failed';
+    return state;
   }
   return null;
 }
@@ -82,15 +91,19 @@ export function issueMarker(issue) {
   return `<!-- money-flow-ai-issue:${issue} -->`;
 }
 
-export function canRestartPreflight(state, event, approval) {
+export function canRestartUnpublished(state, event, approval) {
   return (
-    state.status === 'failed' &&
-    state.attempts === 0 &&
+    ((state.status === 'failed' &&
+      state.attempts === 0 &&
+      !state.preflightRestarts) ||
+      (state.status === 'needs_human' &&
+        state.code === 'validation_failed' &&
+        state.attempts === 1 &&
+        !state.validationRestarts)) &&
     state.head === state.base &&
     !state.published &&
     !state.pr &&
     !state.observedHead &&
-    !state.preflightRestarts &&
     event.action === 'labeled' &&
     state.issueHash === fingerprint(event.issue) &&
     approval?.event === 'labeled' &&

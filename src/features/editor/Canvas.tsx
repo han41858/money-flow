@@ -75,6 +75,11 @@ export function Canvas({
   const [resizing, setResizing] = useState<{ id: string; size: Size } | null>(
     null,
   );
+  const [shouldFit] = useState(
+    () =>
+      (fit || readOnly) &&
+      Boolean(diagram.nodes.length || diagram.groups.length),
+  );
   const [initialFit] = useState(() =>
     !readOnly && window.matchMedia('(max-width:720px)').matches
       ? {
@@ -342,10 +347,7 @@ export function Canvas({
             onViewportChange={(vp) =>
               !readOnly && recordViewport(diagram.id, vp, interacted.current)
             }
-            fitView={
-              (fit || readOnly) &&
-              (graph.nodes.length > 0 || graph.groupNodes.length > 0)
-            }
+            fitView={shouldFit}
             fitViewOptions={initialFit}
             minZoom={0.15}
             maxZoom={2}

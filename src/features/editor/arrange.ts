@@ -346,13 +346,30 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
 
   recenterBands(placed, positions, metrics.heightOf);
 
+  // Packing uses a local origin. Keep the arranged diagram anchored to the
+  // former top-left so the unchanged viewport still shows the user's work.
+  const oldOrigin = { x: Infinity, y: Infinity };
+  for (const { position } of [...diagram.nodes, ...diagram.groups]) {
+    oldOrigin.x = Math.min(oldOrigin.x, position.x);
+    oldOrigin.y = Math.min(oldOrigin.y, position.y);
+  }
+  const newOrigin = { x: Infinity, y: Infinity };
+  for (const { position } of placed) {
+    newOrigin.x = Math.min(newOrigin.x, position.x);
+    newOrigin.y = Math.min(newOrigin.y, position.y);
+  }
+  const anchored = (position: Position): Position => ({
+    x: oldOrigin.x + (position.x - newOrigin.x),
+    y: oldOrigin.y + (position.y - newOrigin.y),
+  });
+
   const nodes = diagram.nodes.map((node) => ({
     ...node,
-    position: positions.get(node.id)!,
+    position: anchored(positions.get(node.id)!),
   }));
-  const groups = diagram.groups.map((group) => ({
-    ...group,
-    ...groupBounds.get(group.id)!,
-  }));
+  const groups = diagram.groups.map((group) => {
+    const bounds = groupBounds.get(group.id)!;
+    return { ...group, ...bounds, position: anchored(bounds.position) };
+  });
   return { nodes, groups };
 }

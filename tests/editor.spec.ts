@@ -343,3 +343,46 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(button).toBeVisible();
 });
+
+test('새 흐름에서 수입 두 개를 자동 정렬해도 화면 위로 튀지 않는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const nodes = page.locator('.react-flow__node-money');
+  const viewport = page.locator('.react-flow__viewport');
+  const zoom = page.getByLabel('확대 비율');
+  await expect(zoom).toHaveText('100%');
+  await page.getByRole('button', { name: '수입 추가' }).click();
+  await page.getByRole('button', { name: '수입 추가' }).click();
+  await page.getByRole('button', { name: '계좌 추가' }).click();
+  await expect(zoom).toHaveText('100%');
+  const account = nodes.nth(2);
+  await connect(page, nodes.nth(0), account);
+  await connect(page, nodes.nth(1), account);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
+  const before = (
+    await Promise.all((await nodes.all()).map((node) => node.boundingBox()))
+  ).map((box) => box!.y);
+  const view = await viewport.getAttribute('style');
+
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  await expect
+    .poll(async () => {
+      const boxes = await Promise.all(
+        (await nodes.all()).map((node) => node.boundingBox()),
+      );
+      return Math.abs(
+        Math.min(...boxes.map((box) => box!.y)) - Math.min(...before),
+      );
+    })
+    .toBeLessThan(1);
+  const [first, second, target] = await Promise.all(
+    (await nodes.all()).map((node) => node.boundingBox()),
+  );
+  expect(first!.x).toBeCloseTo(second!.x, 0);
+  expect(target!.x).toBeGreaterThan(first!.x + first!.width);
+  await expect(viewport).toHaveAttribute('style', view!);
+  await expect(zoom).toHaveText('100%');
+  for (const node of await nodes.all()) await expect(node).toBeInViewport();
+});

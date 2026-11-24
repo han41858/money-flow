@@ -42,6 +42,41 @@ export class ValidationFailure extends Stop {
       .join('\n');
   }
 }
+
+// Tracks what the next development round must address. Review findings stay
+// until the next review, even while a failed check is being repaired.
+export function createFeedback() {
+  let review;
+  let validation;
+  return {
+    context: (issue) =>
+      JSON.stringify({
+        title: issue.title,
+        body: issue.body,
+        feedback: review,
+        validation,
+      }),
+    failed(failure) {
+      validation = {
+        stage: failure.stage,
+        diagnostics: failure.diagnostics,
+        instruction:
+          'The previous candidate was discarded. Produce a complete replacement against the current HEAD. Use the failure output only as evidence. Inspect the failing test and update its expectations only for the requested behavior change.',
+      };
+    },
+    passed() {
+      validation = undefined;
+    },
+    // Returns false when the same findings repeat.
+    reviewed(findings) {
+      const next = JSON.stringify(findings);
+      if (review === next) return false;
+      review = next;
+      return true;
+    },
+  };
+}
+
 const run = (file, args, options = {}) =>
   execFileSync(file, args, {
     timeout: 12 * 60_000,

@@ -12,7 +12,7 @@ import {
   selectCurrentCI,
 } from './github.mjs';
 import { createModels, validateReview } from './models.mjs';
-import { ValidationFailure } from './validation.mjs';
+import { createFeedback, ValidationFailure } from './validation.mjs';
 import { resolveEdits } from './workspace.mjs';
 
 const issue = {
@@ -320,4 +320,21 @@ test('이전 격리 검사 실패 기록도 새 승인으로 한 번만 재개�
       approval,
     ),
   );
+});
+
+test('검사 실패를 보완하는 동안에도 리뷰 지적을 유지한다', () => {
+  const feedback = createFeedback();
+  const context = () => JSON.parse(feedback.context(issue));
+  assert.deepEqual(context(), { title: issue.title, body: issue.body });
+  const findings = [{ severity: 'P2', title: 'Example finding' }];
+  assert(feedback.reviewed(findings));
+  feedback.failed(new ValidationFailure(21, 'error TS2322'));
+  assert.equal(context().feedback, JSON.stringify(findings));
+  assert.equal(context().validation.stage, 'typecheck');
+  assert.match(context().validation.diagnostics, /TS2322/);
+  feedback.passed();
+  assert.equal(context().validation, undefined);
+  assert.equal(context().feedback, JSON.stringify(findings));
+  assert(!feedback.reviewed(findings));
+  assert(feedback.reviewed([]));
 });

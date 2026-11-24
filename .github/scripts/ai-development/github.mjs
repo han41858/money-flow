@@ -119,7 +119,7 @@ export function canRestartUnpublished(state, event, approval) {
       !state.preflightRestarts) ||
       (state.status === 'needs_human' &&
         state.code === 'validation_failed' &&
-        state.attempts === 1 &&
+        state.attempts >= 1 &&
         (!state.validationRestarts ||
           (state.validationRestarts === 1 && state.legacyTestFailure)))) &&
     state.head === state.base &&

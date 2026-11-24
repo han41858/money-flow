@@ -32,7 +32,7 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
   ).toBeVisible();
-  const path = page.locator('.react-flow__edge.selected .transfer-shaft');
+  const path = page.locator('.transfer-visual[data-selected] .transfer-shaft');
   const initialShape = await path.getAttribute('d');
   await page.getByLabel('금액 방식').selectOption('range');
   await page.getByLabel('월 최소 금액').fill('500000');
@@ -598,3 +598,94 @@ for (const [title, diagram] of [
             card.y + card.height <= label.y,
         ).toBe(true);
   });
+
+test('노드와 겹치는 연결선 금액을 열고 저장할 수 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const [source, , target] = example.nodes;
+  await openExample(page, {
+    ...example,
+    groups: [],
+    nodes: [
+      { ...source, name: '수입', groupId: undefined, position: { x: 0, y: 0 } },
+      {
+        ...target,
+        name: '계좌',
+        groupId: undefined,
+        position: { x: 125, y: 20 },
+      },
+    ],
+    edges: [example.edges[0]],
+  });
+  const label = page.getByRole('button', { name: '3,200,000원 금액 수정' });
+  await label.click();
+  const input = page.getByRole('textbox', { name: '연결선 금액 (원)' });
+  const sourceNode = page.locator('[data-id="income-a"].react-flow__node');
+  const card = (await sourceNode.boundingBox())!;
+  const box = (await input.boundingBox())!;
+  const x = (box.x + card.x + card.width) / 2;
+  const y = box.y + box.height / 2;
+  expect(x).toBeGreaterThan(box.x);
+  expect(x).toBeGreaterThan(card.x);
+  expect(y).toBeGreaterThan(card.y);
+  expect(y).toBeLessThan(card.y + card.height);
+  expect(
+    await input.evaluate(
+      (el, p) => document.elementFromPoint(p.x, p.y) === el,
+      { x, y },
+    ),
+  ).toBe(true);
+  await page.mouse.click(x, y);
+  await input.fill('5000000');
+  await input.press('Enter');
+  await expect(
+    page.getByRole('button', { name: '5,000,000원 금액 수정' }),
+  ).toBeVisible();
+});
+
+test('노드 위를 지나는 연결선이 카드 드래그를 가로채지 않는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const [source, blocker, target] = example.nodes;
+  await openExample(page, {
+    ...example,
+    groups: [],
+    nodes: [
+      { ...source, name: '수입', groupId: undefined, position: { x: 0, y: 0 } },
+      {
+        ...blocker,
+        name: '겹친 카드',
+        groupId: undefined,
+        position: { x: 140, y: 0 },
+      },
+      {
+        ...target,
+        name: '계좌',
+        groupId: undefined,
+        position: { x: 310, y: 0 },
+      },
+    ],
+    edges: [example.edges[0]],
+  });
+  const card = page.locator('[data-id="income-b"].react-flow__node');
+  const box = (await card.boundingBox())!;
+  const x = box.x + box.width - 4;
+  const y = box.y + box.height / 2;
+  await expect
+    .poll(() =>
+      card.evaluate(
+        (el, p) => el.contains(document.elementFromPoint(p.x, p.y)),
+        { x, y },
+      ),
+    )
+    .toBe(true);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y + 45, { steps: 10 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await card.boundingBox())!.y)
+    .toBeGreaterThan(box.y + 20);
+  await selectNode(card);
+  await expect(card).toHaveClass(/selected/);
+});

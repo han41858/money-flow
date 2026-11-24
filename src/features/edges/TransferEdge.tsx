@@ -30,33 +30,46 @@ export const TransferEdge = memo(function TransferEdge({
     <>
       <title>{title}</title>
       <BaseEdge id={id} path={path} style={{ stroke: 'transparent' }} />
-      {selected && (
-        <g stroke="#1d263c" pointerEvents="none">
-          <path d={body} fill="none" strokeWidth={stroke + 4} />
-          <path d={shaft} fill="none" strokeWidth={4} strokeLinejoin="round" />
-        </g>
-      )}
-      <path
-        className="transfer-body"
-        d={body}
-        fill="none"
-        stroke={color}
-        strokeWidth={stroke}
-        pointerEvents="none"
-      />
-      <path
-        className="transfer-shaft"
-        d={shaft}
-        fill={color}
-        pointerEvents="none"
-      />
-      <path
-        className="transfer-arrow"
-        d={arrow}
-        fill={color}
-        pointerEvents="none"
-      />
       <EdgeLabelRenderer>
+        {/* Keep the edge hit target in React Flow's native layer under the nodes. */}
+        <svg
+          className="transfer-visual"
+          data-edge-id={id}
+          data-selected={selected || undefined}
+          aria-hidden="true"
+        >
+          {selected && (
+            <g stroke="#1d263c" pointerEvents="none">
+              <path d={body} fill="none" strokeWidth={stroke + 4} />
+              <path
+                d={shaft}
+                fill="none"
+                strokeWidth={4}
+                strokeLinejoin="round"
+              />
+            </g>
+          )}
+          <path
+            className="transfer-body"
+            d={body}
+            fill="none"
+            stroke={color}
+            strokeWidth={stroke}
+            pointerEvents="none"
+          />
+          <path
+            className="transfer-shaft"
+            d={shaft}
+            fill={color}
+            pointerEvents="none"
+          />
+          <path
+            className="transfer-arrow"
+            d={arrow}
+            fill={color}
+            pointerEvents="none"
+          />
+        </svg>
         <TransferAmount
           edge={edge}
           readOnly={data.readOnly}

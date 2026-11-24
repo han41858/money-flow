@@ -1,4 +1,4 @@
-export const canvasColor = '#f8faf8';
+export const canvasColor = '#f8f9fa';
 
 function rgb(hex: string) {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));

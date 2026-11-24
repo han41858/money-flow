@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { PanelLeft } from 'lucide-react';
+import { Logo } from './Logo';
 import { Metrics } from './Metrics';
 import { ResponsivePanel } from './ResponsivePanel';
 import { Sidebar } from './Sidebar';
@@ -264,7 +265,12 @@ export function App() {
   if (!session)
     return (
       <main className="library-start">
-        <h1>Money Flow</h1>
+        <h1 className="start-brand">
+          <span className="logo-tile">
+            <Logo size={30} />
+          </span>
+          Money Flow
+        </h1>
         {error && <p role="alert">{error}</p>}
         {entries.length ? (
           <>

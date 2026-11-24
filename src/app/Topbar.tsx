@@ -1,16 +1,10 @@
 import { useStore } from 'zustand';
-import {
-  FilePlus2,
-  FolderOpen,
-  Redo2,
-  Share2,
-  Undo2,
-  Waypoints,
-} from 'lucide-react';
+import { FilePlus2, FolderOpen, Redo2, Share2, Undo2 } from 'lucide-react';
 import type { Diagram } from '../types/diagram';
 import { FlowName } from '../features/diagrams/FlowName';
 import { createBlank } from '../features/diagrams/library';
 import { editor } from '../features/editor/store';
+import { Logo } from './Logo';
 
 export function Topbar({
   diagram,
@@ -26,9 +20,7 @@ export function Topbar({
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-icon">
-          <Waypoints size={23} />
-        </span>
+        <Logo size={34} />
         Money Flow
       </div>
       <span className="header-divider" />

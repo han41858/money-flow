@@ -35,6 +35,7 @@ import {
   absoluteFrom,
   measuredSizes,
   nodeBounds,
+  type NodeSizes,
   type Size,
 } from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
@@ -136,31 +137,24 @@ export function Canvas({
   const zoom = useStore((s) => s.transform[2]);
 
   function fitVisibleArea() {
-    const area = areaRef.current!;
-    const canvas = area.getBoundingClientRect();
-    const visible = visibleArea(area);
-    void fitView({
-      ...fitOptions,
-      duration: 180,
-      padding: {
-        top: `${Math.ceil(visible.top - canvas.top) + 16}px`,
-        right: `${Math.ceil(canvas.right - visible.right) + 16}px`,
-        bottom: '56px',
-        left: '16px',
-      },
-    });
+    const sizes = measuredSizes(diagram.nodes, getInternalNode);
+    centerDiagram(diagram, sizes);
   }
 
   function arrange() {
-    trackView();
     const sizes = measuredSizes(diagram.nodes, getInternalNode);
     editor.autoArrange(sizes);
-    const arranged = editor.current();
-    const bounds = nodeBounds(arranged.nodes, sizes);
+    centerDiagram(editor.current(), sizes);
+  }
+
+  function centerDiagram({ nodes, groups }: Diagram, sizes: NodeSizes) {
+    if (!nodes.length && !groups.length) return;
+    trackView();
+    const bounds = nodeBounds(nodes, sizes);
     let { x: left, y: top } = bounds.position;
     let right = left + bounds.width;
     let bottom = top + bounds.height;
-    for (const group of arranged.groups) {
+    for (const group of groups) {
       left = Math.min(left, group.position.x);
       top = Math.min(top, group.position.y);
       right = Math.max(right, group.position.x + group.width);

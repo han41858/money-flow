@@ -488,3 +488,27 @@ test('노드 목록이 길어도 정렬한 노드가 브라우저 창 안에 보
     900,
   );
 });
+
+test('자동 정렬과 전체 보기를 번갈아 눌러도 같은 뷰포트를 유지한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 850, height: 700 });
+  await openExample(page);
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .first()
+    .click();
+  await expect(page.locator('.detail-wrap')).toBeVisible();
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+
+  const arrange = page.getByRole('button', { name: '자동 정렬' });
+  const center = page.getByRole('button', { name: '전체 보기' });
+  const viewport = page.locator('.react-flow__viewport');
+  await arrange.click();
+  await expect(page.getByLabel('확대 비율')).not.toHaveText('100%');
+  const transform = await viewport.getAttribute('style');
+  for (const button of [center, arrange, center]) {
+    await button.click();
+    await expect(viewport).toHaveAttribute('style', transform!);
+  }
+});

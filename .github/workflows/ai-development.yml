@@ -1,0 +1,83 @@
+name: AI development
+run-name: 'AI development for Issue #${{ github.event.issue.number || inputs.issue }}'
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue number to resume at CI or closure'
+        required: true
+        type: number
+
+permissions: {}
+
+concurrency:
+  group: ai-development-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  develop:
+    if: >-
+      github.repository == 'han41858/money-flow' &&
+      github.ref == 'refs/heads/dev' &&
+      github.event_name == 'issues' &&
+      (github.event.label.name == 'ai:develop' ||
+       (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'ai:develop')))
+    runs-on: ubuntu-24.04
+    environment: ai-development
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    outputs:
+      ready: ${{ steps.develop.outputs.ready }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Install trusted formatting tools
+        run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+      - name: Develop and review
+        id: develop
+        run: node .github/scripts/ai-development/run.mjs develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_AUTOMATION_TOKEN: ${{ secrets.AI_AUTOMATION_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_CODEX_MODEL: ${{ vars.AI_CODEX_MODEL }}
+          AI_CLAUDE_MODEL: ${{ vars.AI_CLAUDE_MODEL }}
+
+  complete:
+    needs: develop
+    if: >-
+      always() && !cancelled() &&
+      github.repository == 'han41858/money-flow' &&
+      github.ref == 'refs/heads/dev' &&
+      (github.event_name == 'workflow_dispatch' || needs.develop.outputs.ready == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Verify CI, merge, and confirm issue closure
+        run: node .github/scripts/ai-development/run.mjs complete
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -6,9 +6,14 @@ import {
   type NodeSizes,
   type Size,
 } from '../groups/geometry';
-import { cardSize } from '../nodes/sizing';
+import { amountLabel } from '../edges/money';
+import { cardSize, estimatedTextWidth } from '../nodes/sizing';
 
 const columnGap = 64;
+// Matches the `.edge-label` font size and its horizontal padding plus the
+// clearance that keeps the label off both cards.
+const labelFontSize = 13;
+const labelClearance = 24;
 const rowGap = 24;
 const regionGap = 24;
 
@@ -245,8 +250,18 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     (width, n) => Math.max(width, nodeSizes.get(n.id)!.width),
     0,
   );
+  // Widen the columns just enough for the longest amount label.
+  const gap = diagram.edges.reduce(
+    (width, { min, max }) =>
+      Math.max(
+        width,
+        Math.ceil(estimatedTextWidth(amountLabel(min, max), labelFontSize)) +
+          labelClearance,
+      ),
+    columnGap,
+  );
   const metrics: Metrics = {
-    columnX: (id) => ranks.get(id)! * (columnWidth + columnGap),
+    columnX: (id) => ranks.get(id)! * (columnWidth + gap),
     heightOf: (id) => nodeSizes.get(id)!.height,
   };
   const members = new Map(diagram.groups.map((g) => [g.id, [] as MoneyNode[]]));

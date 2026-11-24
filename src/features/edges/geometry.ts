@@ -65,6 +65,37 @@ function taper(path: string, width: number, end: number) {
   };
 }
 
+// Centers the label between the two cards. The arrow shortens the curve, so
+// its midpoint would push the label toward the source card.
+function labelPoint(
+  path: string,
+  sourceX: number,
+  targetX: number,
+  middle: Point,
+): Point {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = path
+    .slice(1)
+    .split(/[C, ]+/)
+    .map(Number);
+  const x = (sourceX + targetX) / 2;
+  // Backward connections double back, so keep the midpoint of the curve.
+  if (x3 <= x0 || x1 > x2) return middle;
+  if (x >= x3) return { x, y: y3 };
+  const at = (a: number, b: number, c: number, d: number, t: number) =>
+    (1 - t) ** 3 * a +
+    3 * (1 - t) ** 2 * t * b +
+    3 * (1 - t) * t ** 2 * c +
+    t ** 3 * d;
+  let low = 0.5;
+  let high = 1;
+  for (let step = 0; step < 16; step++) {
+    const t = (low + high) / 2;
+    if (at(x0, x1, x2, x3, t) < x) low = t;
+    else high = t;
+  }
+  return { x, y: at(y0, y1, y2, y3, low) };
+}
+
 export function transferGeometry(
   sourceX: number,
   sourceY: number,
@@ -111,7 +142,10 @@ export function transferGeometry(
     ' ' +
     (targetY + half) +
     ' Z';
+  const label = labelPoint(path, sourceX, targetX, { x, y });
   const labelNearArrow =
-    Math.abs(x - tip) < length + 28 && Math.abs(y - targetY) < half + 12;
-  return { path, body, shaft, arrow, x, y: labelNearArrow ? y - 22 : y };
+    Math.abs(label.x - tip) < length + 28 &&
+    Math.abs(label.y - targetY) < half + 12;
+  if (labelNearArrow) label.y -= 22;
+  return { path, body, shaft, arrow, ...label };
 }

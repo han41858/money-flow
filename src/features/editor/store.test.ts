@@ -103,9 +103,6 @@ describe('편집 이력', () => {
     expect(position('income-b').y).toBeLessThan(position('income-a').y);
     expect(position('savings').x).toBe(position('card').x);
     expect(position('savings').y).toBeLessThan(position('card').y);
-    expect(position('card').x - position('joint').x).toBe(
-      Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 64,
-    );
     expect(position('card').y - position('savings').y).toBeGreaterThanOrEqual(
       nodeHeight + 24,
     );
@@ -113,6 +110,25 @@ describe('편집 이력', () => {
       before.groups.map((group) => group.id),
     );
   });
+  it.each([
+    ['단일 금액', 5_000_000, 5_000_000, 64],
+    ['범위 금액', 1_280_000, 1_580_000, 97],
+  ])(
+    '자동 정렬의 가로 여백은 %s 레이블이 들어가는 만큼 둔다',
+    (_, min, max, gap) => {
+      const diagram = {
+        ...example,
+        edges: example.edges.map((edge) => ({ ...edge, min, max })),
+      };
+      const { nodes } = arrangeDiagram(diagram, new Map());
+      const x = (id: string) =>
+        nodes.find((node) => node.id === id)!.position.x;
+      expect(x('card') - x('joint')).toBe(
+        Math.max(...diagram.nodes.map((node) => cardSize(node.name).width)) +
+          gap,
+      );
+    },
+  );
   it.each([true, false])(
     '분기에서 하위 노드의 중심과 형제 간격을 맞춘다 (그룹: %s)',
     (grouped) => {

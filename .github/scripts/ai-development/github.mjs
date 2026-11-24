@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 
 export const repository = 'han41858/money-flow';
 export const baseBranch = 'dev';
@@ -81,27 +82,67 @@ export function issueMarker(issue) {
   return `<!-- money-flow-ai-issue:${issue} -->`;
 }
 
-export function createGitHub({ token, publishToken, request = fetch }) {
+export function canRestartPreflight(state, event, approval) {
+  return (
+    state.status === 'failed' &&
+    state.attempts === 0 &&
+    state.head === state.base &&
+    !state.published &&
+    !state.pr &&
+    !state.observedHead &&
+    !state.preflightRestarts &&
+    event.action === 'labeled' &&
+    state.issueHash === fingerprint(event.issue) &&
+    approval?.event === 'labeled' &&
+    approval.actor?.login === event.sender.login &&
+    approval.id !== state.approval
+  );
+}
+
+export function createGitHub({
+  token,
+  publishToken,
+  request = fetch,
+  sleep = delay,
+}) {
   async function call(path, { method = 'GET', data, publish = false } = {}) {
-    const response = await request(api + path, {
-      method,
-      headers: {
-        accept: 'application/vnd.github+json',
-        'x-github-api-version': '2022-11-28',
-        authorization: `Bearer ${publish ? publishToken : token}`,
-        'content-type': 'application/json',
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      signal: AbortSignal.timeout(35_000),
-    });
-    if (!response.ok) {
-      const error = new Error(
-        `GitHub ${method} 실패 (HTTP ${response.status})`,
-      );
-      error.status = response.status;
-      throw error;
+    const endpoint = path.split('?')[0];
+    const maxAttempts = method === 'GET' ? 3 : 1;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let failure;
+      try {
+        const response = await request(api + path, {
+          method,
+          headers: {
+            accept: 'application/vnd.github+json',
+            'x-github-api-version': '2022-11-28',
+            authorization: `Bearer ${publish ? publishToken : token}`,
+            'content-type': 'application/json',
+          },
+          body: data ? JSON.stringify(data) : undefined,
+          signal: AbortSignal.timeout(35_000),
+        });
+        if (response.ok)
+          return response.status === 204 ? undefined : await response.json();
+        failure = new Error(
+          `GitHub ${method} ${endpoint} 실패 (HTTP ${response.status})`,
+        );
+        failure.status = response.status;
+      } catch (error) {
+        const code = error.cause?.code ?? error.code ?? error.name;
+        const detail = /^[a-z0-9_]+$/i.test(code ?? '') ? code : 'unknown';
+        failure = new Error(
+          `GitHub ${method} ${endpoint} 전송 실패 (${detail})`,
+        );
+      }
+      if (
+        attempt === maxAttempts ||
+        (failure.status && ![429, 500, 502, 503, 504].includes(failure.status))
+      )
+        throw failure;
+      console.log(`${failure.message}. 읽기 요청을 다시 시도합니다.`);
+      await sleep(1_000 * attempt);
     }
-    return response.status === 204 ? undefined : response.json();
   }
   const repo = (path, options) => call(`/repos/${repository}${path}`, options);
   async function pages(path) {

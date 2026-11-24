@@ -5,6 +5,7 @@ import {
   approvalLabel,
   assertPull,
   authorized,
+  canRestartPreflight,
   baseBranch,
   createGitHub,
   fingerprint,
@@ -120,7 +121,9 @@ async function develop() {
       : event.action !== 'labeled' || event.label?.name !== approvalLabel)
   )
     throw new Stop('ai:develop가 붙은 이슈 이벤트가 필요합니다.');
-  if (state) {
+  const approval = await gh.approval(issueNumber);
+  const restarting = state && canRestartPreflight(state, event, approval);
+  if (state && !restarting) {
     console.log(
       `이슈 #${issueNumber}의 작업 기록이 있어 중복 실행을 건너뜁니다. 현재 상태: ${safeText(state.status)}. 이슈의 마지막 AI 개발 기록을 확인하세요.`,
     );
@@ -133,7 +136,6 @@ async function develop() {
   const issue = await gh.repo(issuePath);
   if (!authorized(issue) || fingerprint(issue) !== fingerprint(event.issue))
     throw new Stop('이슈 또는 승인 라벨이 바뀌었습니다.');
-  const approval = await gh.approval(issueNumber);
   if (
     approval
       ? approval.event !== 'labeled' ||
@@ -179,6 +181,7 @@ async function develop() {
     branch,
     head: base,
     attempts: 0,
+    preflightRestarts: restarting ? 1 : 0,
   };
   await gh.record(state, 'developing', '격리 검증 환경을 준비합니다.');
   prepareValidation();

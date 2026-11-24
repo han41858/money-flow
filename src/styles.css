@@ -57,6 +57,20 @@ button:focus-visible {
 .logo-node {
   fill: #fff;
 }
+.start-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #0c2459;
+}
 .header-divider {
   flex: none;
   height: 19px;

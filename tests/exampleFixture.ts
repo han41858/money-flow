@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { example } from '../src/app/example';
 
-export async function openExample(page: Page) {
+export async function openExample(page: Page, diagram = example) {
   const fixture = '**/__example-fixture';
   await page.route(fixture, (route) =>
     route.fulfill({ contentType: 'text/html', body: '<!doctype html>' }),
@@ -27,7 +27,7 @@ export async function openExample(page: Page) {
           resolve();
         };
       }),
-    example,
+    diagram,
   );
   await page.unroute(fixture);
   await page.goto('/');

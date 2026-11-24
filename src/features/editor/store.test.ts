@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { example } from '../../app/example';
 import { diagramSchema } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { cardSize, nodeHeight, totalLineHeight } from '../nodes/sizing';
+import { cardSize, nodeHeight } from '../nodes/sizing';
 import { arrangeDiagram } from './arrange';
 import { createEditor, nodeOfType } from './store';
 
@@ -147,9 +147,7 @@ describe('편집 이력', () => {
       const savings = position('savings');
       expect(first.x).toBeGreaterThan(card.x);
       expect(first.x).toBe(last.x);
-      expect(card.y + (nodeHeight + totalLineHeight) / 2).toBe(
-        (first.y + last.y + nodeHeight) / 2,
-      );
+      expect(card.y + nodeHeight / 2).toBe((first.y + last.y + nodeHeight) / 2);
       expect(savings.y).toBe(last.y + nodeHeight + 24);
       expect(arrangeDiagram({ ...diagram, ...layout }, new Map())).toEqual(
         layout,

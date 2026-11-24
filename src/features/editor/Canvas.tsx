@@ -1,5 +1,4 @@
 import { visibleArea } from './visibleArea';
-import { cardSize } from '../nodes/sizing';
 import {
   useRef,
   useMemo,
@@ -32,7 +31,12 @@ import { recordViewport, useLibrary } from '../diagrams/library';
 
 import { useStableItems } from './stable';
 import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
-import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
+import {
+  absoluteFrom,
+  measuredSizes,
+  nodeBounds,
+  type Size,
+} from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
 const nodeTypes = { money: MoneyNodeCard, region: GroupRegion };
 const edgeTypes = { transfer: TransferEdge };
@@ -75,6 +79,11 @@ export function Canvas({
   const [resizing, setResizing] = useState<{ id: string; size: Size } | null>(
     null,
   );
+  const [shouldFit] = useState(
+    () =>
+      (fit || readOnly) &&
+      Boolean(diagram.nodes.length || diagram.groups.length),
+  );
   const [initialFit] = useState(() =>
     !readOnly && window.matchMedia('(max-width:720px)').matches
       ? {
@@ -93,7 +102,6 @@ export function Canvas({
     getInternalNode,
     getViewport,
     setViewport,
-    flowToScreenPosition,
   } = useReactFlow();
   const flowNodes = useStableItems<CanvasNode>([
     ...graph.groupNodes.map((n) => ({
@@ -148,25 +156,50 @@ export function Canvas({
     const sizes = measuredSizes(diagram.nodes, getInternalNode);
     editor.autoArrange(sizes);
     const arranged = editor.current();
-    if (arranged.nodes === diagram.nodes) return;
+    const bounds = nodeBounds(arranged.nodes, sizes);
+    let { x: left, y: top } = bounds.position;
+    let right = left + bounds.width;
+    let bottom = top + bounds.height;
+    for (const group of arranged.groups) {
+      left = Math.min(left, group.position.x);
+      top = Math.min(top, group.position.y);
+      right = Math.max(right, group.position.x + group.width);
+      bottom = Math.max(bottom, group.position.y + group.height);
+    }
 
     const area = areaRef.current!;
-    const { top } = area.getBoundingClientRect();
+    const canvas = area.getBoundingClientRect();
     const visible = visibleArea(area);
-    const viewport = getViewport();
-    let dy = 0;
-    for (const node of arranged.nodes) {
-      const point = flowToScreenPosition(node.position);
-      const size = sizes.get(node.id) ?? cardSize(node.name);
-      if (
-        point.x < visible.right &&
-        point.x + size.width * viewport.zoom > visible.left &&
-        point.y + size.height * viewport.zoom > top &&
-        point.y < visible.top
-      )
-        dy = Math.max(dy, visible.top + 8 - point.y);
-    }
-    if (dy) void setViewport({ ...viewport, y: viewport.y + dy });
+    const screenTop = Math.max(0, visible.top);
+    const screenBottom = Math.min(window.innerHeight, visible.bottom);
+    const width = visible.right - visible.left;
+    const height = screenBottom - screenTop;
+    if (width <= 0 || height <= 0) return;
+
+    const currentZoom = getViewport().zoom;
+    const diagramWidth = right - left;
+    const diagramHeight = bottom - top;
+    const overflows =
+      diagramWidth * currentZoom > width ||
+      diagramHeight * currentZoom > height;
+    const margin = Math.min(16, width / 4, height / 4);
+    const nextZoom = overflows
+      ? Math.min(
+          (width - 2 * margin) / diagramWidth,
+          (height - 2 * margin) / diagramHeight,
+        )
+      : currentZoom;
+    void setViewport({
+      x:
+        (visible.left + visible.right) / 2 -
+        canvas.left -
+        ((left + right) / 2) * nextZoom,
+      y:
+        (screenTop + screenBottom) / 2 -
+        canvas.top -
+        ((top + bottom) / 2) * nextZoom,
+      zoom: nextZoom,
+    });
   }
 
   function selectionChanges(
@@ -342,12 +375,9 @@ export function Canvas({
             onViewportChange={(vp) =>
               !readOnly && recordViewport(diagram.id, vp, interacted.current)
             }
-            fitView={
-              (fit || readOnly) &&
-              (graph.nodes.length > 0 || graph.groupNodes.length > 0)
-            }
+            fitView={shouldFit}
             fitViewOptions={initialFit}
-            minZoom={0.15}
+            minZoom={Math.min(0.15, zoom, diagram.viewport.zoom)}
             maxZoom={2}
             aria-label="월간 자금 흐름도"
           >

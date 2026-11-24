@@ -1,3 +1,4 @@
+import { example } from '../src/app/example';
 import { openExample } from './exampleFixture';
 import { test, expect, type Locator } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
@@ -342,4 +343,145 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
   ).toBeVisible();
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(button).toBeVisible();
+});
+
+test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 놓인다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const nodes = page.locator('.react-flow__node-money');
+  const zoom = page.getByLabel('확대 비율');
+  await expect(zoom).toHaveText('100%');
+  await page.getByRole('button', { name: '수입 추가' }).click();
+  await page.getByRole('button', { name: '수입 추가' }).click();
+  await page.getByRole('button', { name: '계좌 추가' }).click();
+  await expect(zoom).toHaveText('100%');
+  const account = nodes.nth(2);
+  await connect(page, nodes.nth(0), account);
+  await connect(page, nodes.nth(1), account);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  await expect
+    .poll(async () => {
+      const area = (await page.locator('.flow-area').boundingBox())!;
+      const summary = (await page.locator('.metrics').boundingBox())!;
+      const panel = await page.locator('.detail-wrap').boundingBox();
+      const boxes = await Promise.all(
+        (await nodes.all()).map((node) => node.boundingBox()),
+      );
+      const x =
+        (Math.min(...boxes.map((box) => box!.x)) +
+          Math.max(...boxes.map((box) => box!.x + box!.width))) /
+        2;
+      const y =
+        (Math.min(...boxes.map((box) => box!.y)) +
+          Math.max(...boxes.map((box) => box!.y + box!.height))) /
+        2;
+      return Math.max(
+        Math.abs(x - (area.x + (panel?.x ?? area.x + area.width)) / 2),
+        Math.abs(y - (summary.y + summary.height + area.y + area.height) / 2),
+      );
+    })
+    .toBeLessThan(1);
+  const [first, second, target] = await Promise.all(
+    (await nodes.all()).map((node) => node.boundingBox()),
+  );
+  expect(first!.x).toBeCloseTo(second!.x, 0);
+  expect(target!.x).toBeGreaterThan(first!.x + first!.width);
+  await expect(zoom).toHaveText('100%');
+  for (const node of await nodes.all()) await expect(node).toBeInViewport();
+
+  await page.getByRole('button', { name: '카드 추가' }).click();
+  const card = nodes.nth(3);
+  await connect(page, account, card);
+  await expect(account.locator('.node-totals')).toBeVisible();
+  await expect(card.locator('.node-totals')).toHaveCount(0);
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  const body = (node: Locator) => node.locator('.money-node > svg');
+  await expect
+    .poll(async () => {
+      const [a, b] = await Promise.all([
+        body(account).boundingBox(),
+        body(card).boundingBox(),
+      ]);
+      return Math.abs(a!.y - b!.y);
+    })
+    .toBeLessThan(1);
+});
+
+test('자동 정렬 결과가 편집 영역을 넘을 때만 전체가 보이도록 축소한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 850, height: 700 });
+  await openExample(page);
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .first()
+    .click();
+  const panel = page.locator('.detail-wrap');
+  await expect(panel).toBeVisible();
+
+  const zoom = page.getByLabel('확대 비율');
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await expect(zoom).toHaveText('100%');
+  const arrange = page.getByRole('button', { name: '자동 정렬' });
+  await arrange.click();
+  await expect(zoom).not.toHaveText('100%');
+  const fitted = await zoom.innerText();
+  expect(parseInt(fitted, 10)).toBeLessThan(100);
+
+  const area = (await page.locator('.flow-area').boundingBox())!;
+  const summary = (await page.locator('.metrics').boundingBox())!;
+  const inspector = (await panel.boundingBox())!;
+  const objects = page.locator(
+    '.react-flow__node-money, .react-flow__node-region',
+  );
+  for (const object of await objects.all()) {
+    const box = (await object.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(area.x);
+    expect(box.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+    expect(box.x + box.width).toBeLessThanOrEqual(inspector.x);
+    expect(box.y + box.height).toBeLessThanOrEqual(area.y + area.height);
+  }
+
+  await page.setViewportSize({ width: 1536, height: 960 });
+  await arrange.click();
+  await expect(zoom).toHaveText(fitted);
+});
+
+test('노드 목록이 길어도 정렬한 노드가 브라우저 창 안에 보인다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page, {
+    ...example,
+    nodes: [
+      ...example.nodes,
+      ...Array.from({ length: 24 }, (_, index) => ({
+        ...example.nodes[0],
+        id: 'extra-income-' + index,
+        name: '추가 수입 ' + index,
+      })),
+    ],
+  });
+  const sidebar = page.locator('.sidebar');
+  await expect
+    .poll(() => sidebar.evaluate((el) => el.scrollHeight - el.clientHeight))
+    .toBeGreaterThan(0);
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  const nodes = page.locator('.react-flow__node-money');
+  await expect(nodes).toHaveCount(example.nodes.length + 24);
+  const summary = (await page.locator('.metrics').boundingBox())!;
+  for (const node of await nodes.all()) {
+    const bounds = (await node.boundingBox())!;
+    expect(bounds.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(1440);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
+    900,
+  );
 });

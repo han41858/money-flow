@@ -6,7 +6,7 @@ import {
   type NodeSizes,
   type Size,
 } from '../groups/geometry';
-import { cardSize, totalLineHeight } from '../nodes/sizing';
+import { cardSize } from '../nodes/sizing';
 
 const columnGap = 96;
 const rowGap = 24;
@@ -39,26 +39,6 @@ function countLinks(diagram: Diagram, ordered: MoneyNode[]) {
     else soleParent.delete(target);
   }
   return { outgoing, indegree, soleParent };
-}
-
-// A node that shows a total below the card needs one more line of height.
-function sizesWithTotals(
-  ordered: MoneyNode[],
-  sizes: NodeSizes,
-  indegree: Map<string, number>,
-  outgoing: Map<string, string[]>,
-) {
-  return new Map<string, Size>(
-    ordered.map((node) => {
-      const size = sizes.get(node.id) ?? cardSize(node.name);
-      const hasTotal =
-        indegree.get(node.id)! >= 2 || outgoing.get(node.id)!.length >= 2;
-      return [
-        node.id,
-        { ...size, height: size.height + (hasTotal ? totalLineHeight : 0) },
-      ];
-    }),
-  );
 }
 
 // Assigns each node the column after its furthest upstream node.
@@ -256,9 +236,9 @@ function recenterBands(
 export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   const ordered = [...diagram.nodes].sort(byPosition);
   const { outgoing, indegree, soleParent } = countLinks(diagram, ordered);
-  // Sizes depend on the link counts, so compute them before ranking consumes
-  // `indegree`.
-  const nodeSizes = sizesWithTotals(ordered, sizes, indegree, outgoing);
+  const nodeSizes = new Map<string, Size>(
+    ordered.map((node) => [node.id, sizes.get(node.id) ?? cardSize(node.name)]),
+  );
   const ranks = rankNodes(diagram, ordered, outgoing, indegree);
 
   const columnWidth = ordered.reduce(
@@ -346,13 +326,30 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
 
   recenterBands(placed, positions, metrics.heightOf);
 
+  // Packing uses a local origin. Keep the arranged diagram anchored to the
+  // former top-left so the unchanged viewport still shows the user's work.
+  const oldOrigin = { x: Infinity, y: Infinity };
+  for (const { position } of [...diagram.nodes, ...diagram.groups]) {
+    oldOrigin.x = Math.min(oldOrigin.x, position.x);
+    oldOrigin.y = Math.min(oldOrigin.y, position.y);
+  }
+  const newOrigin = { x: Infinity, y: Infinity };
+  for (const { position } of placed) {
+    newOrigin.x = Math.min(newOrigin.x, position.x);
+    newOrigin.y = Math.min(newOrigin.y, position.y);
+  }
+  const anchored = (position: Position): Position => ({
+    x: oldOrigin.x + (position.x - newOrigin.x),
+    y: oldOrigin.y + (position.y - newOrigin.y),
+  });
+
   const nodes = diagram.nodes.map((node) => ({
     ...node,
-    position: positions.get(node.id)!,
+    position: anchored(positions.get(node.id)!),
   }));
-  const groups = diagram.groups.map((group) => ({
-    ...group,
-    ...groupBounds.get(group.id)!,
-  }));
+  const groups = diagram.groups.map((group) => {
+    const bounds = groupBounds.get(group.id)!;
+    return { ...group, ...bounds, position: anchored(bounds.position) };
+  });
   return { nodes, groups };
 }

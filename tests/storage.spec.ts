@@ -46,7 +46,7 @@ test('좁은 화면에서도 헤더에서 현재 흐름 이름을 수정하고 �
   await input.press('Enter');
   await expect(title.getByRole('button')).toHaveText('12월 자금 계획');
   await expect(title.getByRole('button')).toBeFocused();
-  const tools = page.getByRole('button', { name: '노드 목록 열기' });
+  const tools = page.getByRole('button', { name: '편집 도구 열기' });
   await tools.click();
   await saved(page);
   await page.reload();

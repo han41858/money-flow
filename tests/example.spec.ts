@@ -78,7 +78,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
     page.getByRole('heading', { name: '공동 생활비 통장' }),
   ).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
-  await page.getByRole('button', { name: '노드 목록 열기' }).click();
+  await page.getByRole('button', { name: '편집 도구 열기' }).click();
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools.getByText('노드 7개 · 연결 6개')).toBeVisible();
   await expect(tools.getByRole('status')).toHaveText('이 브라우저에 저장됨');

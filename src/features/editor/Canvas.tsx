@@ -405,7 +405,10 @@ export function Canvas({
                 연결할 노드의 왼쪽 점을 선택하세요
               </Panel>
             )}
-            <Panel position="bottom-left" className="canvas-controls">
+            <Panel
+              position={readOnly ? 'bottom-left' : 'bottom-right'}
+              className="canvas-controls"
+            >
               <button aria-label="축소" onClick={() => void zoomOut()}>
                 <Minus size={16} />
               </button>

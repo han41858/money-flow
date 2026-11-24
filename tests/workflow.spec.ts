@@ -121,15 +121,45 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await openExample(page);
-  const trigger = page.getByRole('button', { name: '노드 목록 열기' });
+  const trigger = page.getByRole('button', { name: '편집 도구 열기' });
+  await expect(trigger.locator('.lucide-panel-left')).toBeVisible();
+  const tab = (await trigger.boundingBox())!;
+  const canvas = (await page.locator('#editor-main').boundingBox())!;
+  const controls = (await page.locator('.canvas-controls').boundingBox())!;
+  expect(tab.x).toBe(canvas.x);
+  expect(controls.x).toBeGreaterThan(tab.x + tab.width);
+  expect(controls.x + controls.width).toBeGreaterThan(canvas.width - 24);
   await trigger.focus();
   await page.keyboard.press('Enter');
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools).toBeVisible();
+  const header = (await page.locator('.topbar').boundingBox())!;
+  const panel = (await tools.boundingBox())!;
+  expect(panel.y).toBe(header.y + header.height);
+  expect(panel.width).toBeLessThan(250);
+  const buttons = await Promise.all(
+    ['수입', '계좌', '카드', '지출'].map((kind) =>
+      tools.getByRole('button', { name: kind + ' 추가' }).boundingBox(),
+    ),
+  );
+  const first = buttons[0]!;
+  for (const [index, box] of buttons.entries()) {
+    expect(box!.y).toBe(first.y);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(panel.x + panel.width);
+    if (index > 0) expect(box!.x).toBeGreaterThan(buttons[index - 1]!.x);
+  }
   await expect(tools.getByRole('button', { name: '탐색 닫기' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+
+  const share = page.getByRole('button', { name: '공유 및 내보내기' });
+  const sharePoint = await point(share);
+  await trigger.click();
+  await expect(tools).toBeVisible();
+  await page.mouse.click(sharePoint.x, sharePoint.y);
+  await expect(tools).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await share.click();
   await page.getByRole('button', { name: '공유 링크 만들기' }).click();
   await page.goto(await page.getByLabel('읽기 전용 주소').inputValue());
   await page.getByLabel('항목 찾기').selectOption({ label: '생활비 카드' });
@@ -139,4 +169,27 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     320,
   );
+});
+
+test('큰 화면에서도 캔버스 컨트롤은 오른쪽에 있고 속성 패널을 피한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  await expect(
+    page.getByLabel('다이어그램 탐색').locator('.lucide-panel-left'),
+  ).toBeVisible();
+  const controls = page.locator('.canvas-controls');
+  const canvas = (await page.locator('#editor-main').boundingBox())!;
+  const before = (await controls.boundingBox())!;
+  expect(canvas.x + canvas.width - before.x - before.width).toBeLessThan(24);
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .first()
+    .click();
+  const inspector = (await page.locator('.detail-wrap').boundingBox())!;
+  const after = (await controls.boundingBox())!;
+  const gap = inspector.x - after.x - after.width;
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThan(24);
 });

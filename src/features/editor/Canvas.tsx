@@ -35,6 +35,7 @@ import {
   absoluteFrom,
   measuredSizes,
   nodeBounds,
+  type NodeSizes,
   type Size,
 } from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
@@ -57,6 +58,7 @@ export function Canvas({
   readOnly = false,
 }: Props) {
   const areaRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const interacted = useRef(false);
   const trackView = () => {
     interacted.current = true;
@@ -136,31 +138,24 @@ export function Canvas({
   const zoom = useStore((s) => s.transform[2]);
 
   function fitVisibleArea() {
-    const area = areaRef.current!;
-    const canvas = area.getBoundingClientRect();
-    const visible = visibleArea(area);
-    void fitView({
-      ...fitOptions,
-      duration: 180,
-      padding: {
-        top: `${Math.ceil(visible.top - canvas.top) + 16}px`,
-        right: `${Math.ceil(canvas.right - visible.right) + 16}px`,
-        bottom: '56px',
-        left: '16px',
-      },
-    });
+    const sizes = measuredSizes(diagram.nodes, getInternalNode);
+    centerDiagram(diagram, sizes);
   }
 
   function arrange() {
-    trackView();
     const sizes = measuredSizes(diagram.nodes, getInternalNode);
     editor.autoArrange(sizes);
-    const arranged = editor.current();
-    const bounds = nodeBounds(arranged.nodes, sizes);
+    centerDiagram(editor.current(), sizes);
+  }
+
+  function centerDiagram({ nodes, groups }: Diagram, sizes: NodeSizes) {
+    if (!nodes.length && !groups.length) return;
+    trackView();
+    const bounds = nodeBounds(nodes, sizes);
     let { x: left, y: top } = bounds.position;
     let right = left + bounds.width;
     let bottom = top + bounds.height;
-    for (const group of arranged.groups) {
+    for (const group of groups) {
       left = Math.min(left, group.position.x);
       top = Math.min(top, group.position.y);
       right = Math.max(right, group.position.x + group.width);
@@ -171,7 +166,12 @@ export function Canvas({
     const canvas = area.getBoundingClientRect();
     const visible = visibleArea(area);
     const screenTop = Math.max(0, visible.top);
-    const screenBottom = Math.min(window.innerHeight, visible.bottom);
+    const controlsTop = controlsRef.current?.getBoundingClientRect().top;
+    const screenBottom = Math.min(
+      window.innerHeight,
+      visible.bottom,
+      controlsTop ?? Infinity,
+    );
     const width = visible.right - visible.left;
     const height = screenBottom - screenTop;
     if (width <= 0 || height <= 0) return;
@@ -408,6 +408,7 @@ export function Canvas({
             <Panel
               position={readOnly ? 'bottom-left' : 'bottom-right'}
               className="canvas-controls"
+              ref={controlsRef}
             >
               <button aria-label="축소" onClick={() => void zoomOut()}>
                 <Minus size={16} />

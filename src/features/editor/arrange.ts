@@ -8,7 +8,7 @@ import {
 } from '../groups/geometry';
 import { cardSize } from '../nodes/sizing';
 
-const columnGap = 96;
+const columnGap = 64;
 const rowGap = 24;
 const regionGap = 24;
 

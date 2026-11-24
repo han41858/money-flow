@@ -516,3 +516,44 @@ test('자동 정렬과 전체 보기를 번갈아 눌러도 같은 뷰포트를 
     await expect(viewport).toHaveAttribute('style', transform!);
   }
 });
+
+test('좁은 화면에서 500만 원 연결 두 개를 정렬해도 금액과 화살촉이 카드와 겹치지 않는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExample(page, {
+    ...example,
+    groups: [],
+    nodes: example.nodes.slice(0, 3).map((node) => ({
+      ...node,
+      groupId: undefined,
+    })),
+    edges: example.edges.slice(0, 2).map((edge) => ({
+      ...edge,
+      min: 5_000_000,
+      max: 5_000_000,
+    })),
+  });
+  const canvas = page.getByRole('main');
+  await canvas.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await canvas.getByRole('button', { name: '자동 정렬' }).click();
+  const sources = canvas.locator('[data-id="income-a"], [data-id="income-b"]');
+  const target = canvas.locator('[data-id="joint"]');
+  const labels = canvas.getByRole('button', { name: '5,000,000원 금액 수정' });
+  const arrows = canvas.locator('.transfer-arrow');
+  await expect(target).toBeInViewport();
+  await expect(labels).toHaveCount(2);
+  await expect(arrows).toHaveCount(2);
+  const sourceBoxes = await Promise.all(
+    (await sources.all()).map((node) => node.boundingBox()),
+  );
+  const sourceRight = Math.max(
+    ...sourceBoxes.map((box) => box!.x + box!.width),
+  );
+  const targetLeft = (await target.boundingBox())!.x;
+  for (const item of [...(await labels.all()), ...(await arrows.all())]) {
+    const box = (await item.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(sourceRight);
+    expect(box.x + box.width).toBeLessThanOrEqual(targetLeft);
+  }
+});

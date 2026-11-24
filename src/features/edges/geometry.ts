@@ -28,13 +28,14 @@ function taper(path: string, width: number, end: number) {
   const control1 = { x: x1, y: y1 };
   const control2 = { x: x2, y: y2 };
   const finish = { x: x3, y: y3 };
-  // Keep a constant-width stroke through the bends. Split off only the last
-  // part of the Bézier, where the curve approaches the arrow horizontally.
-  // For backward edges, keep the split after the last turn toward the arrow.
+  // Allow a longer taper on shallow connections while preserving the full
+  // stroke through steep bends and the turn of a backward connection.
   const terminalRun = finish.x - control2.x;
   const backwardRun = Math.max(0, control1.x - control2.x);
-  const t =
-    1 - Math.min(0.14, terminalRun / (2 * backwardRun + terminalRun) || 0.14);
+  const rise = Math.abs(finish.y - start.y);
+  const taperShare = 0.42 / (1 + rise / (2 * Math.max(terminalRun, 1)));
+  const turnLimit = terminalRun / (2 * backwardRun + terminalRun);
+  const t = 1 - Math.min(taperShare, turnLimit || 0.14);
   const a = interpolate(start, control1, t);
   const b = interpolate(control1, control2, t);
   const c = interpolate(control2, finish, t);

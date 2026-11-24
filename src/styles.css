@@ -447,6 +447,17 @@ h1 {
   pointer-events: all;
   cursor: crosshair;
 }
+.flow-area .react-flow__edgelabel-renderer {
+  z-index: 3;
+}
+.transfer-visual {
+  position: absolute;
+  inset: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
 .edge-label {
   cursor: pointer;
   position: absolute;
@@ -459,6 +470,7 @@ h1 {
   font-size: 13px;
   font-weight: 650;
   pointer-events: all;
+  z-index: 1;
 }
 .edge-amount-editor {
   border: 1px solid #d6d9df;
@@ -467,7 +479,7 @@ h1 {
   -webkit-text-stroke: 0;
   padding: 0;
   cursor: text;
-  z-index: 1;
+  z-index: 2;
 }
 .edge-amount-editor input {
   width: calc(10ch + 12px);

@@ -140,7 +140,7 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   expect(fill).toBe('#ebc638');
   await expect(card.locator(':scope > text')).toHaveCount(1);
   const icon = await card.locator('svg').getAttribute('class');
-  const liveEdge = page.locator('[data-id="salary-a"].react-flow__edge');
+  const liveEdge = page.locator('.transfer-visual[data-edge-id="salary-a"]');
   const liveArrow = await liveEdge.locator('.transfer-arrow').getAttribute('d');
   const liveShaft = await liveEdge.locator('.transfer-shaft').getAttribute('d');
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();

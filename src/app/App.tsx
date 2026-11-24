@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
-import { Bookmark } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 import { Metrics } from './Metrics';
 import { ResponsivePanel } from './ResponsivePanel';
 import { Sidebar } from './Sidebar';
@@ -204,7 +204,7 @@ function Workspace({
             aria-expanded={mobile === 'tools'}
             onClick={() => setMobile('tools')}
           >
-            <Bookmark size={16} />
+            <PanelLeft size={16} />
             편집
           </button>
           <Metrics diagram={diagram} />

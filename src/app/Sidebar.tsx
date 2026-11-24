@@ -2,8 +2,8 @@ import {
   ChevronRight,
   ClipboardPaste,
   Frame,
-  Layers2,
   ListTree,
+  PanelLeft,
   Plus,
   X,
 } from 'lucide-react';
@@ -42,7 +42,7 @@ export function Sidebar({
     >
       <div className="side-head">
         <span>
-          <Layers2 size={16} />
+          <PanelLeft size={16} />
           편집 도구
         </span>
         <button

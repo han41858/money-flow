@@ -119,6 +119,7 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   await page.setViewportSize({ width: 320, height: 700 });
   await openExample(page);
   const trigger = page.getByRole('button', { name: '편집 도구 열기' });
+  await expect(trigger.locator('.lucide-panel-left')).toBeVisible();
   const tab = (await trigger.boundingBox())!;
   const canvas = (await page.locator('#editor-main').boundingBox())!;
   const controls = (await page.locator('.canvas-controls').boundingBox())!;
@@ -172,6 +173,9 @@ test('큰 화면에서도 캔버스 컨트롤은 오른쪽에 있고 속성 패�
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openExample(page);
+  await expect(
+    page.getByLabel('다이어그램 탐색').locator('.lucide-panel-left'),
+  ).toBeVisible();
   const controls = page.locator('.canvas-controls');
   const canvas = (await page.locator('#editor-main').boundingBox())!;
   const before = (await controls.boundingBox())!;

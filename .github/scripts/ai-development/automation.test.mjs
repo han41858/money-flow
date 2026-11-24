@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import {
   assertPull,
   authorized,
+  canRestartPreflight,
+  createGitHub,
   fingerprint,
   issueMarker,
   readState,
@@ -170,4 +172,60 @@ test('모델 호출 직전 승인이 철회되면 공급자에 요청하지 않�
     }),
     /stop-before-request/,
   );
+});
+
+test('GitHub 일시 오류는 읽기 요청만 재시도한다', async () => {
+  let calls = 0;
+  const gh = createGitHub({
+    token: 'mock',
+    request: async () => {
+      calls++;
+      if (calls <= 2) throw new TypeError('fetch failed');
+      return Response.json({ ok: true });
+    },
+    sleep: async () => {},
+  });
+  assert.deepEqual(await gh.repo('/issues/10'), { ok: true });
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(
+    gh.repo('/issues/10/comments', {
+      method: 'POST',
+      data: { body: 'example' },
+    }),
+    /POST .*전송 실패/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('새 승인으로만 미게시 준비 실패를 한 번 재개한다', () => {
+  const state = {
+    status: 'failed',
+    attempts: 0,
+    head,
+    base: head,
+    issueHash: fingerprint(issue),
+    approval: 41,
+  };
+  const event = { action: 'labeled', issue, sender: { login: 'owner' } };
+  const approval = { id: 42, event: 'labeled', actor: { login: 'owner' } };
+  assert(canRestartPreflight(state, event, approval));
+  assert(!canRestartPreflight(state, event, { ...approval, id: 41 }));
+  assert(!canRestartPreflight(state, { ...event, action: 'opened' }, approval));
+  assert(
+    !canRestartPreflight(
+      state,
+      { ...event, issue: { ...issue, body: 'changed' } },
+      approval,
+    ),
+  );
+  for (const change of [
+    { preflightRestarts: 1 },
+    { attempts: 1 },
+    { published: true },
+    { pr: 20 },
+    { status: 'waiting_ci' },
+  ]) {
+    assert(!canRestartPreflight({ ...state, ...change }, event, approval));
+  }
 });

@@ -19,12 +19,11 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     page.locator('.react-flow__node-money').filter({ hasText: name });
   await connect(page, node('급여 A'), node('공동 통장'));
   const path = page.locator('.react-flow__edge-path');
-  const initial = await path.evaluate((el) => getComputedStyle(el).strokeWidth);
-  await page.getByLabel('월 금액 (원)').fill('2800000');
+  const shaft = page.locator('.transfer-shaft');
+  const initial = await shaft.getAttribute('d');
+  await page.getByLabel('월 금액 (원)').fill('8000000');
   await page.getByLabel('월 금액 (원)').press('Enter');
-  await expect
-    .poll(() => path.evaluate((el) => getComputedStyle(el).strokeWidth))
-    .not.toBe(initial);
+  await expect(shaft).not.toHaveAttribute('d', initial!);
   for (const [member, name] of [
     ['급여 A', '개인 A'],
     ['공동 통장', '공동 자금'],
@@ -55,7 +54,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await page.reload();
   await chooseSavedFlow(page, '새 자금 흐름');
   await expect(handle).toBeVisible();
-  await expect(page.getByText('280만', { exact: true })).toBeVisible();
+  await expect(page.getByText('800만', { exact: true })).toBeVisible();
   await selectNode(node('공동 통장'));
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
@@ -70,7 +69,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     .getByLabel('항목 찾기')
     .selectOption({ label: '급여 A → 공동 통장' });
   await expect(shared.getByRole('region', { name: '선택 상세' })).toContainText(
-    '2,800,000원',
+    '8,000,000원',
   );
   await shared.close();
   for (const format of ['SVG', 'PNG']) {

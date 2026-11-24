@@ -22,14 +22,32 @@ export function transferGeometry(
   const length =
     gap > 0 ? Math.min(desiredLength, Math.max(8, gap * 0.7)) : desiredLength;
   const base = tip - length;
-  const [path, x, y] = getBezierPath({
+  const curve = {
     sourceX,
     sourceY,
     sourcePosition: Position.Right,
     targetX: base,
     targetY,
     targetPosition: Position.Left,
+  };
+  const [path, x, y] = getBezierPath(curve);
+  const start = width / 2;
+  const end = Math.min(start, Math.max(1, half - 2), Math.max(1, width / 4));
+  // Trace both sides with the same horizontal control points as the centerline.
+  const [top] = getBezierPath({
+    ...curve,
+    sourceY: sourceY - start,
+    targetY: targetY - end,
   });
+  const [bottom] = getBezierPath({
+    sourceX: base,
+    sourceY: targetY + end,
+    sourcePosition: Position.Left,
+    targetX: sourceX,
+    targetY: sourceY + start,
+    targetPosition: Position.Right,
+  });
+  const shaft = top + ' L' + bottom.slice(1) + ' Z';
   const arrow =
     'M ' +
     base +
@@ -46,5 +64,5 @@ export function transferGeometry(
     ' Z';
   const labelNearArrow =
     Math.abs(x - tip) < length + 28 && Math.abs(y - targetY) < half + 12;
-  return { path, arrow, x, y: labelNearArrow ? y - 22 : y };
+  return { path, shaft, arrow, x, y: labelNearArrow ? y - 22 : y };
 }

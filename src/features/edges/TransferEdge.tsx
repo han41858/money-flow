@@ -15,7 +15,7 @@ export const TransferEdge = memo(function TransferEdge({
   if (!data) return null;
   const { color, edge } = data;
   const stroke = edgeWidth(edge);
-  const { path, arrow, x, y } = transferGeometry(
+  const { path, shaft, arrow, x, y } = transferGeometry(
     // The visible handles sit outside the card; established edges use its sides.
     coords.sourceX - portSize,
     coords.sourceY + (data.sourcePort - 0.5) * nodeHeight,
@@ -28,23 +28,16 @@ export const TransferEdge = memo(function TransferEdge({
   return (
     <>
       <title>{title}</title>
-      {selected && (
-        <path
-          d={path}
-          fill="none"
-          stroke="#20392d"
-          strokeWidth={stroke + 4}
-          pointerEvents="none"
-          aria-hidden="true"
-        />
-      )}
-      <BaseEdge
-        id={id}
-        path={path}
-        style={{
-          stroke: color,
-          strokeWidth: stroke,
-        }}
+      <BaseEdge id={id} path={path} style={{ stroke: 'transparent' }} />
+      <path
+        className="transfer-shaft"
+        d={shaft}
+        fill={color}
+        stroke={selected ? '#20392d' : 'none'}
+        strokeWidth={selected ? 4 : undefined}
+        paintOrder="stroke fill"
+        strokeLinejoin="round"
+        pointerEvents="none"
       />
       <path
         className="transfer-arrow"

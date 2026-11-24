@@ -55,6 +55,13 @@ export function readState(comments, issue) {
       body.split('\n\n')[1] === legacyValidationMessage
     )
       state.code = 'validation_failed';
+    if (
+      state.code === 'validation_failed' &&
+      state.validationStage === undefined &&
+      body.split('\n\n')[1] ===
+        '격리 검사 실패 · test. Actions 로그에서 상세 내용을 확인하세요.'
+    )
+      state.legacyTestFailure = true;
     return state;
   }
   return null;
@@ -99,7 +106,8 @@ export function canRestartUnpublished(state, event, approval) {
       (state.status === 'needs_human' &&
         state.code === 'validation_failed' &&
         state.attempts === 1 &&
-        !state.validationRestarts)) &&
+        (!state.validationRestarts ||
+          (state.validationRestarts === 1 && state.legacyTestFailure)))) &&
     state.head === state.base &&
     !state.published &&
     !state.pr &&

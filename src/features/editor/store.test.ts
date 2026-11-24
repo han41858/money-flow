@@ -110,25 +110,36 @@ describe('편집 이력', () => {
       before.groups.map((group) => group.id),
     );
   });
-  it.each([
-    ['단일 금액', 5_000_000, 5_000_000, 64],
-    ['범위 금액', 1_280_000, 1_580_000, 97],
-  ])(
-    '자동 정렬의 가로 여백은 %s 레이블이 들어가는 만큼 둔다',
-    (_, min, max, gap) => {
-      const diagram = {
-        ...example,
-        edges: example.edges.map((edge) => ({ ...edge, min, max })),
-      };
-      const { nodes } = arrangeDiagram(diagram, new Map());
+  it('자동 정렬의 가로 여백은 긴 금액 레이블이 놓이는 단계만 넓힌다', () => {
+    const arrange = (edges = example.edges) => {
+      const { nodes } = arrangeDiagram({ ...example, edges }, new Map());
       const x = (id: string) =>
         nodes.find((node) => node.id === id)!.position.x;
-      expect(x('card') - x('joint')).toBe(
-        Math.max(...diagram.nodes.map((node) => cardSize(node.name).width)) +
-          gap,
+      const width = Math.max(
+        ...example.nodes.map((node) => cardSize(node.name).width),
       );
-    },
-  );
+      return [
+        x('joint') - x('income-a') - width,
+        x('card') - x('joint') - width,
+        x('telecom') - x('card') - width,
+      ];
+    };
+    const short = example.edges.map((edge) => ({
+      ...edge,
+      min: 5_000_000,
+      max: 5_000_000,
+    }));
+    expect(arrange(short)).toEqual([64, 64, 64]);
+    expect(
+      arrange(
+        short.map((edge) =>
+          edge.target === 'telecom'
+            ? { ...edge, min: 1_280_000, max: 1_580_000 }
+            : edge,
+        ),
+      ),
+    ).toEqual([64, 64, 97]);
+  });
   it.each([true, false])(
     '분기에서 하위 노드의 중심과 형제 간격을 맞춘다 (그룹: %s)',
     (grouped) => {

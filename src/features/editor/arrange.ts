@@ -250,18 +250,25 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     (width, n) => Math.max(width, nodeSizes.get(n.id)!.width),
     0,
   );
-  // Widen the columns just enough for the longest amount label.
-  const gap = diagram.edges.reduce(
-    (width, { min, max }) =>
-      Math.max(
-        width,
-        Math.ceil(estimatedTextWidth(amountLabel(min, max), labelFontSize)) +
-          labelClearance,
-      ),
-    columnGap,
-  );
+  // Widen only the gaps that hold a longer amount label. A label sits between
+  // the cards it connects, so only links to the next column count.
+  const gaps: number[] = [];
+  for (const { source, target, min, max } of diagram.edges) {
+    const rank = ranks.get(source)!;
+    if (ranks.get(target) !== rank + 1) continue;
+    gaps[rank] = Math.max(
+      gaps[rank] ?? columnGap,
+      Math.ceil(estimatedTextWidth(amountLabel(min, max), labelFontSize)) +
+        labelClearance,
+    );
+  }
+  const columns = [0];
+  for (const rank of ranks.values())
+    for (let next = columns.length; next <= rank; next++)
+      columns[next] =
+        columns[next - 1] + columnWidth + (gaps[next - 1] ?? columnGap);
   const metrics: Metrics = {
-    columnX: (id) => ranks.get(id)! * (columnWidth + gap),
+    columnX: (id) => columns[ranks.get(id)!],
     heightOf: (id) => nodeSizes.get(id)!.height,
   };
   const members = new Map(diagram.groups.map((g) => [g.id, [] as MoneyNode[]]));

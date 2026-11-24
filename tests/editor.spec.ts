@@ -517,6 +517,40 @@ test('자동 정렬과 전체 보기를 번갈아 눌러도 같은 뷰포트를 
   }
 });
 
+for (const [direction, y] of [
+  ['오르막', 20],
+  ['수평', 180],
+  ['내리막', 340],
+] as const)
+  test(`${direction} 연결의 금액을 화살촉 앞 곡선의 길이 중간에 배치한다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const [source, , target] = example.nodes;
+    await openExample(page, {
+      ...example,
+      groups: [],
+      nodes: [
+        { ...source, groupId: undefined, position: { x: 0, y: 180 } },
+        { ...target, groupId: undefined, position: { x: 440, y } },
+      ],
+      edges: [{ ...example.edges[0], min: 1_200_000, max: 1_500_000 }],
+    });
+    const label = page.getByRole('button', {
+      name: '1,200,000원 ~ 1,500,000원 금액 수정',
+    });
+    await expect(label).toBeVisible();
+    const path = page.locator('.react-flow__edge-path');
+    const center = await path.evaluate((el: SVGPathElement) => {
+      const midpoint = el.getPointAtLength(el.getTotalLength() / 2);
+      const { x, y } = midpoint.matrixTransform(el.getScreenCTM()!);
+      return { x, y };
+    });
+    const box = (await label.boundingBox())!;
+    expect(Math.abs(box.x + box.width / 2 - center.x)).toBeLessThan(1);
+    expect(Math.abs(box.y + box.height / 2 - center.y)).toBeLessThan(1);
+  });
+
 test('좁은 화면에서 500만 원 연결 두 개를 정렬해도 금액과 화살촉이 카드와 겹치지 않는다', async ({
   page,
 }) => {
@@ -596,6 +630,7 @@ for (const [title, diagram] of [
             card.x + card.width <= label.x ||
             label.y + label.height <= card.y ||
             card.y + card.height <= label.y,
+          JSON.stringify({ label, card }),
         ).toBe(true);
   });
 

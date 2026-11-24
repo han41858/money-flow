@@ -1,4 +1,4 @@
-import type { NodeTotal } from '../nodes/sizing';
+import type { MeasureText, NodeTotal } from '../nodes/sizing';
 import { type Node, type Edge } from '@xyflow/react';
 import { amountLabel, exactAmount, sum } from '../edges/money';
 import { portFraction, type Box } from '../edges/geometry';
@@ -26,14 +26,13 @@ export type FlowEdge = Edge<
     sourcePort: number;
     targetPort: number;
     targetPortCount: number;
-    // Cards between the two ends that the amount label must not cover.
     obstacles: Box[];
     readOnly?: boolean;
   },
   'transfer'
 >;
 
-export function buildGraph(diagram: Diagram) {
+export function buildGraph(diagram: Diagram, measure?: MeasureText) {
   let prefix = 'group:';
   while (diagram.nodes.some((n) => n.id.startsWith(prefix))) prefix += ':';
   const groupNodes: RegionNode[] = diagram.groups.map((group) => ({
@@ -114,17 +113,13 @@ export function buildGraph(diagram: Diagram) {
   });
   const byNodeId = new Map(nodes.map((n) => [n.id, n.data]));
   const cards = diagram.nodes.map((node) => ({
-    id: node.id,
     ...node.position,
-    ...cardSize(node.name),
+    ...cardSize(node.name, measure),
   }));
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     const outputs = byNodeId.get(edge.source)!.outputs;
     const inputs = byNodeId.get(edge.target)!.inputs;
-    const source = byId.get(edge.source)!;
-    const from = source.position.x + cardSize(source.name).width;
-    const to = byId.get(edge.target)!.position.x;
     return {
       id: edge.id,
       source: edge.source,
@@ -136,15 +131,7 @@ export function buildGraph(diagram: Diagram) {
         sourcePort: portFraction(outputs.indexOf(edge.id), outputs.length),
         targetPort: portFraction(inputs.indexOf(edge.id), inputs.length),
         targetPortCount: inputs.length,
-        obstacles: cards
-          .filter(
-            (card) =>
-              card.id !== edge.source &&
-              card.id !== edge.target &&
-              card.x + card.width > from &&
-              card.x < to,
-          )
-          .map(({ x, y, width, height }) => ({ x, y, width, height })),
+        obstacles: cards,
       },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,

@@ -21,6 +21,7 @@ import {
 import { Grid2X2, Maximize, Minus, Plus, WandSparkles } from 'lucide-react';
 import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
+import { browserTextWidth } from '../nodes/sizing';
 import { TransferEdge } from '../edges/TransferEdge';
 import { buildGraph, type FlowNode, type FlowEdge } from './graph';
 import { editor, type Selection } from './store';
@@ -73,7 +74,7 @@ export function Canvas({
     new Map(),
   );
   const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
-  const graph = useMemo(() => buildGraph(diagram), [diagram]);
+  const graph = useMemo(() => buildGraph(diagram, browserTextWidth), [diagram]);
   const regions = useMemo(
     () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
     [graph],

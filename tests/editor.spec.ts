@@ -320,6 +320,7 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
   await page.getByRole('button', { name: '3,200,000원 금액 수정' }).click();
   const input = page.getByRole('textbox', { name: '연결선 금액 (원)' });
   await expect(input).toHaveValue('3200000');
+  expect(await input.evaluate((el) => el.clientWidth)).toBeLessThan(110);
   await input.fill('900000~800000');
   await input.press('Enter');
   await expect(input).toHaveAttribute('aria-invalid', 'true');
@@ -342,4 +343,10 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
   ).toBeVisible();
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(button).toBeVisible();
+  await button.click();
+  await input.fill('1000000000');
+  await input.press('Enter');
+  await expect(
+    page.getByRole('button', { name: '1,000,000,000원 금액 수정' }),
+  ).toBeVisible();
 });

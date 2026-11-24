@@ -23,14 +23,19 @@ test('짧은 연결의 금액 레이블은 화살촉 위에서 읽을 수 있다
   expect(y).toBeLessThan(14);
 });
 
-test('800만 원 연결선은 출발 두께를 유지하고 화살촉 앞에서 좁아진다', () => {
+test.each([
+  [160, 60],
+  [160, 400],
+  [-200, 100],
+])('800만 원 연결선은 (%i, %i) 방향에서도 본체 두께를 유지한다', (x, y) => {
   const width = edgeWidth({ min: 8_000_000, max: 8_000_000 });
-  const { shaft, arrow } = transferGeometry(0, 30, 160, 90, width, 3);
+  const { body, shaft, arrow } = transferGeometry(0, 30, x, 30 + y, width, 3);
   const coordinates = (path: string) =>
-    path.match(/-?(?:\d*\.)?\d+/g)!.map(Number);
+    path.match(/-?(?:\d*\.)?\d+(?:e[+-]?\d+)?/gi)!.map(Number);
   const line = coordinates(shaft);
   const head = coordinates(arrow);
-  expect(line[15] - line[1]).toBeCloseTo(width);
+  expect(coordinates(body)).toHaveLength(8);
+  expect(Math.hypot(line[14] - line[0], line[15] - line[1])).toBeCloseTo(width);
   expect(line[9] - line[7]).toBeLessThan(width);
   expect(line[7]).toBeGreaterThan(head[1]);
   expect(line[9]).toBeLessThan(head[5]);

@@ -24,6 +24,10 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await page.getByLabel('월 금액 (원)').fill('8000000');
   await page.getByLabel('월 금액 (원)').press('Enter');
   await expect(shaft).not.toHaveAttribute('d', initial!);
+  await expect(page.locator('.transfer-body')).not.toHaveAttribute(
+    'stroke-width',
+    '2',
+  );
   for (const [member, name] of [
     ['급여 A', '개인 A'],
     ['공동 통장', '공동 자금'],

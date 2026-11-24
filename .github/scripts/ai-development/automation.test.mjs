@@ -306,3 +306,57 @@ test('이전 격리 검사 실패 기록도 새 승인으로 한 번만 재개�
     ),
   );
 });
+
+test('진행 상태는 한 댓글을 수정하고 종료 상태는 새 댓글로 남긴다', async () => {
+  const calls = [];
+  let gone = false;
+  const gh = createGitHub({
+    token: 'mock',
+    request: async (url, { method, body }) => {
+      calls.push([method, url.split('/issues/')[1], JSON.parse(body).body]);
+      if (method === 'PATCH' && gone)
+        return new Response('{}', { status: 404 });
+      return Response.json({ id: calls.length });
+    },
+  });
+  const state = { version: 1, issue: 10 };
+  await gh.record(state, 'developing', '준비합니다.');
+  await gh.record(state, 'developing', 'Codex 개발 1/3회차입니다.');
+  await gh.record(state, 'reviewing', '리뷰 중입니다.');
+  await gh.record(state, 'needs_human', '사람 확인이 필요합니다.');
+  await gh.record(state, 'developing', '다시 시작합니다.');
+  gone = true;
+  await gh.record(state, 'developing', '이어갑니다.');
+  await gh.record(state, 'waiting_ci', '오류', 'run_error');
+  await gh.record(state, 'waiting_ci', '대기 중입니다.', 'waiting_ci', true);
+  assert.deepEqual(
+    calls.map(([method, path]) => method + ' ' + path),
+    [
+      'POST 10/comments',
+      'PATCH comments/1',
+      'PATCH comments/1',
+      'POST 10/comments',
+      'POST 10/comments',
+      'PATCH comments/5',
+      'POST 10/comments',
+      'POST 10/comments',
+      'POST 10/comments',
+    ],
+  );
+  const edited = calls[2][2];
+  assert.equal(edited.split('\n\n')[0], '**AI 개발 · reviewing**');
+  assert.equal(edited.split('\n\n')[1], '리뷰 중입니다.');
+  assert.match(
+    edited,
+    /developing · 준비합니다\.\n.*1\/3회차.*\n.*reviewing · /,
+  );
+  assert.doesNotMatch(calls[3][2], /진행 기록/);
+  for (const [, , body] of calls)
+    assert.equal(
+      readState(
+        [{ user: { login: 'github-actions[bot]', type: 'Bot' }, body }],
+        10,
+      ).issue,
+      10,
+    );
+});

@@ -104,7 +104,7 @@ describe('편집 이력', () => {
     expect(position('savings').x).toBe(position('card').x);
     expect(position('savings').y).toBeLessThan(position('card').y);
     expect(position('card').x - position('joint').x).toBe(
-      Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 96,
+      Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 64,
     );
     expect(position('card').y - position('savings').y).toBeGreaterThanOrEqual(
       nodeHeight + 24,

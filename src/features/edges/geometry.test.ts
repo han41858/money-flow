@@ -40,3 +40,16 @@ test.each([
   expect(line[7]).toBeGreaterThan(head[1]);
   expect(line[9]).toBeLessThan(head[5]);
 });
+
+test('500만 원 연결선은 화살촉 앞의 충분한 구간에서 가늘어진다', () => {
+  const width = edgeWidth({ min: 5_000_000, max: 5_000_000 });
+  const { body, shaft } = transferGeometry(0, 20, 120, 36, width, 2);
+  const coords = (path: string) =>
+    path.match(/-?(?:\d*\.)?\d+(?:e[+-]?\d+)?/gi)!.map(Number);
+  const joinX = coords(body)[6];
+  const [x0, y0, , , , , tipX, tipTop, , tipBottom, , , , , x1, y1] =
+    coords(shaft);
+  expect(tipX - joinX).toBeGreaterThan(width * 2);
+  expect(Math.hypot(x1 - x0, y1 - y0)).toBeCloseTo(width);
+  expect(tipBottom - tipTop).toBeLessThan(width);
+});

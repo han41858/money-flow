@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
-import { PanelLeftOpen } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { Metrics } from './Metrics';
 import { ResponsivePanel } from './ResponsivePanel';
 import { Sidebar } from './Sidebar';
@@ -199,10 +199,13 @@ function Workspace({
         <main id="editor-main" tabIndex={-1} aria-label={diagram.name}>
           <button
             className="mobile-only node-list-toggle"
-            aria-label="노드 목록 열기"
+            aria-label="편집 도구 열기"
+            aria-haspopup="dialog"
+            aria-expanded={mobile === 'tools'}
             onClick={() => setMobile('tools')}
           >
-            <PanelLeftOpen size={17} />
+            <Bookmark size={16} />
+            편집
           </button>
           <Metrics diagram={diagram} />
           <div className="editor-area">

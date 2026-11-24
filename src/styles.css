@@ -480,6 +480,9 @@ h1 {
   border-radius: 8px;
   box-shadow: 0 2px 4px #202f2810;
 }
+#editor-main:has(.editor-area > .detail-wrap) .canvas-controls {
+  right: var(--inspector-width);
+}
 .canvas-controls button {
   width: 29px;
   height: 29px;
@@ -562,11 +565,18 @@ h1 {
   .node-list-toggle {
     position: absolute;
     z-index: 6;
-    right: 12px;
-    bottom: 28px;
+    left: 0;
+    bottom: 15px;
+    min-width: 44px;
+    min-height: 44px;
+    gap: 2px;
     border: 1px solid #d8dfd6;
-    border-radius: 6px;
+    border-left: 0;
+    border-radius: 0 8px 8px 0;
     background: white;
+    color: #34584b;
+    font-size: 11px;
+    font-weight: 650;
   }
   main {
     padding: 18px 12px;
@@ -1188,7 +1198,11 @@ h1 {
   margin-right: auto;
 }
 .mobile-panel.left::backdrop {
-  top: var(--mobile-header-height);
+  background: linear-gradient(
+    to bottom,
+    #152a2033 var(--mobile-header-height),
+    #152a2055 var(--mobile-header-height)
+  );
 }
 .mobile-panel.right {
   margin-left: auto;

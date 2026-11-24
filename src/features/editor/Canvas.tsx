@@ -102,7 +102,6 @@ export function Canvas({
     getInternalNode,
     getViewport,
     setViewport,
-    flowToScreenPosition,
   } = useReactFlow();
   const flowNodes = useStableItems<CanvasNode>([
     ...graph.groupNodes.map((n) => ({
@@ -168,16 +167,36 @@ export function Canvas({
       bottom = Math.max(bottom, group.position.y + group.height);
     }
 
-    const visible = visibleArea(areaRef.current!);
-    const center = flowToScreenPosition({
-      x: (left + right) / 2,
-      y: (top + bottom) / 2,
-    });
-    const viewport = getViewport();
+    const area = areaRef.current!;
+    const canvas = area.getBoundingClientRect();
+    const visible = visibleArea(area);
+    const width = visible.right - visible.left;
+    const height = visible.bottom - visible.top;
+    if (width <= 0 || height <= 0) return;
+
+    const currentZoom = getViewport().zoom;
+    const diagramWidth = right - left;
+    const diagramHeight = bottom - top;
+    const overflows =
+      diagramWidth * currentZoom > width ||
+      diagramHeight * currentZoom > height;
+    const margin = Math.min(16, width / 4, height / 4);
+    const nextZoom = overflows
+      ? Math.min(
+          (width - 2 * margin) / diagramWidth,
+          (height - 2 * margin) / diagramHeight,
+        )
+      : currentZoom;
     void setViewport({
-      ...viewport,
-      x: viewport.x + (visible.left + visible.right) / 2 - center.x,
-      y: viewport.y + (visible.top + visible.bottom) / 2 - center.y,
+      x:
+        (visible.left + visible.right) / 2 -
+        canvas.left -
+        ((left + right) / 2) * nextZoom,
+      y:
+        (visible.top + visible.bottom) / 2 -
+        canvas.top -
+        ((top + bottom) / 2) * nextZoom,
+      zoom: nextZoom,
     });
   }
 
@@ -356,7 +375,7 @@ export function Canvas({
             }
             fitView={shouldFit}
             fitViewOptions={initialFit}
-            minZoom={0.15}
+            minZoom={Math.min(0.15, zoom, diagram.viewport.zoom)}
             maxZoom={2}
             aria-label="월간 자금 흐름도"
           >

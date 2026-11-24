@@ -391,3 +391,43 @@ test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 �
   await expect(zoom).toHaveText('100%');
   for (const node of await nodes.all()) await expect(node).toBeInViewport();
 });
+
+test('자동 정렬 결과가 편집 영역을 넘을 때만 전체가 보이도록 축소한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 850, height: 700 });
+  await openExample(page);
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .first()
+    .click();
+  const panel = page.locator('.detail-wrap');
+  await expect(panel).toBeVisible();
+
+  const zoom = page.getByLabel('확대 비율');
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await expect(zoom).toHaveText('100%');
+  const arrange = page.getByRole('button', { name: '자동 정렬' });
+  await arrange.click();
+  await expect(zoom).not.toHaveText('100%');
+  const fitted = await zoom.innerText();
+  expect(parseInt(fitted, 10)).toBeLessThan(100);
+
+  const area = (await page.locator('.flow-area').boundingBox())!;
+  const summary = (await page.locator('.metrics').boundingBox())!;
+  const inspector = (await panel.boundingBox())!;
+  const objects = page.locator(
+    '.react-flow__node-money, .react-flow__node-region',
+  );
+  for (const object of await objects.all()) {
+    const box = (await object.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(area.x);
+    expect(box.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+    expect(box.x + box.width).toBeLessThanOrEqual(inspector.x);
+    expect(box.y + box.height).toBeLessThanOrEqual(area.y + area.height);
+  }
+
+  await page.setViewportSize({ width: 1536, height: 960 });
+  await arrange.click();
+  await expect(zoom).toHaveText(fitted);
+});

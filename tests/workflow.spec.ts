@@ -123,6 +123,24 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   await page.keyboard.press('Enter');
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools).toBeVisible();
+  const header = (await page.locator('.topbar').boundingBox())!;
+  const panel = (await tools.boundingBox())!;
+  expect(panel.y).toBe(header.y + header.height);
+  expect(panel.width).toBeLessThan(250);
+  expect(
+    await tools.evaluate((el) => getComputedStyle(el, '::backdrop').top),
+  ).toBe(panel.y + 'px');
+  const buttons = await Promise.all(
+    ['수입', '계좌', '카드', '지출'].map((kind) =>
+      tools.getByRole('button', { name: kind + ' 추가' }).boundingBox(),
+    ),
+  );
+  const first = buttons[0]!;
+  for (const [index, box] of buttons.entries()) {
+    expect(box!.y).toBe(first.y);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(panel.x + panel.width);
+    if (index > 0) expect(box!.x).toBeGreaterThan(buttons[index - 1]!.x);
+  }
   await expect(tools.getByRole('button', { name: '탐색 닫기' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();

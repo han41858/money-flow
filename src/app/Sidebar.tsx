@@ -64,7 +64,6 @@ export function Sidebar({
             >
               <Icon size={16} />
               {kindNames[type]}
-              <Plus size={13} />
             </button>
           );
         })}

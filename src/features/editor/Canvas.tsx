@@ -1,5 +1,4 @@
 import { visibleArea } from './visibleArea';
-import { cardSize } from '../nodes/sizing';
 import {
   useRef,
   useMemo,
@@ -32,7 +31,12 @@ import { recordViewport, useLibrary } from '../diagrams/library';
 
 import { useStableItems } from './stable';
 import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
-import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
+import {
+  absoluteFrom,
+  measuredSizes,
+  nodeBounds,
+  type Size,
+} from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
 const nodeTypes = { money: MoneyNodeCard, region: GroupRegion };
 const edgeTypes = { transfer: TransferEdge };
@@ -153,25 +157,28 @@ export function Canvas({
     const sizes = measuredSizes(diagram.nodes, getInternalNode);
     editor.autoArrange(sizes);
     const arranged = editor.current();
-    if (arranged.nodes === diagram.nodes) return;
-
-    const area = areaRef.current!;
-    const { top } = area.getBoundingClientRect();
-    const visible = visibleArea(area);
-    const viewport = getViewport();
-    let dy = 0;
-    for (const node of arranged.nodes) {
-      const point = flowToScreenPosition(node.position);
-      const size = sizes.get(node.id) ?? cardSize(node.name);
-      if (
-        point.x < visible.right &&
-        point.x + size.width * viewport.zoom > visible.left &&
-        point.y + size.height * viewport.zoom > top &&
-        point.y < visible.top
-      )
-        dy = Math.max(dy, visible.top + 8 - point.y);
+    const bounds = nodeBounds(arranged.nodes, sizes);
+    let { x: left, y: top } = bounds.position;
+    let right = left + bounds.width;
+    let bottom = top + bounds.height;
+    for (const group of arranged.groups) {
+      left = Math.min(left, group.position.x);
+      top = Math.min(top, group.position.y);
+      right = Math.max(right, group.position.x + group.width);
+      bottom = Math.max(bottom, group.position.y + group.height);
     }
-    if (dy) void setViewport({ ...viewport, y: viewport.y + dy });
+
+    const visible = visibleArea(areaRef.current!);
+    const center = flowToScreenPosition({
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+    });
+    const viewport = getViewport();
+    void setViewport({
+      ...viewport,
+      x: viewport.x + (visible.left + visible.right) / 2 - center.x,
+      y: viewport.y + (visible.top + visible.bottom) / 2 - center.y,
+    });
   }
 
   function selectionChanges(

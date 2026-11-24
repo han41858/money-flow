@@ -3,8 +3,8 @@
   font-family:
     Inter, 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic',
     sans-serif;
-  color: #20332e;
-  background: #f6f7f4;
+  color: #202633;
+  background: #f4f5f7;
   font-synthesis: none;
 }
 * {
@@ -18,12 +18,12 @@ button {
   cursor: pointer;
 }
 button:focus-visible {
-  outline: 3px solid #267864;
+  outline: 3px solid #1c3a82;
   outline-offset: 2px;
 }
 .topbar {
   height: 62px;
-  background: #183c32;
+  background: #0c2459;
   color: white;
   display: flex;
   align-items: center;
@@ -31,7 +31,6 @@ button:focus-visible {
   gap: 24px;
 }
 .brand,
-.brand-icon,
 .side-head,
 .side-head span,
 .node-row,
@@ -49,24 +48,25 @@ button:focus-visible {
   font-weight: 750;
   letter-spacing: -1px;
 }
-.brand-icon {
-  background: #bdedb9;
-  color: #1e4534;
-  border-radius: 9px;
-  width: 34px;
-  height: 34px;
-  justify-content: center;
+.logo {
+  flex: none;
+}
+.logo-flow {
+  fill: #8ec5ff;
+}
+.logo-node {
+  fill: #fff;
 }
 .header-divider {
   flex: none;
   height: 19px;
   width: 1px;
-  background: #49665c;
+  background: #495266;
 }
 .workspace-title {
   position: relative;
   font-size: 13px;
-  color: #dde9df;
+  color: #dde1e9;
   width: min(100%, 22rem);
   min-width: 0;
 }
@@ -82,13 +82,13 @@ button:focus-visible {
   text-align: left;
 }
 .workspace-title button:hover {
-  background: #34584b;
+  background: #303d5d;
 }
 .workspace-title input {
   width: 100%;
   background: #fff;
-  color: #20332e;
-  outline: 2px solid #bdedb9;
+  color: #202633;
+  outline: 2px solid #b9c9ed;
 }
 .workspace-title-error {
   position: absolute;
@@ -108,13 +108,13 @@ button:focus-visible {
   min-height: calc(100dvh - 62px);
 }
 .sidebar {
-  background: #fcfdfa;
-  border-right: 1px solid #dce2db;
+  background: #fafbfd;
+  border-right: 1px solid #dbdde2;
   padding: 26px 15px;
 }
 .side-head {
   justify-content: space-between;
-  color: #51635a;
+  color: #515663;
   font-size: 12px;
   font-weight: 650;
   padding: 0 6px;
@@ -124,7 +124,7 @@ button:focus-visible {
 }
 .sidebar-summary {
   margin: 7px 6px 0;
-  color: #52645a;
+  color: #525764;
   font-size: 11px;
   line-height: 1.5;
 }
@@ -132,7 +132,7 @@ button:focus-visible {
   margin: 0;
 }
 .side-content {
-  border-top: 1px solid #dfe4dc;
+  border-top: 1px solid #dcdee4;
   padding-top: 21px;
 }
 .node-group {
@@ -141,7 +141,7 @@ button:focus-visible {
 .sidebar h3 {
   font-size: 11px;
   font-weight: 650;
-  color: #69756f;
+  color: #696d75;
   margin: 16px 6px 5px;
 }
 .node-row,
@@ -154,7 +154,7 @@ button:focus-visible {
   text-align: left;
   font-size: 13px;
   border-radius: 5px;
-  color: #34463e;
+  color: #343946;
   padding: 5px 6px;
 }
 .node-row > span {
@@ -167,12 +167,12 @@ button:focus-visible {
 .node-row > svg:last-child,
 .related > svg:last-child {
   margin-left: auto;
-  color: #819184;
+  color: #818691;
 }
 .node-row:hover,
 .related:hover,
 .back:hover {
-  background: #eaf0e8;
+  background: #e8eaf0;
 }
 .sidebar h2 {
   font-size: 19px;
@@ -185,11 +185,11 @@ button:focus-visible {
   justify-content: space-between;
   gap: 5px;
   padding: 10px 4px;
-  border-bottom: 1px solid #e2e8e1;
+  border-bottom: 1px solid #e1e3e8;
   font-size: 12px;
 }
 .property dt {
-  color: #67746d;
+  color: #676b74;
 }
 .property dd {
   font-weight: 600;
@@ -254,12 +254,12 @@ h1 {
   }
 }
 .metric {
-  border: 1px solid #dce2d9;
+  border: 1px solid #d9dce2;
   border-radius: 12px;
   background: white;
   padding: 8px 12px;
   gap: 10px;
-  box-shadow: 0 2px 8px #20332e12;
+  box-shadow: 0 2px 8px #20263312;
 }
 .metric-icon {
   width: 32px;
@@ -282,7 +282,7 @@ h1 {
 .metric > div > span {
   display: block;
   font-size: 12px;
-  color: #5d6c65;
+  color: #5d626c;
 }
 .metric strong {
   font-size: clamp(19px, 1.75vw, 27px);
@@ -297,7 +297,7 @@ h1 {
 }
 .canvas-shell {
   background: white;
-  border: 1px solid #d8dfd6;
+  border: 1px solid #d6d9df;
   border-radius: 14px;
   overflow: hidden;
   flex: 1;
@@ -308,7 +308,7 @@ h1 {
 .flow-area {
   flex: 1;
   position: relative;
-  background: #f8faf8;
+  background: #f8f9fa;
   min-height: 380px;
 }
 .money-node {
@@ -338,7 +338,7 @@ h1 {
 }
 .card-name-trigger:hover,
 .card-kind-trigger:hover {
-  background: #285d4810;
+  background: #21356410;
 }
 .card-name-trigger {
   cursor: text;
@@ -347,9 +347,9 @@ h1 {
   width: calc(100% - 37px);
   min-width: 0;
   padding: 3px;
-  border: 1px solid #a7b7ab;
+  border: 1px solid #a7acb7;
   background: white;
-  color: #1c2923;
+  color: #1c2029;
   font-size: 15px;
   font-weight: 700;
 }
@@ -375,17 +375,17 @@ h1 {
 .card-kinds button {
   min-height: 30px;
   padding: 0;
-  border: 1px solid #a7b7ab;
+  border: 1px solid #a7acb7;
   border-radius: 5px;
   background: white;
-  color: #314937;
+  color: #313849;
   font-size: 12px;
   cursor: pointer;
 }
 .card-kinds button[aria-pressed='true'] {
-  border-color: #267864;
-  background: #e1f0e9;
-  color: #174632;
+  border-color: #1c3a82;
+  background: #e1e5f0;
+  color: #11234c;
   font-weight: 700;
 }
 .card-kinds [role='alert'] {
@@ -406,7 +406,7 @@ h1 {
   transform: translate(-100%, -50%);
 }
 .money-node.active {
-  outline: 3px solid #285d48;
+  outline: 3px solid #213564;
   outline-offset: 4px;
 }
 .flow-area .money-node .react-flow__handle {
@@ -437,13 +437,13 @@ h1 {
   padding: 2px 6px;
   -webkit-text-stroke: 3px white;
   paint-order: stroke fill;
-  color: #35473c;
+  color: #353a47;
   font-size: 13px;
   font-weight: 650;
   pointer-events: all;
 }
 .edge-amount-editor {
-  border: 1px solid #d6dfd6;
+  border: 1px solid #d6d9df;
   border-radius: 6px;
   background: white;
   -webkit-text-stroke: 0;
@@ -477,9 +477,9 @@ h1 {
   gap: 3px;
   padding: 4px;
   background: white;
-  border: 1px solid #d5dfd5;
+  border: 1px solid #d5d8df;
   border-radius: 8px;
-  box-shadow: 0 2px 4px #202f2810;
+  box-shadow: 0 2px 4px #20242f10;
 }
 #editor-main:has(.editor-area > .detail-wrap) .canvas-controls {
   right: var(--inspector-width);
@@ -494,7 +494,7 @@ h1 {
 }
 .canvas-controls button:hover,
 .canvas-controls button[aria-pressed='true'] {
-  background: #eaf1e8;
+  background: #e8ebf1;
 }
 .canvas-controls button::after {
   content: attr(aria-label);
@@ -504,7 +504,7 @@ h1 {
   transform: translateX(-50%);
   padding: 4px 8px;
   border-radius: 5px;
-  background: #183c32;
+  background: #0c2459;
   color: white;
   font-size: 12px;
   line-height: 1.5;
@@ -539,7 +539,7 @@ h1 {
 .canvas-controls i {
   height: 13px;
   width: 1px;
-  background: #d6dfd6;
+  background: #d6d9df;
 }
 .mobile-only {
   display: none;
@@ -602,11 +602,11 @@ h1 {
     min-width: 44px;
     min-height: 44px;
     gap: 2px;
-    border: 1px solid #d8dfd6;
+    border: 1px solid #d6d9df;
     border-left: 0;
     border-radius: 0 8px 8px 0;
     background: white;
-    color: #34584b;
+    color: #303d5d;
     font-size: 11px;
     font-weight: 650;
   }
@@ -660,12 +660,12 @@ h1 {
   cursor: default;
 }
 .history-tools button:hover:not(:disabled) {
-  background: #34584b;
+  background: #303d5d;
 }
 .history-tools .fresh {
   gap: 6px;
   margin-left: 7px;
-  background: #365a49;
+  background: #313f5e;
   font-size: 13px;
 }
 .add-tools {
@@ -680,13 +680,13 @@ h1 {
   padding: 5px 0;
   gap: 3px;
   white-space: nowrap;
-  background: #eff4ee;
-  border: 1px solid #d5e1d3;
+  background: #eef0f4;
+  border: 1px solid #d3d7e1;
   border-radius: 6px;
   font-size: 12px;
 }
 .add-tools button:hover {
-  background: #dceadb;
+  background: #dbdfea;
 }
 .editor-area {
   flex: 1;
@@ -720,7 +720,7 @@ h1 {
   z-index: 7;
   inset: 0 0 0 auto;
   border-radius: 0;
-  border: 1px solid #dce2da;
+  border: 1px solid #dadce2;
   background: white;
 }
 .inspector {
@@ -733,7 +733,7 @@ h1 {
 .inspector-head {
   justify-content: space-between;
   font-size: 12px;
-  color: #55695f;
+  color: #555b69;
 }
 .inspector-head button {
   padding: 4px;
@@ -748,7 +748,7 @@ h1 {
 .field {
   display: block;
   font-size: 12px;
-  color: #40564a;
+  color: #404756;
   margin: 10px 0;
 }
 .field input,
@@ -756,12 +756,12 @@ h1 {
   display: block;
   width: 100%;
   margin-top: 4px;
-  border: 1px solid #a7b7ab;
+  border: 1px solid #a7acb7;
   border-radius: 6px;
   background: #fff;
   padding: 6px 7px;
   font: inherit;
-  color: #26392e;
+  color: #262c39;
 }
 .field input[type='color'] {
   height: 31px;
@@ -778,12 +778,12 @@ h1 {
 .text-button,
 .brand-form button {
   font-size: 12px;
-  color: #28654c;
+  color: #20376d;
   text-decoration: underline;
 }
 .brand-form {
   padding: 8px;
-  background: #f2f6f0;
+  background: #f0f2f6;
   border-radius: 6px;
 }
 .delete-objects {
@@ -794,7 +794,7 @@ h1 {
   font-size: 12px;
 }
 .edge-route {
-  color: #52665a;
+  color: #525866;
 }
 .empty-canvas {
   position: absolute;
@@ -802,7 +802,7 @@ h1 {
   text-align: center;
   pointer-events: none;
   z-index: 3;
-  color: #5d7063;
+  color: #5d6370;
   font-size: 14px;
 }
 .invalid-target .money-node {
@@ -841,15 +841,15 @@ h1 {
   width: min(460px, calc(100vw - 28px));
   max-height: 85dvh;
   overflow: auto;
-  border: 1px solid #d5dfd7;
+  border: 1px solid #d5d8df;
   border-radius: 14px;
   background: #fff;
-  color: #20332e;
+  color: #202633;
   padding: 22px;
-  box-shadow: 0 16px 60px #122d2433;
+  box-shadow: 0 16px 60px #0f193033;
 }
 .library-dialog::backdrop {
-  background: #142b225c;
+  background: #111a2e5c;
 }
 .library-top,
 .library-top h2,
@@ -871,11 +871,11 @@ h1 {
 }
 .backup-note {
   font-size: 13px;
-  color: #57685d;
+  color: #575c68;
   margin: 12px 0 16px;
 }
 .library-list {
-  border: 1px solid #dce4dd;
+  border: 1px solid #dcdee4;
   border-radius: 8px;
   overflow: auto;
   max-height: 28vh;
@@ -890,8 +890,8 @@ h1 {
   overflow-wrap: anywhere;
 }
 .library-list button[aria-current] {
-  background: #e8f2e6;
-  color: #275c3e;
+  background: #e6eaf2;
+  color: #203463;
   font-weight: 650;
 }
 .library-list button span:nth-child(2) {
@@ -905,7 +905,7 @@ h1 {
 .document-actions form button,
 .storage-notice button,
 .library-start button {
-  border: 1px solid #cad8ce;
+  border: 1px solid #caced8;
   padding: 6px 10px;
   border-radius: 6px;
   background: white;
@@ -918,7 +918,7 @@ h1 {
 .document-actions {
   margin-top: 20px;
   padding-top: 14px;
-  border-top: 1px solid #dce4dd;
+  border-top: 1px solid #dcdee4;
 }
 .document-actions h3 {
   font-weight: 650;
@@ -970,13 +970,13 @@ h1 {
   overflow-wrap: anywhere;
 }
 .startup-flow-list time {
-  color: #52655a;
+  color: #525865;
   font-size: 12px;
 }
 .library-start .startup-new-flow {
   color: white;
-  background: #1b604c;
-  border-color: #1b604c;
+  background: #122c69;
+  border-color: #122c69;
 }
 .library-start button:disabled {
   opacity: 0.55;
@@ -1009,9 +1009,9 @@ h1 {
   width: 100%;
   padding: 7px 8px;
   margin: -10px 0 17px;
-  border: 1px dashed #b0c1ae;
+  border: 1px dashed #aeb4c1;
   border-radius: 6px;
-  color: #3f5847;
+  color: #3f4658;
   font-size: 12px;
   text-align: left;
 }
@@ -1019,18 +1019,18 @@ h1 {
   margin-left: auto;
 }
 .add-region:hover {
-  background: #eaf2e7;
+  background: #e7eaf2;
 }
 .group-region {
   width: 100%;
   height: 100%;
-  border: 1.5px dashed color-mix(in srgb, var(--group-color) 70%, #425547);
+  border: 1.5px dashed color-mix(in srgb, var(--group-color) 70%, #424855);
   background: color-mix(in srgb, var(--group-color) 12%, transparent);
   border-radius: 14px;
 }
 .group-region.active {
   border-style: solid;
-  outline: 2px solid color-mix(in srgb, var(--group-color) 68%, #294637);
+  outline: 2px solid color-mix(in srgb, var(--group-color) 68%, #25304a);
   outline-offset: 2px;
 }
 .group-title {
@@ -1042,7 +1042,7 @@ h1 {
   max-width: calc(100% - 20px);
   padding: 3px 8px;
   background: color-mix(in srgb, var(--group-color) 32%, #fff);
-  color: #263c30;
+  color: #262d3c;
   border-radius: 6px;
   font-size: 13px;
   cursor: grab;
@@ -1087,8 +1087,8 @@ h1 {
   display: grid;
   place-items: center;
   background: #fff;
-  color: #375340;
-  border: 1px solid #809683;
+  color: #373f53;
+  border: 1px solid #808796;
   border-radius: 4px;
   cursor: nwse-resize;
 }
@@ -1100,7 +1100,7 @@ h1 {
 
 .share-dialog section + section {
   margin-top: 22px;
-  border-top: 1px solid #dce5df;
+  border-top: 1px solid #dcdfe5;
   padding-top: 18px;
 }
 .share-dialog h3 {
@@ -1141,7 +1141,7 @@ h1 {
   gap: 10px;
 }
 .shared-heading p {
-  color: #496354;
+  color: #495163;
   font-size: 13px;
 }
 .shared-heading h1 {
@@ -1152,7 +1152,7 @@ h1 {
 .shared-heading button {
   border-radius: 8px;
   padding: 8px 14px;
-  background: #1b604c;
+  background: #122c69;
   color: white;
 }
 .shared-page .canvas-shell {
@@ -1188,7 +1188,7 @@ h1 {
   left: 8px;
   padding: 9px 14px;
   border-radius: 6px;
-  color: #173c31;
+  color: #122041;
   background: white;
   transform: translateY(-160%);
 }
@@ -1203,17 +1203,17 @@ h1 {
   .react-flow__node,
   .react-flow__edge
 ):focus-visible {
-  outline: 3px solid #267864;
+  outline: 3px solid #1c3a82;
   outline-offset: 2px;
 }
 .outgoing {
   margin-block: 12px;
   padding-block: 6px 12px;
-  border-block: 1px solid #deebe1;
+  border-block: 1px solid #dee2eb;
 }
 .outgoing button {
-  background: #e6f1e9;
-  color: #1c5038;
+  background: #e6e9f1;
+  color: #152956;
   font-size: 13px;
   border-radius: 6px;
   padding: 6px 10px;
@@ -1240,15 +1240,15 @@ h1 {
 .mobile-panel.left::backdrop {
   background: linear-gradient(
     to bottom,
-    #152a2033 var(--mobile-header-height),
-    #152a2055 var(--mobile-header-height)
+    #121a2d33 var(--mobile-header-height),
+    #121a2d55 var(--mobile-header-height)
   );
 }
 .mobile-panel.right {
   margin-left: auto;
 }
 .mobile-panel::backdrop {
-  background: #152a2055;
+  background: #121a2d55;
 }
 @media (prefers-reduced-motion: no-preference) {
   .mobile-panel.left[open] {
@@ -1316,7 +1316,7 @@ h1 {
     gap: 4px;
     white-space: nowrap;
   }
-  .brand-icon {
+  .topbar .logo {
     width: 25px;
     height: 25px;
   }
@@ -1333,12 +1333,12 @@ h1 {
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  color: #425747;
+  color: #424857;
 }
 .shared-picker select {
   min-width: 0;
   max-width: 76%;
-  border: 1px solid #c8d7cb;
+  border: 1px solid #c8ccd7;
   border-radius: 6px;
   background: white;
   padding: 7px;
@@ -1360,15 +1360,15 @@ h1 {
   width: 100%;
   padding: 7px 8px;
   margin-bottom: 12px;
-  border: 1px solid #d5e1d3;
+  border: 1px solid #d3d7e1;
   border-radius: 6px;
-  background: #eff4ee;
-  color: #3f5847;
+  background: #eef0f4;
+  color: #3f4658;
   font-size: 12px;
 }
 .copy-nodes:hover,
 .paste-nodes:hover:not(:disabled) {
-  background: #e4efdf;
+  background: #dfe4ef;
 }
 .paste-nodes:disabled {
   opacity: 0.5;

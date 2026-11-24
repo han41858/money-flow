@@ -1,0 +1,25 @@
+// Money Flow mark: one flow enters a node and leaves as two flows of different width.
+const flows =
+  'M5 26.8L25 27.5L25 36.5L5 37.2ZM40 24.5L41 24.5L41.8 24.4L42.6 24.1L43.3 23.7L44.2 23L45 22.2L45.9 21.2L46.9 20.1L47.9 18.9L49 17.7L50.2 16.4L51.5 15.3L53.1 14.3L54.9 13.5L56.9 13.1L59 13L59 18L57.8 18.2L56.8 18.6L56 19.1L55.2 19.8L54.4 20.6L53.7 21.6L52.9 22.7L52.1 23.9L51.3 25.2L50.3 26.6L49.2 27.9L47.9 29.3L46.4 30.5L44.5 31.5L42.4 32.2L40 32.5ZM40 35.1L42 35.3L43.7 35.8L45.3 36.5L46.7 37.4L47.8 38.4L48.9 39.5L49.8 40.6L50.7 41.8L51.5 42.8L52.4 43.9L53.3 44.8L54.2 45.6L55.2 46.3L56.3 46.8L57.5 47.1L59 47.3L59 49.7L57.1 49.6L55.4 49.2L53.9 48.6L52.6 47.8L51.3 46.9L50.3 45.9L49.2 44.8L48.3 43.7L47.4 42.7L46.5 41.8L45.6 40.9L44.6 40.2L43.6 39.6L42.6 39.2L41.4 39L40 38.9Z';
+
+export function Logo({ size }: { size: number }) {
+  return (
+    <svg
+      className="logo"
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+    >
+      <path className="logo-flow" d={flows} />
+      <rect
+        className="logo-node"
+        x="22"
+        y="21.5"
+        width="20"
+        height="21"
+        rx="5.4"
+      />
+    </svg>
+  );
+}

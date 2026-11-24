@@ -30,7 +30,7 @@ export const TransferEdge = memo(function TransferEdge({
       <title>{title}</title>
       <BaseEdge id={id} path={path} style={{ stroke: 'transparent' }} />
       {selected && (
-        <g stroke="#20392d" pointerEvents="none">
+        <g stroke="#1d263c" pointerEvents="none">
           <path d={body} fill="none" strokeWidth={stroke + 4} />
           <path d={shaft} fill="none" strokeWidth={4} strokeLinejoin="round" />
         </g>

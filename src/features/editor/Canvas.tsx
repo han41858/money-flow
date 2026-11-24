@@ -383,7 +383,7 @@ export function Canvas({
           >
             {grid && (
               <Background
-                color="#cbd5cf"
+                color="#cbced5"
                 gap={19}
                 size={1.4}
                 variant={BackgroundVariant.Dots}

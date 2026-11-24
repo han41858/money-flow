@@ -186,7 +186,7 @@ function edgeShape(
           textAnchor="middle"
           fontSize={13}
           fontWeight={650}
-          fill="#35473c"
+          fill="#353a47"
           stroke="white"
           strokeWidth={3}
           strokeLinejoin="round"
@@ -220,7 +220,7 @@ export function renderSvg(
       height={frame.height}
       viewBox={[frame.x, frame.y, frame.width, frame.height].join(' ')}
       fontFamily={cardFont}
-      fill="#21372e"
+      fill="#1e263a"
     >
       <title>{diagram.name}</title>
       <rect {...frame} fill="white" />

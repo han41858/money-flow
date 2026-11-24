@@ -120,7 +120,12 @@ async function develop() {
       : event.action !== 'labeled' || event.label?.name !== approvalLabel)
   )
     throw new Stop('ai:develop가 붙은 이슈 이벤트가 필요합니다.');
-  if (state) return;
+  if (state) {
+    console.log(
+      `이슈 #${issueNumber}의 작업 기록이 있어 중복 실행을 건너뜁니다. 현재 상태: ${safeText(state.status)}. 이슈의 마지막 AI 개발 기록을 확인하세요.`,
+    );
+    return;
+  }
   await gh.assertEnvironment();
   await gh.assertProtection();
   if (!env.AI_AUTOMATION_TOKEN)

@@ -4,8 +4,7 @@ import { execFileSync } from 'node:child_process';
 
 const maxBuffer = 8 * 1024 * 1024;
 const maxFileBytes = 1024 * 1024;
-const protectedNames = /^(?:\.git|node_modules)$/i;
-const environmentFile = /^\.env(?:\.|$)/i;
+const toolConfigName = /\.config(?:\.|$)/i;
 
 function outputPage(text, start, span) {
   const lines = text.split('\n');
@@ -30,10 +29,9 @@ function isEditable(path) {
       .every(
         (part) =>
           /^[\p{L}\p{N}_.-]+$/u.test(part) &&
-          part !== '.' &&
-          part !== '..' &&
-          !protectedNames.test(part) &&
-          !environmentFile.test(part),
+          !part.startsWith('.') &&
+          part.toLowerCase() !== 'node_modules' &&
+          !toolConfigName.test(part),
       )
   );
 }

@@ -116,6 +116,13 @@ test('정확한 편집을 적용하고 보호 경로와 중복 원문을 거부�
     '.github/workflows/ci.yml',
     'src/../docs/file.md',
     'src/.env',
+    'src/.prettierrc.ts',
+    'src/.hidden/component.tsx',
+    'src/prettier.config.ts',
+    'src/vite.config.ts',
+    'src/eslint.config.ts',
+    'tests/vitest.config.ts',
+    'tests/playwright.CONFIG.ts',
     'package.json',
   ])
     assert.throws(() =>

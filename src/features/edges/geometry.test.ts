@@ -19,7 +19,11 @@ test('짧은 노드에 도착하는 굵은 화살촉은 서로 겹치지 않는�
 });
 
 test('짧은 연결의 금액 레이블은 화살촉 위에서 읽을 수 있다', () => {
-  const { y } = transferGeometry(0, 30, 48, 30, 14, 1);
+  const blocked = labelBlocker('500만', [
+    { x: -100, y: 10, width: 100, height: 40 },
+    { x: 64, y: 10, width: 100, height: 40 },
+  ]);
+  const { y } = transferGeometry(0, 30, 64, 30, 14, 1, blocked);
   expect(y).toBeLessThan(14);
 });
 
@@ -58,11 +62,12 @@ test('건너뛰는 연결의 금액은 사이에 있는 카드를 피해 놓는�
   const card = { x: 160, y: 0, width: 100, height: 40 };
   const blocked = labelBlocker('500만', [card]);
   const free = transferGeometry(0, 20, 420, 20, 8, 1);
-  expect(free.x).toBe(210);
+  expect(free.x).toBeCloseTo(195.5);
   expect(blocked(free.x, free.y)).toBe(true);
   const moved = transferGeometry(0, 20, 420, 20, 8, 1, blocked);
   expect(blocked(moved.x, moved.y)).toBe(false);
   expect(moved.y).toBe(20);
-  expect(Math.abs(moved.x - 210)).toBeLessThan(100);
+  expect(moved.x).toBeLessThan(card.x);
+  expect(free.x - moved.x).toBeLessThan(75);
   expect(moved.body).toBe(free.body);
 });

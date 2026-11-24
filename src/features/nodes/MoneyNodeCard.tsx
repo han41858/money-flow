@@ -2,33 +2,74 @@ import {
   Handle,
   Position,
   useUpdateNodeInternals,
+  ViewportPortal,
   type NodeProps,
 } from '@xyflow/react';
-import {
-  memo,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { strokeColor } from '../../lib/brands/palette';
 import type { FlowNode } from '../editor/graph';
 import { editor, nodeOfType } from '../editor/store';
 import type { MoneyNode } from '../../types/diagram';
 import { NodeArtwork } from './artwork';
-import { browserTextWidth, cardLabel, cardSize, portSize } from './sizing';
+import {
+  browserTextWidth,
+  cardLabel,
+  cardSize,
+  nodeHeight,
+  portSize,
+} from './sizing';
 import { kindNames } from './presentation';
 import { onEditKey } from '../../lib/editing';
 
-function Port({ outgoing = false }: { outgoing?: boolean }) {
+type PortType = 'source' | 'target';
+
+const portDimensions = { width: portSize, height: portSize };
+
+function Port({
+  type,
+  location,
+  color,
+  revealed,
+}: {
+  type: PortType;
+  location: { x: number; y: number };
+  color: string;
+  revealed: boolean;
+}) {
+  const outgoing = type === 'source';
   return (
     <Handle
-      type={outgoing ? 'source' : 'target'}
+      type={type}
       position={outgoing ? Position.Right : Position.Left}
       isConnectableStart={outgoing}
       isConnectableEnd={!outgoing}
-      style={{ width: portSize, height: portSize }}
+      className="node-port"
+      data-revealed={revealed || undefined}
+      style={{
+        ...portDimensions,
+        left: location.x,
+        top: location.y,
+        borderColor: color,
+      }}
+    />
+  );
+}
+
+// React Flow measures handles inside the node wrapper. The interactive
+// handles use the same coordinates in the viewport portal and own the IDs
+// that React Flow uses for hit testing.
+function PortAnchor({ type }: { type: PortType }) {
+  return (
+    <Handle
+      type={type}
+      position={type === 'source' ? Position.Right : Position.Left}
+      isConnectable={false}
+      isConnectableStart={false}
+      isConnectableEnd={false}
+      className="node-port-anchor"
+      data-id={undefined}
+      aria-hidden="true"
+      style={portDimensions}
     />
   );
 }
@@ -113,8 +154,11 @@ function CardKinds({
 export const MoneyNodeCard = memo(function MoneyNodeCard({
   data,
   selected,
+  positionAbsoluteX,
+  positionAbsoluteY,
 }: NodeProps<FlowNode>) {
   const { node, appearance } = data;
+  const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState<'name' | 'kind' | null>(null);
   const nameButton = useRef<HTMLButtonElement>(null);
   const kindButton = useRef<HTMLButtonElement>(null);
@@ -139,12 +183,15 @@ export const MoneyNodeCard = memo(function MoneyNodeCard({
     lastLayout.current = layout;
     update(node.id);
   }, [node.id, layout, update]);
+  const portY = positionAbsoluteY + (nodeHeight - portSize) / 2;
+  const portColor = strokeColor(appearance.color);
   return (
     <div
       className={'money-node' + (selected ? ' active' : '')}
-      style={{ '--outline': strokeColor(appearance.color) } as CSSProperties}
+      onMouseEnter={data.readOnly ? undefined : () => setHovered(true)}
+      onMouseLeave={data.readOnly ? undefined : () => setHovered(false)}
     >
-      {node.type !== 'income' && <Port />}
+      {node.type !== 'income' && <PortAnchor type="target" />}
       <NodeArtwork
         decorative
         data={data}
@@ -195,7 +242,27 @@ export const MoneyNodeCard = memo(function MoneyNodeCard({
           )}
         </>
       )}
-      {node.type !== 'expense' && <Port outgoing />}
+      {node.type !== 'expense' && <PortAnchor type="source" />}
+      {!data.readOnly && editing !== 'kind' && (
+        <ViewportPortal>
+          {node.type !== 'income' && (
+            <Port
+              type="target"
+              location={{ x: positionAbsoluteX - portSize, y: portY }}
+              color={portColor}
+              revealed={data.connectionTarget === true}
+            />
+          )}
+          {node.type !== 'expense' && (
+            <Port
+              type="source"
+              location={{ x: positionAbsoluteX + size.width, y: portY }}
+              color={portColor}
+              revealed={hovered || Boolean(data.portFocused)}
+            />
+          )}
+        </ViewportPortal>
+      )}
     </div>
   );
 });

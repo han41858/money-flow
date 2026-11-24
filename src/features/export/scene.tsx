@@ -206,7 +206,7 @@ export function renderSvg(
   sizes: NodeSizes,
   measure: MeasureText = estimatedTextWidth,
 ) {
-  const graph = buildGraph(diagram);
+  const graph = buildGraph(diagram, measure);
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   const bounds = new Bounds();
   const groups = diagram.groups.map((g) => groupShape(g, bounds, measure));

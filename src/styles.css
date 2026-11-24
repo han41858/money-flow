@@ -415,11 +415,11 @@ h1 {
   border-radius: 6px;
   background: white;
 }
-.money-node .react-flow__handle-right {
+.money-node .node-port-anchor.react-flow__handle-right {
   right: 0;
   transform: translate(100%, -50%);
 }
-.money-node .react-flow__handle-left {
+.money-node .node-port-anchor.react-flow__handle-left {
   left: 0;
   transform: translate(-100%, -50%);
 }
@@ -427,28 +427,38 @@ h1 {
   outline: 3px solid #213564;
   outline-offset: 4px;
 }
-.flow-area .money-node .react-flow__handle {
-  background: white;
-  border: 2px solid var(--outline);
-  opacity: 0;
+.flow-area .node-port-anchor {
+  visibility: hidden;
   pointer-events: none;
-}
-[data-port-mode='idle'] .money-node .source.connectionindicator {
-  pointer-events: auto;
-}
-[data-port-mode='idle'] .money-node:hover .source.connectionindicator,
-[data-port-mode='idle']
-  .react-flow__node:focus-visible
-  .source.connectionindicator,
-[data-port-mode='connecting'] .valid-target .target.connectionindicator,
-[data-port-mode='connecting'] .money-node .connectingfrom,
-[data-port-mode='connecting'] .money-node .clickconnecting {
-  opacity: 1;
-  pointer-events: all;
-  cursor: crosshair;
 }
 .flow-area .react-flow__edgelabel-renderer {
   z-index: 3;
+}
+.flow-area .react-flow__viewport-portal {
+  z-index: 4;
+  pointer-events: none;
+}
+.flow-area .node-port {
+  right: auto;
+  transform: none;
+  background: white;
+  border: 2px solid;
+  opacity: 0;
+  pointer-events: none;
+}
+[data-port-mode='idle'] .node-port.source.connectionindicator {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+[data-port-mode='idle'] .node-port.source.connectionindicator:hover,
+[data-port-mode='idle'] .node-port.source.connectionindicator[data-revealed],
+[data-port-mode='connecting']
+  .node-port.target.connectionindicator[data-revealed],
+[data-port-mode='connecting'] .node-port.connectingfrom,
+[data-port-mode='connecting'] .node-port.clickconnecting {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: crosshair;
 }
 .transfer-visual {
   position: absolute;

@@ -1,7 +1,7 @@
 import { example } from '../src/app/example';
 import { openExample } from './exampleFixture';
 import { test, expect, type Locator } from '@playwright/test';
-import { connect, point, selectNode } from './gestures';
+import { connect, point, port, selectNode } from './gestures';
 test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·배치·삭제를 되돌린다', async ({
   page,
 }) => {
@@ -116,11 +116,11 @@ test('중복 연결을 거부하고 금융사 등록과 연결선 삭제를 각�
   await openExample(page);
   const income = page.locator('[data-id="income-a"]');
   const account = page.locator('[data-id="joint"]');
-  const sourcePort = income.locator('.source');
-  await expect(account.locator('.target')).toHaveCount(1);
-  await expect(account.locator('.source')).toHaveCount(1);
-  const accountPort = account.locator('.target');
-  const cardPort = page.locator('[data-id="card"] .target').first();
+  const sourcePort = await port(page, income, 'source');
+  const accountPort = await port(page, account, 'target');
+  const cardPort = await port(page, page.locator('[data-id="card"]'), 'target');
+  await expect(accountPort).toHaveCount(1);
+  await expect(await port(page, account, 'source')).toHaveCount(1);
   await expect(sourcePort).toHaveCSS('opacity', '0');
   const sourceCard = (await income.locator('.money-node > svg').boundingBox())!;
   const targetCard = (await account
@@ -348,6 +348,95 @@ test('연결선 레이블에서 고정 금액과 범위를 직접 수정한다',
   ).toBeVisible();
 });
 
+test('금액 레이블과 겹친 출발·도착 포트가 연결 조작을 먼저 받는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const [income, , account] = example.nodes;
+  await openExample(page, {
+    ...example,
+    groups: [],
+    nodes: [
+      {
+        ...income,
+        name: '수입',
+        groupId: undefined,
+        position: { x: 0, y: 100 },
+      },
+      {
+        ...account,
+        name: '계좌',
+        groupId: undefined,
+        position: { x: 500, y: 100 },
+      },
+      {
+        ...income,
+        id: 'second-income',
+        name: '수입',
+        groupId: undefined,
+        position: { x: 185, y: 100 },
+      },
+      {
+        ...account,
+        id: 'second-account',
+        name: '계좌',
+        groupId: undefined,
+        position: { x: 286, y: 100 },
+      },
+    ],
+    edges: [{ ...example.edges[0], min: 0, max: 0 }],
+  });
+  const outgoing = page.locator('[data-id="second-income"]');
+  const incoming = page.locator('[data-id="second-account"]');
+  const source = await port(page, outgoing, 'source');
+  const target = await port(page, incoming, 'target');
+  const label = page.getByRole('button', { name: '0원 금액 수정' });
+  await expect(label).toBeVisible();
+  const from = await point(source);
+  const to = await point(target);
+  const labelBox = (await label.boundingBox())!;
+  for (const p of [from, to]) {
+    expect(p.x).toBeGreaterThan(labelBox.x);
+    expect(p.x).toBeLessThan(labelBox.x + labelBox.width);
+    expect(p.y).toBeGreaterThan(labelBox.y);
+    expect(p.y).toBeLessThan(labelBox.y + labelBox.height);
+  }
+
+  await page.keyboard.press('Tab');
+  await outgoing.focus();
+  await expect(source).toHaveCSS('opacity', '1');
+  await outgoing.blur();
+  await expect(source).toHaveCSS('opacity', '0');
+
+  await page.mouse.move(from.x, from.y);
+  await expect(source).toHaveCSS('opacity', '1');
+  expect(
+    await source.evaluate(
+      (el, p) => document.elementFromPoint(p.x, p.y) === el,
+      from,
+    ),
+  ).toBe(true);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 10 });
+  await expect(target).toHaveCSS('opacity', '1');
+  expect(
+    await target.evaluate(
+      (el, p) => document.elementFromPoint(p.x, p.y) === el,
+      to,
+    ),
+  ).toBe(true);
+  await page.mouse.up();
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
+  await expect(target).toHaveCSS('opacity', '0');
+
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  await expect(page.locator('.react-flow__edge')).toHaveCount(1);
+  await source.click();
+  await expect(target).toHaveCSS('opacity', '1');
+  await target.click();
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
+});
+
 test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 놓인다', async ({
   page,
 }) => {
@@ -517,6 +606,40 @@ test('자동 정렬과 전체 보기를 번갈아 눌러도 같은 뷰포트를 
   }
 });
 
+for (const [direction, y] of [
+  ['오르막', 20],
+  ['수평', 180],
+  ['내리막', 340],
+] as const)
+  test(`${direction} 연결의 금액을 화살촉 앞 곡선의 길이 중간에 배치한다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const [source, , target] = example.nodes;
+    await openExample(page, {
+      ...example,
+      groups: [],
+      nodes: [
+        { ...source, groupId: undefined, position: { x: 0, y: 180 } },
+        { ...target, groupId: undefined, position: { x: 440, y } },
+      ],
+      edges: [{ ...example.edges[0], min: 1_200_000, max: 1_500_000 }],
+    });
+    const label = page.getByRole('button', {
+      name: '1,200,000원 ~ 1,500,000원 금액 수정',
+    });
+    await expect(label).toBeVisible();
+    const path = page.locator('.react-flow__edge-path');
+    const center = await path.evaluate((el: SVGPathElement) => {
+      const midpoint = el.getPointAtLength(el.getTotalLength() / 2);
+      const { x, y } = midpoint.matrixTransform(el.getScreenCTM()!);
+      return { x, y };
+    });
+    const box = (await label.boundingBox())!;
+    expect(Math.abs(box.x + box.width / 2 - center.x)).toBeLessThan(1);
+    expect(Math.abs(box.y + box.height / 2 - center.y)).toBeLessThan(1);
+  });
+
 test('좁은 화면에서 500만 원 연결 두 개를 정렬해도 금액과 화살촉이 카드와 겹치지 않는다', async ({
   page,
 }) => {
@@ -596,6 +719,7 @@ for (const [title, diagram] of [
             card.x + card.width <= label.x ||
             label.y + label.height <= card.y ||
             card.y + card.height <= label.y,
+          JSON.stringify({ label, card }),
         ).toBe(true);
   });
 

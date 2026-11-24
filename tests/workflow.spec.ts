@@ -133,6 +133,20 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   await page.keyboard.press('Enter');
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools).toBeVisible();
+  const motion = () =>
+    tools.evaluate((panel) => [
+      getComputedStyle(panel).animationName,
+      getComputedStyle(panel, '::backdrop').animationName,
+    ]);
+  expect(await motion()).toEqual([
+    'mobile-tools-slide-in',
+    'mobile-tools-backdrop-in',
+  ]);
+  await tools.evaluate(async (panel) => {
+    await Promise.all(
+      panel.getAnimations().map((animation) => animation.finished),
+    );
+  });
   const header = (await page.locator('.topbar').boundingBox())!;
   const panel = (await tools.boundingBox())!;
   expect(panel.y).toBe(header.y + header.height);
@@ -154,8 +168,10 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
 
   const share = page.getByRole('button', { name: '공유 및 내보내기' });
   const sharePoint = await point(share);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await trigger.click();
   await expect(tools).toBeVisible();
+  expect(await motion()).toEqual(['none', 'none']);
   await page.mouse.click(sharePoint.x, sharePoint.y);
   await expect(tools).toBeHidden();
   await expect(trigger).toBeFocused();

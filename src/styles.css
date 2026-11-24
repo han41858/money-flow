@@ -1250,6 +1250,30 @@ h1 {
 .mobile-panel::backdrop {
   background: #152a2055;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-panel.left[open] {
+    animation: mobile-tools-slide-in 200ms ease-out;
+  }
+  .mobile-panel.left[open]::backdrop {
+    animation: mobile-tools-backdrop-in 200ms ease-out;
+  }
+}
+@keyframes mobile-tools-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes mobile-tools-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 .mobile-panel .sidebar.open,
 .mobile-panel .detail-wrap.open {
   display: block;

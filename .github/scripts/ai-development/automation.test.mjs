@@ -244,6 +244,14 @@ test('격리 검사 오류는 실패한 단계와 환경 오류를 구분한다'
   assert.match(failure.diagnostics, /FAIL store.test.ts/);
   assert.match(failure.diagnostics, /Expected: 96/);
   assert.equal(new ValidationFailure(125).stage, undefined);
+  assert.match(
+    new ValidationFailure(null, '', 'ETIMEDOUT').message,
+    /시간 한도 초과/,
+  );
+  assert.match(
+    new ValidationFailure(null, '', 'ENOBUFS').message,
+    /출력 한도 초과/,
+  );
 });
 
 test('이전 격리 검사 실패 기록도 새 승인으로 한 번만 재개한다', () => {
@@ -298,6 +306,13 @@ test('이전 격리 검사 실패 기록도 새 승인으로 한 번만 재개�
   };
   const failedTest = readState([latestRecord], 10);
   assert(canRestartUnpublished(failedTest, event, approval));
+  // A run that stopped after an in-run repair is still unpublished.
+  assert(
+    canRestartUnpublished({ ...failedTest, attempts: 2 }, event, approval),
+  );
+  assert(
+    !canRestartUnpublished({ ...failedTest, attempts: 0 }, event, approval),
+  );
   assert(
     !canRestartUnpublished(
       { ...failedTest, validationRestarts: 2 },

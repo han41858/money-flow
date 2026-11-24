@@ -22,13 +22,17 @@ const stages = [
 ];
 
 export class ValidationFailure extends Stop {
-  constructor(status, output = '') {
+  constructor(status, output = '', code) {
     const stage = stages[status - 20];
     const description = stage
       ? `격리 검사 실패 · ${stage}`
       : status === 19
         ? '격리 검사 실패 · 후보 파일 복사'
-        : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
+        : code === 'ETIMEDOUT'
+          ? '격리 검사 실행 실패 · 시간 한도 초과'
+          : code === 'ENOBUFS'
+            ? '격리 검사 실행 실패 · 출력 한도 초과'
+            : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
     super(description + '. Actions 로그에서 상세 내용을 확인하세요.');
     this.stage = stage;
     this.diagnostics = output
@@ -136,6 +140,7 @@ export function validateCandidate(head, changes) {
       throw new ValidationFailure(
         error.status,
         [error.stdout, error.stderr].filter(Boolean).join('\n'),
+        error.code,
       );
     } finally {
       console.log(`::${marker}::`);

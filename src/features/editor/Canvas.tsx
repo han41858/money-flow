@@ -420,7 +420,6 @@ export function Canvas({
               <button
                 className="zoom-reset"
                 aria-label="100% 배율로 설정"
-                title="100% 배율로 설정"
                 onClick={() => void zoomTo(1)}
               >
                 100%
@@ -428,7 +427,6 @@ export function Canvas({
               <i />
               <button
                 aria-label="전체 보기"
-                title="전체 보기"
                 onClick={
                   readOnly
                     ? () => void fitView({ ...fitOptions, duration: 180 })
@@ -440,7 +438,6 @@ export function Canvas({
               {!readOnly && (
                 <button
                   aria-label="자동 정렬"
-                  title="자동 정렬"
                   disabled={!graph.nodes.length}
                   onClick={arrange}
                 >
@@ -449,7 +446,6 @@ export function Canvas({
               )}
               <button
                 aria-label="격자 표시"
-                title="격자 표시"
                 aria-pressed={grid}
                 onClick={() => setGrid(!grid)}
               >

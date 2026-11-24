@@ -485,6 +485,7 @@ h1 {
   right: var(--inspector-width);
 }
 .canvas-controls button {
+  position: relative;
   width: 29px;
   height: 29px;
   display: grid;
@@ -494,6 +495,36 @@ h1 {
 .canvas-controls button:hover,
 .canvas-controls button[aria-pressed='true'] {
   background: #eaf1e8;
+}
+.canvas-controls button::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #183c32;
+  color: white;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 1;
+}
+.canvas-controls button:last-child::after {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+.canvas-controls button:focus-visible::after {
+  visibility: visible;
+}
+@media (hover: hover) {
+  .canvas-controls button:hover::after {
+    visibility: visible;
+  }
 }
 .canvas-controls .zoom-reset {
   width: auto;

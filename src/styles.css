@@ -105,12 +105,15 @@ button:focus-visible {
 .workspace-body {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
-  min-height: calc(100dvh - 62px);
+  height: calc(100dvh - 62px);
 }
 .sidebar {
   background: #fcfdfa;
   border-right: 1px solid #dce2db;
   padding: 26px 15px;
+}
+.workspace-body > .sidebar {
+  overflow-y: auto;
 }
 .side-head {
   justify-content: space-between;
@@ -528,6 +531,7 @@ h1 {
 @media (max-width: 720px) {
   .workspace-body {
     display: block;
+    height: auto;
   }
   .topbar {
     height: 54px;

@@ -170,8 +170,10 @@ export function Canvas({
     const area = areaRef.current!;
     const canvas = area.getBoundingClientRect();
     const visible = visibleArea(area);
+    const screenTop = Math.max(0, visible.top);
+    const screenBottom = Math.min(window.innerHeight, visible.bottom);
     const width = visible.right - visible.left;
-    const height = visible.bottom - visible.top;
+    const height = screenBottom - screenTop;
     if (width <= 0 || height <= 0) return;
 
     const currentZoom = getViewport().zoom;
@@ -193,7 +195,7 @@ export function Canvas({
         canvas.left -
         ((left + right) / 2) * nextZoom,
       y:
-        (visible.top + visible.bottom) / 2 -
+        (screenTop + screenBottom) / 2 -
         canvas.top -
         ((top + bottom) / 2) * nextZoom,
       zoom: nextZoom,

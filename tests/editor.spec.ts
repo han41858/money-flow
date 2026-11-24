@@ -1,3 +1,4 @@
+import { example } from '../src/app/example';
 import { openExample } from './exampleFixture';
 import { test, expect, type Locator } from '@playwright/test';
 import { connect, point, selectNode } from './gestures';
@@ -430,4 +431,40 @@ test('자동 정렬 결과가 편집 영역을 넘을 때만 전체가 보이도
   await page.setViewportSize({ width: 1536, height: 960 });
   await arrange.click();
   await expect(zoom).toHaveText(fitted);
+});
+
+test('노드 목록이 길어도 정렬한 노드가 브라우저 창 안에 보인다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page, {
+    ...example,
+    nodes: [
+      ...example.nodes,
+      ...Array.from({ length: 24 }, (_, index) => ({
+        ...example.nodes[0],
+        id: 'extra-income-' + index,
+        name: '추가 수입 ' + index,
+      })),
+    ],
+  });
+  const sidebar = page.locator('.sidebar');
+  await expect
+    .poll(() => sidebar.evaluate((el) => el.scrollHeight - el.clientHeight))
+    .toBeGreaterThan(0);
+  await page.getByRole('button', { name: '100% 배율로 설정' }).click();
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  const nodes = page.locator('.react-flow__node-money');
+  await expect(nodes).toHaveCount(example.nodes.length + 24);
+  const summary = (await page.locator('.metrics').boundingBox())!;
+  for (const node of await nodes.all()) {
+    const bounds = (await node.boundingBox())!;
+    expect(bounds.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(1440);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
+    900,
+  );
 });

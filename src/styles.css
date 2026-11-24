@@ -21,6 +21,10 @@ button:focus-visible {
   outline: 3px solid #1c3a82;
   outline-offset: 2px;
 }
+/* The default focus colour disappears on the deep blue header. */
+.topbar :focus-visible {
+  outline-color: #8ec5ff;
+}
 .topbar {
   height: 62px;
   background: #0c2459;

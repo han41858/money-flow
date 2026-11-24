@@ -105,15 +105,12 @@ button:focus-visible {
 .workspace-body {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
-  height: calc(100dvh - 62px);
+  min-height: calc(100dvh - 62px);
 }
 .sidebar {
   background: #fcfdfa;
   border-right: 1px solid #dce2db;
   padding: 26px 15px;
-}
-.workspace-body > .sidebar {
-  overflow-y: auto;
 }
 .side-head {
   justify-content: space-between;
@@ -531,7 +528,6 @@ h1 {
 @media (max-width: 720px) {
   .workspace-body {
     display: block;
-    height: auto;
   }
   .topbar {
     height: 54px;
@@ -656,6 +652,14 @@ h1 {
   min-width: 0;
   border: 0;
   border-radius: 0;
+}
+@media (width > 720px) {
+  .workspace-body {
+    height: calc(100dvh - 62px);
+  }
+  .workspace-body > .sidebar {
+    overflow-y: auto;
+  }
 }
 .connection-hint {
   bottom: 38px;

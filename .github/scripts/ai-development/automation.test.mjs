@@ -374,6 +374,7 @@ test('진행 상태는 한 댓글을 수정하고 종료 상태는 새 댓글로
       ).issue,
       10,
     );
+});
 
 test('검사 실패를 보완하는 동안에도 리뷰 지적을 유지한다', () => {
   const feedback = createFeedback();

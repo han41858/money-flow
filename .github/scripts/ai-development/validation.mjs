@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { Stop } from './github.mjs';
+import { safeText, Stop } from './github.mjs';
 
 const image = 'money-flow-ai-validation';
 const stages = [
@@ -22,7 +22,7 @@ const stages = [
 ];
 
 export class ValidationFailure extends Stop {
-  constructor(status) {
+  constructor(status, output = '') {
     const stage = stages[status - 20];
     const description = stage
       ? `격리 검사 실패 · ${stage}`
@@ -31,6 +31,11 @@ export class ValidationFailure extends Stop {
         : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
     super(description + '. Actions 로그에서 상세 내용을 확인하세요.');
     this.stage = stage;
+    this.diagnostics = output
+      .slice(-4500)
+      .split('\n')
+      .map((line) => safeText(line, 350))
+      .join('\n');
   }
 }
 const run = (file, args, options = {}) =>
@@ -93,20 +98,22 @@ export function validateCandidate(head, changes) {
     const marker = randomUUID();
     console.log(`::stop-commands::${marker}`);
     try {
-      run('docker', [
-        'run',
-        '--rm',
-        '--network=none',
-        '--cap-drop=ALL',
-        '--security-opt=no-new-privileges',
-        '--pids-limit=512',
-        '--shm-size=1g',
-        '--mount',
-        `type=bind,source=${candidate},target=/candidate,readonly`,
-        image,
-        'sh',
-        '-ec',
-        `
+      const output = run(
+        'docker',
+        [
+          'run',
+          '--rm',
+          '--network=none',
+          '--cap-drop=ALL',
+          '--security-opt=no-new-privileges',
+          '--pids-limit=512',
+          '--shm-size=1g',
+          '--mount',
+          `type=bind,source=${candidate},target=/candidate,readonly`,
+          image,
+          'sh',
+          '-ec',
+          `
         cp -R /candidate/. /app/ || exit 19
         status=20
         for stage in ${stages.join(' ')}; do
@@ -115,9 +122,21 @@ export function validateCandidate(head, changes) {
           status=$((status + 1))
         done
       `,
-      ]);
+        ],
+        {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          maxBuffer: 8 * 1024 * 1024,
+        },
+      );
+      process.stdout.write(output);
     } catch (error) {
-      throw new ValidationFailure(error.status);
+      if (error.stdout) process.stdout.write(error.stdout);
+      if (error.stderr) process.stderr.write(error.stderr);
+      throw new ValidationFailure(
+        error.status,
+        [error.stdout, error.stderr].filter(Boolean).join('\n'),
+      );
     } finally {
       console.log(`::${marker}::`);
     }

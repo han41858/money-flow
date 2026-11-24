@@ -2,7 +2,7 @@ import type { MeasureText, NodeTotal } from '../nodes/sizing';
 import { type Node, type Edge } from '@xyflow/react';
 import { amountLabel, exactAmount, sum } from '../edges/money';
 import { portFraction, type Box } from '../edges/geometry';
-import { cardSize } from '../nodes/sizing';
+import { cardSize, portSize } from '../nodes/sizing';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
@@ -112,10 +112,21 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
     };
   });
   const byNodeId = new Map(nodes.map((n) => [n.id, n.data]));
-  const cards = diagram.nodes.map((node) => ({
-    ...node.position,
-    ...cardSize(node.name, measure),
-  }));
+  const obstacles = diagram.nodes.flatMap((node) => {
+    const { x, y } = node.position;
+    const { width, height } = cardSize(node.name, measure);
+    const card = { x, y, width, height };
+    const port = {
+      y: y + (height - portSize) / 2,
+      width: portSize,
+      height: portSize,
+    };
+    // The amount can be clicked above the nodes, so keep the ports reachable.
+    const boxes = [card];
+    if (node.type !== 'income') boxes.push({ ...port, x: x - portSize });
+    if (node.type !== 'expense') boxes.push({ ...port, x: x + width });
+    return boxes;
+  });
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     const outputs = byNodeId.get(edge.source)!.outputs;
@@ -131,7 +142,7 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
         sourcePort: portFraction(outputs.indexOf(edge.id), outputs.length),
         targetPort: portFraction(inputs.indexOf(edge.id), inputs.length),
         targetPortCount: inputs.length,
-        obstacles: cards,
+        obstacles,
       },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,

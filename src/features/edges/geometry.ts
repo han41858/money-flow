@@ -1,7 +1,8 @@
 import { getBezierPath, Position } from '@xyflow/react';
-import { estimatedTextWidth, nodeHeight } from '../nodes/sizing';
+import { estimatedTextWidth, nodeHeight, portSize } from '../nodes/sizing';
 
 const labelFontSize = 13;
+const labelHalfHeight = 14;
 
 export function portFraction(index: number, count: number) {
   return (index + 0.5) / count;
@@ -83,13 +84,12 @@ export type Box = { x: number; y: number; width: number; height: number };
 // Checks the centered label against cards and the bounds of the arrowhead.
 export function labelBlocker(text: string, cards: Box[]) {
   const halfWidth = (estimatedTextWidth(text, labelFontSize) + 12) / 2 + 2;
-  const halfHeight = 14;
   return (x: number, y: number, arrow?: Box) => {
     const overlaps = (box: Box) =>
       x + halfWidth > box.x &&
       x - halfWidth < box.x + box.width &&
-      y + halfHeight > box.y &&
-      y - halfHeight < box.y + box.height;
+      y + labelHalfHeight > box.y &&
+      y - labelHalfHeight < box.y + box.height;
     return Boolean(arrow && overlaps(arrow)) || cards.some(overlaps);
   };
 }
@@ -162,9 +162,11 @@ function placeLabel(
   // In a tight gap the label may not fit anywhere on the shaft. Keep it
   // between the cards and clear of the arrow where possible.
   const fallbackX = (curve[0].x + targetX) / 2;
-  const fallbackY = Math.min(center.y, arrow.y - 14);
-  if (!blocked(fallbackX, fallbackY, arrow))
-    return { x: fallbackX, y: fallbackY };
+  const fallbackY = Math.min(center.y, arrow.y - labelHalfHeight);
+  for (let lift = 0; lift <= portSize; lift++) {
+    const y = fallbackY - lift;
+    if (!blocked(fallbackX, y, arrow)) return { x: fallbackX, y };
+  }
   return center;
 }
 

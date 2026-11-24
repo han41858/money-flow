@@ -420,6 +420,8 @@ async function complete() {
         state,
         'waiting_ci',
         '필수 CI가 아직 대기 중입니다. CI 완료 후 이 이슈 번호로 워크플로를 수동 재실행할 수 있습니다.',
+        'waiting_ci',
+        true,
       );
       return;
     }

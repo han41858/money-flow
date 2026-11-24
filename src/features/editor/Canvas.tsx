@@ -67,6 +67,7 @@ export function Canvas({
   const fit = useLibrary((s) => s.fit);
   const [grid, setGrid] = useState(true);
   const [source, setSource] = useState<string | null>(null);
+  const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [positions, setPositions] = useState<Map<string, XYPosition>>(
     new Map(),
   );
@@ -115,19 +116,30 @@ export function Canvas({
       selected: selected.groups.includes(n.data.group.id),
       ...(resizing?.id === n.id ? resizing.size : {}),
     })),
-    ...graph.nodes.map((n) => ({
-      ...n,
-      position: positions.get(n.id) ?? n.position,
-      measured: measurements.get(n.id),
-      data: { ...n.data, readOnly },
-      selected: selected.nodes.includes(n.id),
-      className:
+    ...graph.nodes.map((n) => {
+      const connectionTarget =
         source && source !== n.id
           ? canConnect(diagram, source, n.id)
-            ? 'valid-target'
-            : 'invalid-target'
-          : '',
-    })),
+          : undefined;
+      return {
+        ...n,
+        position: positions.get(n.id) ?? n.position,
+        measured: measurements.get(n.id),
+        data: {
+          ...n.data,
+          readOnly,
+          connectionTarget,
+          portFocused: focusedNode === n.id,
+        },
+        selected: selected.nodes.includes(n.id),
+        className:
+          connectionTarget === undefined
+            ? ''
+            : connectionTarget
+              ? 'valid-target'
+              : 'invalid-target',
+      };
+    }),
   ]);
   const flowEdges = useStableItems<FlowEdge>(
     graph.edges.map((e) => ({
@@ -312,6 +324,15 @@ export function Canvas({
         data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
         onPointerDownCapture={trackView}
         onWheelCapture={trackView}
+        onFocusCapture={(event) => {
+          const target = event.target;
+          if (target.matches('.react-flow__node-money:focus-visible'))
+            setFocusedNode(target.getAttribute('data-id'));
+        }}
+        onBlurCapture={(event) => {
+          if (event.target.matches('.react-flow__node-money'))
+            setFocusedNode(null);
+        }}
         onKeyDownCapture={(e) => {
           trackView();
           if (

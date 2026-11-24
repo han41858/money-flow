@@ -1,5 +1,5 @@
 import { getBezierPath, Position } from '@xyflow/react';
-import { estimatedTextWidth, nodeHeight, portSize } from '../nodes/sizing';
+import { estimatedTextWidth, nodeHeight } from '../nodes/sizing';
 
 const labelFontSize = 13;
 const labelHalfHeight = 14;
@@ -163,10 +163,8 @@ function placeLabel(
   // between the cards and clear of the arrow where possible.
   const fallbackX = (curve[0].x + targetX) / 2;
   const fallbackY = Math.min(center.y, arrow.y - labelHalfHeight);
-  for (let lift = 0; lift <= portSize; lift++) {
-    const y = fallbackY - lift;
-    if (!blocked(fallbackX, y, arrow)) return { x: fallbackX, y };
-  }
+  if (!blocked(fallbackX, fallbackY, arrow))
+    return { x: fallbackX, y: fallbackY };
   return center;
 }
 

@@ -391,6 +391,23 @@ test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 �
   expect(target!.x).toBeGreaterThan(first!.x + first!.width);
   await expect(zoom).toHaveText('100%');
   for (const node of await nodes.all()) await expect(node).toBeInViewport();
+
+  await page.getByRole('button', { name: '카드 추가' }).click();
+  const card = nodes.nth(3);
+  await connect(page, account, card);
+  await expect(account.locator('.node-totals')).toBeVisible();
+  await expect(card.locator('.node-totals')).toHaveCount(0);
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+  const body = (node: Locator) => node.locator('.money-node > svg');
+  await expect
+    .poll(async () => {
+      const [a, b] = await Promise.all([
+        body(account).boundingBox(),
+        body(card).boundingBox(),
+      ]);
+      return Math.abs(a!.y - b!.y);
+    })
+    .toBeLessThan(1);
 });
 
 test('자동 정렬 결과가 편집 영역을 넘을 때만 전체가 보이도록 축소한다', async ({

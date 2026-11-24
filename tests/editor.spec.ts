@@ -370,6 +370,7 @@ test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 �
       const area = (await page.locator('.flow-area').boundingBox())!;
       const summary = (await page.locator('.metrics').boundingBox())!;
       const panel = await page.locator('.detail-wrap').boundingBox();
+      const controls = (await page.locator('.canvas-controls').boundingBox())!;
       const boxes = await Promise.all(
         (await nodes.all()).map((node) => node.boundingBox()),
       );
@@ -383,7 +384,7 @@ test('새 흐름에서 수입 두 개를 자동 정렬하면 화면 중앙에 �
         2;
       return Math.max(
         Math.abs(x - (area.x + (panel?.x ?? area.x + area.width)) / 2),
-        Math.abs(y - (summary.y + summary.height + area.y + area.height) / 2),
+        Math.abs(y - (summary.y + summary.height + controls.y) / 2),
       );
     })
     .toBeLessThan(1);
@@ -473,16 +474,19 @@ test('노드 목록이 길어도 정렬한 노드가 브라우저 창 안에 보
     .poll(() => sidebar.evaluate((el) => el.scrollHeight - el.clientHeight))
     .toBeGreaterThan(0);
   await page.getByRole('button', { name: '100% 배율로 설정' }).click();
-  await page.getByRole('button', { name: '자동 정렬' }).click();
   const nodes = page.locator('.react-flow__node-money');
   await expect(nodes).toHaveCount(example.nodes.length + 24);
   const summary = (await page.locator('.metrics').boundingBox())!;
-  for (const node of await nodes.all()) {
-    const bounds = (await node.boundingBox())!;
-    expect(bounds.y).toBeGreaterThanOrEqual(summary.y + summary.height);
-    expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(1440);
+  const controls = (await page.locator('.canvas-controls').boundingBox())!;
+  for (const name of ['자동 정렬', '전체 보기']) {
+    await page.getByRole('button', { name }).click();
+    for (const node of await nodes.all()) {
+      const bounds = (await node.boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(summary.y + summary.height - 1);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(controls.y + 1);
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(1440);
+    }
   }
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
     900,

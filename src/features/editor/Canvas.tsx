@@ -58,6 +58,7 @@ export function Canvas({
   readOnly = false,
 }: Props) {
   const areaRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const interacted = useRef(false);
   const trackView = () => {
     interacted.current = true;
@@ -165,7 +166,12 @@ export function Canvas({
     const canvas = area.getBoundingClientRect();
     const visible = visibleArea(area);
     const screenTop = Math.max(0, visible.top);
-    const screenBottom = Math.min(window.innerHeight, visible.bottom);
+    const controlsTop = controlsRef.current?.getBoundingClientRect().top;
+    const screenBottom = Math.min(
+      window.innerHeight,
+      visible.bottom,
+      controlsTop ?? Infinity,
+    );
     const width = visible.right - visible.left;
     const height = screenBottom - screenTop;
     if (width <= 0 || height <= 0) return;
@@ -402,6 +408,7 @@ export function Canvas({
             <Panel
               position={readOnly ? 'bottom-left' : 'bottom-right'}
               className="canvas-controls"
+              ref={controlsRef}
             >
               <button aria-label="축소" onClick={() => void zoomOut()}>
                 <Minus size={16} />

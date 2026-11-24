@@ -32,10 +32,8 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
   ).toBeVisible();
-  const path = page.locator(
-    '.react-flow__edge.selected .react-flow__edge-path',
-  );
-  const width = await path.evaluate((e) => getComputedStyle(e).strokeWidth);
+  const path = page.locator('.react-flow__edge.selected .transfer-shaft');
+  const initialShape = await path.getAttribute('d');
   await page.getByLabel('금액 방식').selectOption('range');
   await page.getByLabel('월 최소 금액').fill('500000');
   await page.getByLabel('월 최대 금액').fill('800000');
@@ -43,9 +41,7 @@ test('빈 캔버스에서 급여 → 계좌 → 생활비를 그리고 금액·�
   await expect(
     page.locator('.edge-label').filter({ hasText: '50~80만' }),
   ).toBeVisible();
-  await expect
-    .poll(() => path.evaluate((e) => getComputedStyle(e).strokeWidth))
-    .not.toBe(width);
+  await expect(path).not.toHaveAttribute('d', initialShape!);
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(page.getByLabel('월 금액 (원)')).toHaveValue('0');
   await page.getByRole('button', { name: '다시 실행' }).click();

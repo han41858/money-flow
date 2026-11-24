@@ -150,7 +150,7 @@ function edgeShape(
   );
   const to = anchor(nodes.get(flow.target)!, targetPort, false, sizes, measure);
   const stroke = edgeWidth(edge);
-  const { path, arrow, x, y } = transferGeometry(
+  const { body, shaft, arrow, x, y } = transferGeometry(
     from.x,
     from.y,
     to.x,
@@ -158,7 +158,8 @@ function edgeShape(
     stroke,
     targetPortCount,
   );
-  bounds.path(path, stroke / 2);
+  bounds.path(body, stroke / 2);
+  bounds.path(shaft, 0);
   bounds.path(arrow, 0);
   const value = amountLabel(edge.min, edge.max);
   const width = measure(value, 13, true) + 4;
@@ -166,8 +167,15 @@ function edgeShape(
   return {
     line: (
       <g key={flow.id}>
-        <path d={path} fill="none" stroke={color} strokeWidth={stroke} />
-        <path d={arrow} fill={color} />
+        <path
+          className="transfer-body"
+          d={body}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+        />
+        <path className="transfer-shaft" d={shaft} fill={color} />
+        <path className="transfer-arrow" d={arrow} fill={color} />
       </g>
     ),
     label: (

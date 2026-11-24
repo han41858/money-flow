@@ -140,9 +140,9 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   expect(fill).toBe('#ebc638');
   await expect(card.locator(':scope > text')).toHaveCount(1);
   const icon = await card.locator('svg').getAttribute('class');
-  const liveArrow = await page
-    .locator('[data-id="salary-a"] .transfer-arrow')
-    .getAttribute('d');
+  const liveEdge = page.locator('[data-id="salary-a"].react-flow__edge');
+  const liveArrow = await liveEdge.locator('.transfer-arrow').getAttribute('d');
+  const liveShaft = await liveEdge.locator('.transfer-shaft').getAttribute('d');
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
   const next = page.waitForEvent('download');
   await page.getByRole('button', { name: 'SVG 저장' }).click();
@@ -166,9 +166,8 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
           (t) => t.textContent,
         ),
         icon: node.querySelector('svg')?.getAttribute('class'),
-        arrow: Array.from(xml.querySelectorAll('path'))
-          .find((p) => p.getAttribute('d')?.endsWith(' Z'))
-          ?.getAttribute('d'),
+        arrow: xml.querySelector('.transfer-arrow')?.getAttribute('d'),
+        shaft: xml.querySelector('.transfer-shaft')?.getAttribute('d'),
       };
     },
     { svg, name },
@@ -180,8 +179,13 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   expect(result.totals).toEqual(['560만', '228~258만']);
   expect(result.icon).toBe(icon);
   const coords = (d: string) => d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
-  const expected = coords(liveArrow!);
-  coords(result.arrow!).forEach((n, i) =>
-    expect(Math.abs(n - expected[i])).toBeLessThan(1),
-  );
+  for (const [exported, live] of [
+    [result.arrow, liveArrow],
+    [result.shaft, liveShaft],
+  ]) {
+    const expected = coords(live!);
+    const actual = coords(exported!);
+    expect(actual).toHaveLength(expected.length);
+    actual.forEach((n, i) => expect(Math.abs(n - expected[i])).toBeLessThan(1));
+  }
 });

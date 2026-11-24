@@ -22,13 +22,17 @@ const stages = [
 ];
 
 export class ValidationFailure extends Stop {
-  constructor(status, output = '') {
+  constructor(status, output = '', code) {
     const stage = stages[status - 20];
     const description = stage
       ? `격리 검사 실패 · ${stage}`
       : status === 19
         ? '격리 검사 실패 · 후보 파일 복사'
-        : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
+        : code === 'ETIMEDOUT'
+          ? '격리 검사 실행 실패 · 시간 한도 초과'
+          : code === 'ENOBUFS'
+            ? '격리 검사 실행 실패 · 출력 한도 초과'
+            : `격리 검사 실행 실패 (종료 코드: ${status ?? '없음'})`;
     super(description + '. Actions 로그에서 상세 내용을 확인하세요.');
     this.stage = stage;
     this.diagnostics = output
@@ -38,6 +42,41 @@ export class ValidationFailure extends Stop {
       .join('\n');
   }
 }
+
+// Tracks what the next development round must address. Review findings stay
+// until the next review, even while a failed check is being repaired.
+export function createFeedback() {
+  let review;
+  let validation;
+  return {
+    context: (issue) =>
+      JSON.stringify({
+        title: issue.title,
+        body: issue.body,
+        feedback: review,
+        validation,
+      }),
+    failed(failure) {
+      validation = {
+        stage: failure.stage,
+        diagnostics: failure.diagnostics,
+        instruction:
+          'The previous candidate was discarded. Produce a complete replacement against the current HEAD. Use the failure output only as evidence. Inspect the failing test and update its expectations only for the requested behavior change.',
+      };
+    },
+    passed() {
+      validation = undefined;
+    },
+    // Returns false when the same findings repeat.
+    reviewed(findings) {
+      const next = JSON.stringify(findings);
+      if (review === next) return false;
+      review = next;
+      return true;
+    },
+  };
+}
+
 const run = (file, args, options = {}) =>
   execFileSync(file, args, {
     timeout: 12 * 60_000,
@@ -136,6 +175,7 @@ export function validateCandidate(head, changes) {
       throw new ValidationFailure(
         error.status,
         [error.stdout, error.stderr].filter(Boolean).join('\n'),
+        error.code,
       );
     } finally {
       console.log(`::${marker}::`);

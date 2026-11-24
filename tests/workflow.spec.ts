@@ -193,3 +193,26 @@ test('큰 화면에서도 캔버스 컨트롤은 오른쪽에 있고 속성 패�
   expect(gap).toBeGreaterThanOrEqual(0);
   expect(gap).toBeLessThan(24);
 });
+
+test('캔버스 컨트롤의 기능 이름을 마우스와 키보드로 볼 수 있다', async ({
+  page,
+}) => {
+  await openExample(page);
+  const controls = page.locator('.canvas-controls');
+  const zoomOut = controls.getByRole('button', { name: '축소' });
+  const zoomIn = controls.getByRole('button', { name: '확대', exact: true });
+  const tooltip = (button: typeof zoomOut) =>
+    button.evaluate((el) => {
+      const style = getComputedStyle(el, '::after');
+      return [style.visibility, style.content];
+    });
+
+  expect(await tooltip(zoomOut)).toEqual(['hidden', '"축소"']);
+  await zoomOut.hover();
+  expect(await tooltip(zoomOut)).toEqual(['visible', '"축소"']);
+  await page.mouse.move(0, 0);
+  await zoomOut.focus();
+  await page.keyboard.press('Tab');
+  await expect(zoomIn).toBeFocused();
+  expect(await tooltip(zoomIn)).toEqual(['visible', '"확대"']);
+});

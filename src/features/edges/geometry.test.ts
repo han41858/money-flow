@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { nodeHeight } from '../nodes/sizing';
-import { portFraction, transferGeometry } from './geometry';
+import { labelBlocker, portFraction, transferGeometry } from './geometry';
 import { edgeWidth } from './money';
 
 test('짧은 노드에 도착하는 굵은 화살촉은 서로 겹치지 않는다', () => {
@@ -52,4 +52,17 @@ test('500만 원 연결선은 화살촉 앞의 충분한 구간에서 가늘어�
   expect(tipX - joinX).toBeGreaterThan(width * 2);
   expect(Math.hypot(x1 - x0, y1 - y0)).toBeCloseTo(width);
   expect(tipBottom - tipTop).toBeLessThan(width);
+});
+
+test('건너뛰는 연결의 금액은 사이에 있는 카드를 피해 놓는다', () => {
+  const card = { x: 160, y: 0, width: 100, height: 40 };
+  const blocked = labelBlocker('500만', [card]);
+  const free = transferGeometry(0, 20, 420, 20, 8, 1);
+  expect(free.x).toBe(210);
+  expect(blocked(free.x, free.y)).toBe(true);
+  const moved = transferGeometry(0, 20, 420, 20, 8, 1, blocked);
+  expect(blocked(moved.x, moved.y)).toBe(false);
+  expect(moved.y).toBe(20);
+  expect(Math.abs(moved.x - 210)).toBeLessThan(100);
+  expect(moved.body).toBe(free.body);
 });

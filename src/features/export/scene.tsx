@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Diagram } from '../../types/diagram';
 import { buildGraph, type FlowNode, type FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth } from '../edges/money';
-import { transferGeometry } from '../edges/geometry';
+import { labelBlocker, transferGeometry } from '../edges/geometry';
 import type { NodeSizes, Group } from '../groups/geometry';
 import {
   cardLabel,
@@ -140,7 +140,8 @@ function edgeShape(
   bounds: Bounds,
   measure: MeasureText,
 ) {
-  const { edge, color, sourcePort, targetPort, targetPortCount } = flow.data!;
+  const { edge, color, sourcePort, targetPort, targetPortCount, obstacles } =
+    flow.data!;
   const from = anchor(
     nodes.get(flow.source)!,
     sourcePort,
@@ -157,6 +158,7 @@ function edgeShape(
     to.y,
     stroke,
     targetPortCount,
+    labelBlocker(amountLabel(edge.min, edge.max), obstacles),
   );
   bounds.path(body, stroke / 2);
   bounds.path(shaft, 0);

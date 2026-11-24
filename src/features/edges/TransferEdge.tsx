@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
 import { nodeHeight, portSize } from '../nodes/sizing';
-import { transferGeometry } from './geometry';
+import { labelBlocker, transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
-import { edgeWidth, exactAmount } from './money';
+import { amountLabel, edgeWidth, exactAmount } from './money';
 import { TransferAmount } from './TransferAmount';
 
 export const TransferEdge = memo(function TransferEdge({
@@ -23,6 +23,7 @@ export const TransferEdge = memo(function TransferEdge({
     coords.targetY + (data.targetPort - 0.5) * nodeHeight,
     stroke,
     data.targetPortCount,
+    labelBlocker(amountLabel(edge.min, edge.max), data.obstacles),
   );
   const title = exactAmount(edge);
   return (

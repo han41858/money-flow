@@ -558,26 +558,43 @@ test('좁은 화면에서 500만 원 연결 두 개를 정렬해도 금액과 �
   }
 });
 
-test('범위 금액이 있는 예시를 자동 정렬해도 금액이 카드와 겹치지 않는다', async ({
-  page,
-}) => {
-  await openExample(page);
-  const canvas = page.getByRole('main');
-  await canvas.getByRole('button', { name: '100% 배율로 설정' }).click();
-  await canvas.getByRole('button', { name: '자동 정렬' }).click();
-  const labels = canvas.locator('.edge-label');
-  await expect(labels).toHaveCount(example.edges.length);
-  const boxes = (items: Locator[]) =>
-    Promise.all(items.map(async (item) => (await item.boundingBox())!));
-  const cards = await boxes(
-    await canvas.locator('.react-flow__node-money').all(),
-  );
-  for (const label of await boxes(await labels.all()))
-    for (const card of cards)
-      expect(
-        label.x + label.width <= card.x ||
-          card.x + card.width <= label.x ||
-          label.y + label.height <= card.y ||
-          card.y + card.height <= label.y,
-      ).toBe(true);
-});
+for (const [title, diagram] of [
+  ['범위 금액이 있는 예시를', example],
+  [
+    '단계를 건너뛰는 연결을',
+    {
+      ...example,
+      groups: [],
+      nodes: example.nodes
+        .slice(0, 4)
+        .map((node) => ({ ...node, groupId: undefined })),
+      edges: [
+        ...example.edges.slice(0, 3),
+        { ...example.edges[0], id: 'skip', target: 'card' },
+      ],
+    },
+  ],
+] satisfies [string, typeof example][])
+  test(`${title} 자동 정렬해도 금액이 카드와 겹치지 않는다`, async ({
+    page,
+  }) => {
+    await openExample(page, diagram);
+    const canvas = page.getByRole('main');
+    await canvas.getByRole('button', { name: '100% 배율로 설정' }).click();
+    await canvas.getByRole('button', { name: '자동 정렬' }).click();
+    const labels = canvas.locator('.edge-label');
+    await expect(labels).toHaveCount(diagram.edges.length);
+    const boxes = (items: Locator[]) =>
+      Promise.all(items.map(async (item) => (await item.boundingBox())!));
+    const cards = await boxes(
+      await canvas.locator('.react-flow__node-money').all(),
+    );
+    for (const label of await boxes(await labels.all()))
+      for (const card of cards)
+        expect(
+          label.x + label.width <= card.x ||
+            card.x + card.width <= label.x ||
+            label.y + label.height <= card.y ||
+            card.y + card.height <= label.y,
+        ).toBe(true);
+  });

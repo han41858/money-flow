@@ -1,5 +1,7 @@
 import { getBezierPath, Position } from '@xyflow/react';
-import { nodeHeight } from '../nodes/sizing';
+import { estimatedTextWidth, nodeHeight } from '../nodes/sizing';
+
+const labelFontSize = 13;
 
 export function portFraction(index: number, count: number) {
   return (index + 0.5) / count;
@@ -65,28 +67,37 @@ function taper(path: string, width: number, end: number) {
   };
 }
 
-// Centers the label between the two cards. The arrow shortens the curve, so
-// its midpoint would push the label toward the source card.
-function labelPoint(
-  path: string,
-  sourceX: number,
-  targetX: number,
-  middle: Point,
-): Point {
+export type Box = { x: number; y: number; width: number; height: number };
+
+// Tells whether an amount label centered on a point would cover a card.
+export function labelBlocker(text: string, cards: Box[]) {
+  const halfWidth = (estimatedTextWidth(text, labelFontSize) + 12) / 2 + 2;
+  const halfHeight = 14;
+  return (x: number, y: number) =>
+    cards.some(
+      (card) =>
+        x + halfWidth > card.x &&
+        x - halfWidth < card.x + card.width &&
+        y + halfHeight > card.y &&
+        y - halfHeight < card.y + card.height,
+    );
+}
+
+// Returns the point of a forward curve at a horizontal position.
+function curvePoint(path: string, x: number): Point | undefined {
   const [x0, y0, x1, y1, x2, y2, x3, y3] = path
     .slice(1)
     .split(/[C, ]+/)
     .map(Number);
-  const x = (sourceX + targetX) / 2;
-  // Backward connections double back, so keep the midpoint of the curve.
-  if (x3 <= x0 || x1 > x2) return middle;
+  // Backward connections double back, so they have no single point per x.
+  if (x3 <= x0 || x1 > x2) return;
   if (x >= x3) return { x, y: y3 };
   const at = (a: number, b: number, c: number, d: number, t: number) =>
     (1 - t) ** 3 * a +
     3 * (1 - t) ** 2 * t * b +
     3 * (1 - t) * t ** 2 * c +
     t ** 3 * d;
-  let low = 0.5;
+  let low = 0;
   let high = 1;
   for (let step = 0; step < 16; step++) {
     const t = (low + high) / 2;
@@ -103,6 +114,7 @@ export function transferGeometry(
   targetY: number,
   width: number,
   targetPortCount: number,
+  blocked?: (x: number, y: number) => boolean,
 ) {
   const tip = targetX - 7;
   const pitch = nodeHeight / targetPortCount;
@@ -142,10 +154,28 @@ export function transferGeometry(
     ' ' +
     (targetY + half) +
     ' Z';
-  const label = labelPoint(path, sourceX, targetX, { x, y });
-  const labelNearArrow =
-    Math.abs(label.x - tip) < length + 28 &&
-    Math.abs(label.y - targetY) < half + 12;
-  if (labelNearArrow) label.y -= 22;
+  // The arrow shortens the curve, so its midpoint would push the label toward
+  // the source card. Center the label between the two cards instead, and lift
+  // it off the arrow when they would touch.
+  const place = (labelX: number): Point => {
+    const point = curvePoint(path, labelX) ?? { x, y };
+    const nearArrow =
+      Math.abs(point.x - tip) < length + 28 &&
+      Math.abs(point.y - targetY) < half + 12;
+    return nearArrow ? { x: point.x, y: point.y - 22 } : point;
+  };
+  const center = (sourceX + targetX) / 2;
+  let label = place(center);
+  // A connection that skips a column can pass a card. Slide the label along
+  // the curve to the nearest free spot.
+  if (blocked?.(label.x, label.y) && curvePoint(path, center))
+    for (let shift = 8; shift < (targetX - sourceX) / 2 - 8; shift += 8) {
+      const free = [center + shift, center - shift]
+        .map(place)
+        .find((point) => !blocked(point.x, point.y));
+      if (!free) continue;
+      label = free;
+      break;
+    }
   return { path, body, shaft, arrow, ...label };
 }

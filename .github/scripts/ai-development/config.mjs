@@ -18,3 +18,6 @@ export const agents = {
   codex: { name: 'Codex', email: 'noreply@openai.com' },
   claude: { name: 'Claude', email: 'noreply@anthropic.com' },
 };
+
+export const uiSpecUnreadMessage =
+  '관련 UI 테스트 본문을 확인하지 않아 개발 완료 또는 리뷰 승인을 기록할 수 없습니다.';

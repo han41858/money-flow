@@ -102,13 +102,13 @@ export function prepareValidation() {
       join(context, 'Dockerfile'),
       `FROM node:24-bookworm
 WORKDIR /app
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright CI=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright CI=true LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN npm install --global pnpm@11.25.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
 RUN chown -R node:node /app && chmod -R a+rX /opt/playwright
 USER node
-RUN test -w /app/node_modules
+RUN test -w /app/node_modules && test "$(locale charmap)" = UTF-8
 `,
     );
     run('docker', ['build', '--tag', image, context]);

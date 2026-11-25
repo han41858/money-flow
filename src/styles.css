@@ -1068,6 +1068,12 @@ h1 {
   background: color-mix(in srgb, var(--group-color) 12%, transparent);
   border-radius: 14px;
 }
+.react-flow__node-region.draggable .group-region {
+  cursor: grab;
+}
+.react-flow__node-region.draggable.dragging .group-region {
+  cursor: grabbing;
+}
 .group-region.active {
   border-style: solid;
   outline: 2px solid color-mix(in srgb, var(--group-color) 68%, #25304a);
@@ -1085,7 +1091,6 @@ h1 {
   color: #262d3c;
   border-radius: 6px;
   font-size: 13px;
-  cursor: grab;
 }
 .group-title strong,
 .group-name-trigger {
@@ -1099,7 +1104,7 @@ h1 {
   font-weight: 700;
 }
 .group-name-trigger {
-  cursor: text;
+  cursor: inherit;
 }
 .group-title:has(.group-name-input) {
   width: 100%;
@@ -1110,6 +1115,7 @@ h1 {
   background: white;
   padding-inline: 3px;
   cursor: text;
+  user-select: text;
 }
 @media (max-width: 720px) {
   .group-name-input {
@@ -1120,17 +1126,39 @@ h1 {
 .group-title svg {
   flex: none;
 }
-.group-region .group-size-handle {
-  transform: translateX(-18px);
-  width: 19px;
-  height: 19px;
-  display: grid;
-  place-items: center;
+.group-region .react-flow__resize-control.line.group-resize-edge {
+  z-index: 1;
+  border: 0;
+  touch-action: none;
+}
+.group-region .group-resize-edge.line:is(.left, .right) {
+  width: 10px;
+  cursor: ew-resize;
+}
+.group-region .group-resize-edge.line:is(.top, .bottom) {
+  height: 10px;
+  cursor: ns-resize;
+}
+.group-region .group-resize-corner {
+  z-index: 2;
+  width: 14px;
+  height: 14px;
   background: #fff;
-  color: #373f53;
   border: 1px solid #808796;
   border-radius: 4px;
+  touch-action: none;
+}
+.group-region
+  :is(.group-resize-corner.top.left, .group-resize-corner.bottom.right) {
   cursor: nwse-resize;
+}
+.group-region
+  :is(.group-resize-corner.top.right, .group-resize-corner.bottom.left) {
+  cursor: nesw-resize;
+}
+.react-flow__node-region.dragging
+  :is(.group-resize-edge, .group-resize-corner) {
+  pointer-events: none;
 }
 .group-dimensions {
   display: grid;

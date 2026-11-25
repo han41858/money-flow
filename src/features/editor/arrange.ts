@@ -80,6 +80,7 @@ function rankNodes(
 // remain independent so no node belongs to multiple branches.
 function buildBranches(
   ordered: MoneyNode[],
+  outgoing: Map<string, string[]>,
   soleParent: Map<string, string>,
   ranks: Map<string, number>,
   heightOf: (id: string) => number,
@@ -102,12 +103,20 @@ function buildBranches(
     (a, b) => ranks.get(a.id)! - ranks.get(b.id)!,
   );
   const roots = new Map<string, string>();
-  const splitRoots = new Set<string>();
+  const branchRoots = new Set<string>();
   for (const { id } of rankOrder) {
     const parent = parents.get(id);
     const root = parent ? roots.get(parent)! : id;
     roots.set(id, root);
-    if (children.get(id)!.length > 1) splitRoots.add(root);
+    const childCount = children.get(id)!.length;
+    // A one-to-one link also needs a shared branch center. Centering its
+    // columns independently would let an unrelated sibling shift one end.
+    if (
+      childCount > 1 ||
+      (childCount === 1 && outgoing.get(id)!.length === 1)
+    ) {
+      branchRoots.add(root);
+    }
   }
   const treeHeights = new Map<string, number>();
   const childrenHeights = new Map<string, number>();
@@ -125,7 +134,7 @@ function buildBranches(
     parents,
     children,
     roots,
-    splitRoots,
+    branchRoots,
     treeHeights,
     childrenHeights,
   };
@@ -337,7 +346,15 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       for (let next = columns.length; next <= rank; next++)
         columns[next] =
           columns[next - 1] + columnWidth + (gaps[next - 1] ?? columnGap);
-    return packDiagram(diagram, ordered, nodeSizes, ranks, soleParent, columns);
+    return packDiagram(
+      diagram,
+      ordered,
+      nodeSizes,
+      ranks,
+      outgoing,
+      soleParent,
+      columns,
+    );
   };
 
   let layout = pack();
@@ -374,6 +391,7 @@ function packDiagram(
   ordered: MoneyNode[],
   nodeSizes: NodeSizes,
   ranks: Map<string, number>,
+  outgoing: Map<string, string[]>,
   soleParent: Map<string, string>,
   columns: number[],
 ) {
@@ -388,12 +406,18 @@ function packDiagram(
     (group || ungrouped).push(node);
   }
 
-  const branches = buildBranches(ordered, soleParent, ranks, metrics.heightOf);
-  const { byId, roots, splitRoots } = branches;
+  const branches = buildBranches(
+    ordered,
+    outgoing,
+    soleParent,
+    ranks,
+    metrics.heightOf,
+  );
+  const { byId, roots, branchRoots } = branches;
   const looseRegions = new Map<string, MoneyNode[]>();
   for (const node of ungrouped) {
     const root = roots.get(node.id)!;
-    const id = splitRoots.has(root) ? root : node.id;
+    const id = branchRoots.has(root) ? root : node.id;
     const region = looseRegions.get(id) ?? [];
     region.push(node);
     looseRegions.set(id, region);
@@ -401,7 +425,7 @@ function packDiagram(
 
   function arrangeNodes(contents: MoneyNode[]) {
     const useBranches = contents.some(({ id }) =>
-      splitRoots.has(roots.get(id)!),
+      branchRoots.has(roots.get(id)!),
     );
     return useBranches
       ? arrangeBranches(contents, branches, metrics)

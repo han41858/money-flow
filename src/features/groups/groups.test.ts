@@ -68,12 +68,22 @@ it('부모·자식을 함께 이동해도 한 번만 이동하고 겹쳐진 외�
   expect(ed.current()).toEqual(d);
 });
 it('노드 드롭 및 크기 조절 종료에서만 소속을 갱신하며 저장 좌표를 보존한다', () => {
-  const ed = getEditor();
-  const g = ed.addGroup(box, sizes);
-  const newest = ed.addGroup(
-    { ...box, position: { x: -10, y: -10 }, width: 30, height: 40 },
-    sizes,
-  );
+  const g = first.id;
+  const newest = 'newest';
+  const ed = createEditor({
+    ...blankDiagram(),
+    nodes: [node],
+    groups: [
+      first,
+      {
+        ...first,
+        id: newest,
+        position: { x: -10, y: -10 },
+        width: 30,
+        height: 40,
+      },
+    ],
+  });
   ed.resizeGroup(newest, { width: 80, height: 100 }, sizes);
   expect(ed.current().nodes[0]).toEqual({ ...node, groupId: newest });
   ed.resizeGroup(newest, { width: 60, height: 100 }, sizes);

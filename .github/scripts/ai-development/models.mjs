@@ -33,7 +33,7 @@ export const developmentSchema = object({
 export const reviewSchema = object({
   status: {
     type: 'string',
-    enum: ['pass', 'changes_requested', 'needs_human'],
+    enum: ['pass', 'changes_requested', 'verification_needed', 'needs_human'],
   },
   summary: string,
   findings: {
@@ -494,7 +494,7 @@ export function createModels({
       const turnLimit =
         mode === 'review' ? (limits.reviewTurns ?? limits.turns) : limits.turns;
       const reviewFormat =
-        '한국어 요약은 400자 미만으로 작성하세요. 지적 사항은 최대 6개로 제한하고, 각 문자열은 250자 미만, 줄 번호는 양수로 작성하세요. pass에는 지적 사항이 없어야 하며 changes_requested에는 하나 이상 있어야 합니다. needs_human을 반환할 때는 작업을 막는 구체적인 사유를 밝히세요.';
+        '한국어 요약은 400자 미만으로 작성하세요. 지적 사항은 최대 6개로 제한하고, 각 문자열은 250자 미만, 줄 번호는 양수로 작성하세요. pass에는 지적 사항이 없어야 하며 changes_requested에는 근거가 있는 결함을 하나 이상 적으세요. verification_needed는 현재 증거로 확인할 수 없는 검사에 사용하고 요약에 필요한 검사, 재현 조건과 이유를 적으세요. needs_human은 제품 동작 등 사람의 판단이나 정보가 필요한 경우에 사용하고 요약에 결정할 질문이나 필요한 정보를 적으세요.';
       const developmentFormat = `비어 있지 않은 한국어 요약을 UTF-16 코드 단위 ${developmentSummaryLimit}개 이내로 작성하고, 편집을 최대 ${limits.edits}개 반환하세요. 각 편집에서 원문을 정확히 지정하세요. GitMoji 형식의 한 줄 한국어 제목을 쓰고, UTF-16 코드 단위 100개를 넘기지 마세요. 개발이 끝나지 않았으면 in_progress를 사용하세요. 부분 편집은 게시되지 않습니다. 중간 확인에는 읽기 도구를 사용하세요. 사용자의 판단이나 정보가 있어야 진행할 수 있을 때만 needs_human을 사용하세요. 전체 변경을 주어진 한도 안에 안전하게 담을 수 없으면 구체적인 사유를 밝히고 편집 없이 needs_human을 반환하세요.`;
       const taskInstructions =
         instructions +
@@ -849,7 +849,7 @@ export function createModels({
           if (
             mode === 'review' &&
             (result?.status === 'changes_requested' ||
-              result?.status === 'needs_human' ||
+              ['needs_human', 'verification_needed'].includes(result?.status) ||
               (Array.isArray(result?.findings) && result.findings.length))
           )
             reviewCanPass = false;

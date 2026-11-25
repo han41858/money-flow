@@ -15,6 +15,7 @@ import {
   browserTargetsArgs,
   isBrowserSpec,
   sameBrowserFailures,
+  targetResults,
 } from './reproduction.mjs';
 
 const image = 'money-flow-ai-validation';
@@ -26,6 +27,35 @@ const stages = [
   'build',
   'test:e2e',
 ];
+
+export function reviewValidation(head, runUrl, browser, reproduced, changed) {
+  const files = new Set([...changed, ...reproduced.map(({ file }) => file)]);
+  const results = targetResults(browser, reproduced);
+  const related = browser.filter((test) => files.has(test.file));
+  return {
+    head,
+    runUrl,
+    isolatedChecksPassed: stages,
+    chromium: {
+      reported: browser.length,
+      passed: browser.filter(
+        ({ status, outcome, expected }) =>
+          status === 'expected' &&
+          outcome === 'passed' &&
+          expected === 'passed',
+      ).length,
+      tests: [...new Set([...results, ...related])]
+        .slice(0, 30)
+        .map(({ file, title, status, outcome, expected }) => ({
+          file: file.slice(0, 240),
+          title: title.slice(0, 240),
+          status,
+          outcome,
+          expected,
+        })),
+    },
+  };
+}
 
 export class ValidationFailure extends Stop {
   constructor(status, output = '', code, browser = []) {

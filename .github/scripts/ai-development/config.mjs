@@ -21,3 +21,9 @@ export const agents = {
 
 export const uiSpecUnreadMessage =
   '관련 UI 테스트 본문을 확인하지 않아 개발 완료 또는 리뷰 승인을 기록할 수 없습니다.';
+export class ClaudeThinkingRejection extends Error {
+  constructor(message) {
+    super(message);
+    this.diagnostic = message;
+  }
+}

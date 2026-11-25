@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { Check, X, Share2 } from 'lucide-react';
+import { Check, Copy, Share2, X } from 'lucide-react';
 import { snapshot, exportFile } from '../diagrams/library';
 import { measuredSizes } from '../groups/geometry';
 import { exportImage } from '../export/image';
@@ -12,7 +12,7 @@ export function ShareDialog({ close }: { close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [diagram] = useState(snapshot);
   const [link, setLink] = useState('');
-  const [message, setMessage] = useState('');
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const { getInternalNode } = useReactFlow();
@@ -21,7 +21,7 @@ export function ShareDialog({ close }: { close: () => void }) {
 
   async function run(action: () => Promise<void>) {
     setError('');
-    setMessage('');
+    setCopied(false);
     setBusy(true);
     try {
       await action();
@@ -82,12 +82,14 @@ export function ShareDialog({ close }: { close: () => void }) {
               onClick={() =>
                 void run(async () => {
                   await navigator.clipboard.writeText(link);
-                  setMessage('링크를 복사했습니다.');
+                  setCopied(true);
                 })
               }
             >
-              {message === '링크를 복사했습니다.' && (
-                <Check size={16} aria-hidden="true" />
+              {copied ? (
+                <Check aria-hidden="true" />
+              ) : (
+                <Copy aria-hidden="true" />
               )}
               링크 복사
             </button>
@@ -130,7 +132,9 @@ export function ShareDialog({ close }: { close: () => void }) {
         </div>
       </section>
       {error && <p role="alert">{error}</p>}
-      <p role="status">{message}</p>
+      <div className="share-copy-status" role="status">
+        {copied ? '링크를 복사했습니다.' : ''}
+      </div>
     </dialog>
   );
 }

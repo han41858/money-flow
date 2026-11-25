@@ -44,8 +44,8 @@ export function Topbar({
         </button>
         <button
           className="fresh share-trigger"
-          aria-label="공유 및 내보내기"
-          title="공유 및 내보내기"
+          aria-label="공유"
+          title="공유"
           onClick={() => setShareOpen(true)}
         >
           <Share2 size={15} />

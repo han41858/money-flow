@@ -125,7 +125,9 @@ test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 �
   await rename(page, '11월 계획');
   let d = await library(page);
   const download = page.waitForEvent('download');
-  await d.getByRole('button', { name: 'JSON 내보내기' }).click();
+  await d
+    .getByRole('button', { name: 'JSON 파일 다운로드', exact: true })
+    .click();
   const file = await download;
   expect(file.suggestedFilename()).toBe('11월 계획.json');
   const json = JSON.parse(await readFile((await file.path())!, 'utf8'));
@@ -149,7 +151,9 @@ test('목록에서 열기·복제·삭제하고 JSON을 독립된 흐름으로 �
   await expect(page.getByRole('main', { name: '가져온 계획' })).toBeVisible();
   d = await library(page);
   const exported = page.waitForEvent('download');
-  await d.getByRole('button', { name: 'JSON 내보내기' }).click();
+  await d
+    .getByRole('button', { name: 'JSON 파일 다운로드', exact: true })
+    .click();
   const copy = JSON.parse(
     await readFile((await (await exported).path())!, 'utf8'),
   );
@@ -259,7 +263,7 @@ test('삭제한 흐름을 다른 탭이 덮어쓰지 않고 새 흐름으로 보
   await saved(other);
   const copy = await library(other);
   const pending = other.waitForEvent('download');
-  await copy.getByRole('button', { name: 'JSON 내보내기' }).click();
+  await copy.getByRole('button', { name: 'JSON 파일 다운로드' }).click();
   const exported = JSON.parse(
     await readFile((await (await pending).path())!, 'utf8'),
   );

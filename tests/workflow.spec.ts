@@ -81,7 +81,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
   ).toContainText('공동 자금');
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   await page.getByRole('button', { name: '공유 링크 만들기' }).click();
   const url = await page.getByLabel('읽기 전용 주소').inputValue();
   const shared = await context.newPage();
@@ -184,7 +184,7 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
 
-  const share = page.getByRole('button', { name: '공유 및 내보내기' });
+  const share = page.getByRole('button', { name: '공유', exact: true });
   const sharePoint = await point(share);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await trigger.click();

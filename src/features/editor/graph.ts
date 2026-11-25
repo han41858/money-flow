@@ -54,7 +54,7 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
         data: { group },
         ariaLabel: group.name,
         connectable: false,
-        dragHandle: '.group-title',
+        dragHandle: '.group-region',
         zIndex: -1,
       };
     },

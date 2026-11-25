@@ -7,11 +7,28 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number) {
   const b = (await handle.boundingBox())!;
   const x = b.x + b.width / 2;
   const y = b.y + b.height / 2;
+  await dragFrom(page, { x, y }, dx, dy);
+}
+
+async function dragFrom(
+  page: Page,
+  { x, y }: { x: number; y: number },
+  dx: number,
+  dy: number,
+) {
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + dx, y + dy, { steps: 14 });
   await page.mouse.up();
 }
+
+function cursorAt(page: Page, at: { x: number; y: number }) {
+  return page.evaluate(({ x, y }) => {
+    const target = document.elementFromPoint(x, y);
+    return target ? getComputedStyle(target).cursor : null;
+  }, at);
+}
+
 test('그룹 편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 연결을 유지한다', async ({
   page,
 }) => {
@@ -44,6 +61,22 @@ test('그룹 편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 �
     '새 그룹',
   );
   await name.fill('취소할 이름');
+  await expect(name).toHaveCSS('cursor', 'text');
+  const input = (await name.boundingBox())!;
+  const titleBeforeSelection = (await title.boundingBox())!;
+  await dragFrom(
+    page,
+    { x: input.x + 4, y: input.y + input.height / 2 },
+    36,
+    0,
+  );
+  expect(
+    await name.evaluate(
+      (element: HTMLInputElement) =>
+        element.selectionStart !== element.selectionEnd,
+    ),
+  ).toBe(true);
+  expect((await title.boundingBox())!.x).toBeCloseTo(titleBeforeSelection.x, 0);
   await name.press('Escape');
   await expect(
     title.getByRole('button', { name: '새 그룹 이름 수정' }),
@@ -69,7 +102,12 @@ test('그룹 편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 �
   expect((await income.boundingBox())!.x - before.x).toBeCloseTo(dx, 0);
   await expect(path).not.toHaveAttribute('d', oldPath!);
   const width = await page.getByLabel('너비 (px)').inputValue();
-  await drag(page, region.locator('.group-size-handle'), 35, 22);
+  await drag(
+    page,
+    region.locator('.react-flow__resize-control.handle.bottom.right'),
+    35,
+    22,
+  );
   await expect(page.getByLabel('너비 (px)')).not.toHaveValue(width);
   await page.getByRole('button', { name: '실행 취소' }).click();
   await expect(page.getByLabel('너비 (px)')).toHaveValue(width);
@@ -97,6 +135,181 @@ test('그룹 편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 �
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
   ).toBeVisible();
+});
+
+async function openGestureExample(page: Page) {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const [income, , account] = example.nodes;
+  await openExample(page, {
+    ...example,
+    groups: [
+      {
+        ...example.groups[0],
+        id: 'gesture-root',
+        parentId: undefined,
+        name: '이동 및 크기 조절',
+        position: { x: 100, y: 120 },
+        width: 480,
+        height: 350,
+      },
+      {
+        ...example.groups[0],
+        id: 'gesture-child',
+        parentId: 'gesture-root',
+        name: '하위 그룹',
+        position: { x: 385, y: 325 },
+        width: 150,
+        height: 110,
+      },
+    ],
+    nodes: [
+      { ...income, groupId: 'gesture-root', position: { x: 145, y: 190 } },
+      { ...account, groupId: undefined, position: { x: 675, y: 190 } },
+    ],
+    edges: [example.edges[0]],
+  });
+  const root = page.locator('[data-id="group:gesture-root"]');
+  await expect(root.locator('.group-title')).toBeVisible();
+  return {
+    root,
+    child: page.locator('[data-id="group:gesture-child"]'),
+    node: page.locator(`.react-flow__node[data-id="${income.id}"]`),
+  };
+}
+
+test('그룹 내부 빈 곳과 제목에서 이동하고 내부 요소의 조작은 유지한다', async ({
+  page,
+}) => {
+  const { root, child, node } = await openGestureExample(page);
+  const before = (await root.boundingBox())!;
+  const nodeBefore = (await node.boundingBox())!;
+  const empty = {
+    x: before.x + before.width / 4,
+    y: before.y + before.height * 0.8,
+  };
+  await page.mouse.move(empty.x, empty.y);
+  expect.soft(await cursorAt(page, empty)).toBe('grab');
+  await page.mouse.down();
+  const moved = { x: empty.x + 32, y: empty.y + 24 };
+  await page.mouse.move(moved.x, moved.y, { steps: 12 });
+  expect.soft(await cursorAt(page, moved)).toBe('grabbing');
+  await page.mouse.up();
+  expect((await root.boundingBox())!.x - before.x).toBeGreaterThan(25);
+  expect((await node.boundingBox())!.x - nodeBefore.x).toBeGreaterThan(25);
+  expect(await cursorAt(page, moved)).toBe('grab');
+
+  const title = root.getByRole('button', {
+    name: '이동 및 크기 조절 이름 수정',
+  });
+  await expect(title).toHaveCSS('cursor', 'grab');
+  const beforeTitle = (await root.boundingBox())!;
+  await drag(page, title, 30, 15);
+  expect((await root.boundingBox())!.x - beforeTitle.x).toBeGreaterThan(25);
+  await expect(root.getByRole('textbox')).toHaveCount(0);
+
+  await selectNode(node);
+  await expect(node).toHaveClass(/selected/);
+  const beforeChild = (await root.boundingBox())!;
+  const childBox = (await child.boundingBox())!;
+  await dragFrom(
+    page,
+    {
+      x: childBox.x + childBox.width / 2,
+      y: childBox.y + childBox.height * 0.7,
+    },
+    22,
+    0,
+  );
+  expect((await child.boundingBox())!.x - childBox.x).toBeGreaterThan(15);
+  expect((await root.boundingBox())!.x).toBeCloseTo(beforeChild.x, 0);
+
+  const edgePoint = await page
+    .locator('.react-flow__edge-path')
+    .evaluate((path: SVGPathElement) => {
+      const local = path.getPointAtLength(path.getTotalLength() * 0.35);
+      const client = local.matrixTransform(path.getScreenCTM()!);
+      return { x: client.x, y: client.y };
+    });
+  expect(edgePoint.x).toBeGreaterThan(beforeChild.x);
+  expect(edgePoint.x).toBeLessThan(beforeChild.x + beforeChild.width);
+  expect(edgePoint.y).toBeGreaterThan(beforeChild.y);
+  expect(edgePoint.y).toBeLessThan(beforeChild.y + beforeChild.height);
+  expect(await cursorAt(page, edgePoint)).not.toBe('grab');
+  await page.mouse.click(edgePoint.x, edgePoint.y);
+  await expect(
+    page.getByRole('heading', { name: '연결선 상세' }),
+  ).toBeVisible();
+
+  const beforePan = (await root.boundingBox())!;
+  const outside = { x: beforePan.x + beforePan.width / 2, y: beforePan.y - 26 };
+  await dragFrom(page, outside, 28, 0);
+  expect((await root.boundingBox())!.x - beforePan.x).toBeGreaterThan(20);
+});
+
+test('선택한 그룹의 모서리와 변에서 커서 및 크기 조절 방향을 구분한다', async ({
+  page,
+}) => {
+  const { root, child, node } = await openGestureExample(page);
+  await root.locator('.group-title svg').click();
+  await expect(root).toHaveClass(/selected/);
+  const childBefore = (await child.boundingBox())!;
+  const nodeBefore = (await node.boundingBox())!;
+  const offset = (axis: number, length: number) => {
+    if (axis < 0) return 2;
+    if (axis > 0) return length - 2;
+    return length / 2;
+  };
+
+  const directions = [
+    [0, -1, 'ns-resize'],
+    [1, 0, 'ew-resize'],
+    [0, 1, 'ns-resize'],
+    [-1, 0, 'ew-resize'],
+    [1, -1, 'nesw-resize'],
+    [-1, 1, 'nesw-resize'],
+    [1, 1, 'nwse-resize'],
+    [-1, -1, 'nwse-resize'],
+  ] as const;
+  for (const [horizontal, vertical, cursor] of directions) {
+    const before = (await root.boundingBox())!;
+    const start = {
+      x: before.x + offset(horizontal, before.width),
+      y: before.y + offset(vertical, before.height),
+    };
+    const dx = horizontal === 0 ? 16 : 22;
+    const dy = vertical === 0 ? 16 : 20;
+    const direction = `(${horizontal}, ${vertical})`;
+    await page.mouse.move(start.x, start.y);
+    expect.soft(await cursorAt(page, start), direction).toBe(cursor);
+    await dragFrom(page, start, dx, dy);
+    const after = (await root.boundingBox())!;
+    const expected = {
+      x: before.x + (horizontal === -1 ? dx : 0),
+      y: before.y + (vertical === -1 ? dy : 0),
+      width: before.width + horizontal * dx,
+      height: before.height + vertical * dy,
+    };
+    for (const key of ['x', 'y', 'width', 'height'] as const) {
+      expect
+        .soft(Math.abs(after[key] - expected[key]), `${direction} ${key}`)
+        .toBeLessThan(2);
+    }
+  }
+  for (const [item, before] of [
+    [child, childBefore],
+    [node, nodeBefore],
+  ] as const) {
+    const after = (await item.boundingBox())!;
+    expect(Math.abs(after.x - before.x)).toBeLessThan(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+  }
+  const resized = (await root.boundingBox())!;
+  await page.getByRole('button', { name: '실행 취소' }).click();
+  const undone = (await root.boundingBox())!;
+  expect(Math.abs(undone.x - (resized.x - 22))).toBeLessThan(2);
+  expect(Math.abs(undone.y - (resized.y - 20))).toBeLessThan(2);
+  expect(Math.abs(undone.width - (resized.width + 22))).toBeLessThan(2);
+  expect(Math.abs(undone.height - (resized.height + 20))).toBeLessThan(2);
 });
 
 test('기존 노드를 선택해도 새 그룹은 빈 공간에 생기고 노드 소속은 유지된다', async ({

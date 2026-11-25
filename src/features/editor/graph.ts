@@ -7,6 +7,7 @@ import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
 import { relativeTo } from '../groups/geometry';
+import { groupsInLayerOrder } from '../groups/hierarchy';
 import type { RegionNode } from '../groups/GroupRegion';
 export type FlowNode = Node<
   {
@@ -37,18 +38,27 @@ export type FlowEdge = Edge<
 export function buildGraph(diagram: Diagram, measure?: MeasureText) {
   let prefix = 'group:';
   while (diagram.nodes.some((n) => n.id.startsWith(prefix))) prefix += ':';
-  const groupNodes: RegionNode[] = diagram.groups.map((group) => ({
-    id: prefix + group.id,
-    type: 'region',
-    position: group.position,
-    width: group.width,
-    height: group.height,
-    data: { group },
-    ariaLabel: group.name,
-    connectable: false,
-    dragHandle: '.group-title',
-    zIndex: -1,
-  }));
+  const groups = new Map(diagram.groups.map((group) => [group.id, group]));
+  const groupNodes: RegionNode[] = groupsInLayerOrder(diagram.groups).map(
+    (group) => {
+      const parent = group.parentId ? groups.get(group.parentId) : undefined;
+      return {
+        id: prefix + group.id,
+        type: 'region',
+        position: parent
+          ? relativeTo(group.position, parent.position)
+          : group.position,
+        parentId: parent ? prefix + parent.id : undefined,
+        width: group.width,
+        height: group.height,
+        data: { group },
+        ariaLabel: group.name,
+        connectable: false,
+        dragHandle: '.group-title',
+        zIndex: -1,
+      };
+    },
+  );
   const byGroupId = new Map(groupNodes.map((n) => [n.data.group.id, n]));
   const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
 
@@ -95,7 +105,7 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
       id: node.id,
       type: 'money',
       position: parent
-        ? relativeTo(node.position, parent.position)
+        ? relativeTo(node.position, parent.data.group.position)
         : node.position,
       parentId: parent?.id,
       ariaLabel: node.name,

@@ -209,7 +209,9 @@ export function renderSvg(
   const graph = buildGraph(diagram, measure);
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   const bounds = new Bounds();
-  const groups = diagram.groups.map((g) => groupShape(g, bounds, measure));
+  const groups = graph.groupNodes.map(({ data }) =>
+    groupShape(data.group, bounds, measure),
+  );
   const edges = graph.edges.map((e) =>
     edgeShape(e, nodes, sizes, bounds, measure),
   );

@@ -1,6 +1,7 @@
 import { chooseSavedFlow, openExample } from './exampleFixture';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
+import { example } from '../src/app/example';
 
 async function share(page: Page) {
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
@@ -188,4 +189,52 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
     expect(actual).toHaveLength(expected.length);
     actual.forEach((n, i) => expect(Math.abs(n - expected[i])).toBeLessThan(1));
   }
+});
+
+test('중첩 그룹을 공유 화면과 SVG에 부모부터 렌더링한다', async ({
+  page,
+}, info) => {
+  const [parent] = example.groups;
+  await openExample(page, {
+    ...example,
+    groups: [
+      {
+        ...parent,
+        id: 'salary-group',
+        parentId: parent.id,
+        name: '급여 하위 그룹',
+        position: { x: -10, y: 38 },
+        width: 150,
+        height: 90,
+      },
+      ...example.groups,
+    ],
+    nodes: example.nodes.map((node) =>
+      node.id === 'income-a' ? { ...node, groupId: 'salary-group' } : node,
+    ),
+  });
+  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'SVG 저장' }).click();
+  const svgPath = info.outputPath('nested.svg');
+  await (await download).saveAs(svgPath);
+  const svg = await readFile(svgPath, 'utf8');
+  expect(svg).toContain('급여 하위 그룹');
+  expect(svg.indexOf('개인 A')).toBeLessThan(svg.indexOf('급여 하위 그룹'));
+  await page.keyboard.press('Escape');
+
+  const url = await share(page);
+  await page.goto(url);
+  const groups = page.locator('.react-flow__node-region');
+  await expect(groups).toHaveCount(4);
+  const names = await groups.allTextContents();
+  expect(names.indexOf('개인 A')).toBeLessThan(names.indexOf('급여 하위 그룹'));
+  const parentGroup = groups.filter({ hasText: '개인 A' });
+  const childGroup = groups.filter({ hasText: '급여 하위 그룹' });
+  await expect(parentGroup).toBeVisible();
+  await expect(childGroup).toBeVisible();
+  const outer = (await parentGroup.boundingBox())!;
+  const inner = (await childGroup.boundingBox())!;
+  expect(inner.x).toBeGreaterThan(outer.x);
+  expect(inner.x + inner.width).toBeLessThan(outer.x + outer.width);
 });

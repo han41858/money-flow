@@ -1,10 +1,15 @@
 import { expect, it } from 'vitest';
 import { createEditor } from '../editor/store';
-import { blankDiagram } from '../../lib/storage/format';
+import {
+  blankDiagram,
+  parseFile,
+  serializeDiagram,
+} from '../../lib/storage/format';
 import { buildGraph } from '../editor/graph';
 import {
   absoluteFrom,
   assignGroup,
+  assignParent,
   newGroupBounds,
   relativeTo,
   type Group,
@@ -99,4 +104,145 @@ it('기존 파일에서 그룹과 금융 노드의 ID가 겹쳐도 부모와 자
   expect(graph.nodes[0].position).toEqual(
     relativeTo(node.position, first.position),
   );
+});
+
+it('가장 안쪽 그룹에 소속되며 새 그룹의 부분 겹침과 순환 부모를 제외한다', () => {
+  const root = {
+    ...first,
+    id: 'root',
+    position: { x: 0, y: 0 },
+    width: 360,
+    height: 300,
+  };
+  const child = {
+    ...first,
+    id: 'child',
+    parentId: root.id,
+    width: 220,
+    height: 175,
+  };
+  const leaf = { ...first, id: 'leaf', parentId: child.id };
+  const groups = [leaf, child, root];
+  expect(assignGroup(node, groups, sizes).groupId).toBe(leaf.id);
+  const candidate = {
+    ...leaf,
+    id: 'candidate',
+    parentId: undefined,
+    position: { x: 65, y: 78 },
+    width: 65,
+    height: 55,
+  };
+  expect(assignParent(candidate, groups).parentId).toBe(leaf.id);
+  expect(
+    assignParent({ ...candidate, position: { x: 350, y: 78 } }, groups)
+      .parentId,
+  ).toBeUndefined();
+  expect(
+    assignParent({ ...root, ...candidate, id: root.id }, groups).parentId,
+  ).toBeUndefined();
+
+  const diagram = {
+    ...blankDiagram(),
+    nodes: [{ ...node, groupId: leaf.id }],
+    groups,
+  };
+  const restored = parseFile(serializeDiagram(diagram));
+  expect(restored).toEqual(diagram);
+  const graph = buildGraph(restored);
+  expect(graph.groupNodes.map((group) => [group.id, group.parentId])).toEqual([
+    ['group:root', undefined],
+    ['group:child', 'group:root'],
+    ['group:leaf', 'group:child'],
+  ]);
+  expect(graph.nodes[0].position).toEqual(
+    relativeTo(node.position, leaf.position),
+  );
+  for (const parentId of [root.id, leaf.id, 'missing']) {
+    const invalid = {
+      ...diagram,
+      groups: [leaf, child, { ...root, parentId }],
+    };
+    expect(() => parseFile(JSON.stringify(invalid))).toThrow(/형식/);
+  }
+});
+
+it('상위 그룹 이동과 중간·최상위 그룹 삭제를 위치와 연결을 보존하며 실행 취소한다', () => {
+  const root = {
+    ...first,
+    id: 'root',
+    position: { x: 0, y: 0 },
+    width: 360,
+    height: 300,
+  };
+  const child = {
+    ...first,
+    id: 'child',
+    parentId: root.id,
+    width: 220,
+    height: 175,
+  };
+  const leaf = { ...first, id: 'leaf', parentId: child.id };
+  const source: MoneyNode = {
+    ...node,
+    id: 'income',
+    type: 'income',
+    groupId: child.id,
+  };
+  const edge = {
+    id: 'edge',
+    source: source.id,
+    target: node.id,
+    min: 1,
+    max: 2,
+  };
+  const initial = {
+    ...blankDiagram(),
+    groups: [leaf, child, root],
+    nodes: [{ ...node, groupId: leaf.id }, source],
+    edges: [edge],
+  };
+  const ed = createEditor(initial);
+  const delta = { x: 90, y: 60 };
+  ed.move(
+    new Map([[node.id, { x: 999, y: 999 }]]),
+    new Map([
+      [root.id, delta],
+      [leaf.id, delta],
+    ]),
+  );
+  const moved = ed.current();
+  for (const [index, group] of moved.groups.entries())
+    expect(group).toEqual({
+      ...initial.groups[index],
+      position: absoluteFrom(initial.groups[index].position, delta),
+    });
+  for (const [index, n] of moved.nodes.entries())
+    expect(n).toEqual({
+      ...initial.nodes[index],
+      position: absoluteFrom(initial.nodes[index].position, delta),
+    });
+  ed.remove({ groups: [child.id], nodes: [], edges: [] });
+  expect(ed.current().groups[0]).toEqual({
+    ...moved.groups[0],
+    parentId: root.id,
+  });
+  expect(ed.current().nodes[1]).toEqual({
+    ...moved.nodes[1],
+    groupId: root.id,
+  });
+  expect(ed.current().edges).toEqual([edge]);
+  ed.remove({ groups: [root.id], nodes: [], edges: [] });
+  expect(ed.current().groups[0]).toEqual({
+    ...moved.groups[0],
+    parentId: undefined,
+  });
+  expect(ed.current().nodes[1]).toEqual({
+    ...moved.nodes[1],
+    groupId: undefined,
+  });
+  ed.history.getState().undo();
+  ed.history.getState().undo();
+  expect(ed.current()).toEqual(moved);
+  ed.history.getState().redo();
+  expect(ed.current().groups).toHaveLength(2);
 });

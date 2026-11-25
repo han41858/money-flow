@@ -158,8 +158,22 @@ export function createEditor(initial: Diagram) {
     apply(operations.editGroup(current(), id, patch));
   }
 
-  function resizeGroup(id: string, size: Size, sizes: NodeSizes) {
-    apply(operations.resizeGroup(current(), id, size, sizes));
+  function resizeGroup(
+    id: string,
+    size: Size,
+    sizes: NodeSizes,
+    position?: { x: number; y: number },
+  ) {
+    const diagram = current();
+    const positioned = position
+      ? {
+          ...diagram,
+          groups: diagram.groups.map((group) =>
+            group.id === id ? { ...group, position } : group,
+          ),
+        }
+      : diagram;
+    apply(operations.resizeGroup(positioned, id, size, sizes));
   }
 
   function move(

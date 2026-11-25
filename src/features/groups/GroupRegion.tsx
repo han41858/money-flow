@@ -1,5 +1,5 @@
-import { NodeResizeControl, type Node, type NodeProps } from '@xyflow/react';
-import { Frame, Scaling } from 'lucide-react';
+import { NodeResizer, type Node, type NodeProps } from '@xyflow/react';
+import { Frame } from 'lucide-react';
 import { useRef, useState, type CSSProperties } from 'react';
 import { onEditKey } from '../../lib/editing';
 import { editor } from '../editor/store';
@@ -64,15 +64,12 @@ export function GroupRegion({ data, selected }: NodeProps<RegionNode>) {
         )}
       </div>
       {selected && !data.readOnly && (
-        <NodeResizeControl
-          position="bottom-right"
-          className="group-size-handle"
+        <NodeResizer
+          lineClassName="group-resize-edge nopan"
+          handleClassName="group-resize-corner nopan"
           minWidth={minGroupSize.width}
           minHeight={minGroupSize.height}
-          aria-label="그룹 크기 조절"
-        >
-          <Scaling size={15} aria-hidden="true" />
-        </NodeResizeControl>
+        />
       )}
     </div>
   );

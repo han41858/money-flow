@@ -1,5 +1,16 @@
 import { BaselineFailure, ValidationFailure } from './validation.mjs';
 import { ClaudeThinkingRejection } from './config.mjs';
+import {
+  cleanupBranch,
+  deleteBranchAtHead,
+  isTrackedDevMerge,
+  mergedIntoDev,
+} from './completion.mjs';
+import {
+  canResumeDependency,
+  dispatchReadyDependencies,
+  pendingDependencies,
+} from './dependencies.mjs';
 import { uiReproductionTargets } from './reproduction.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -24,7 +35,12 @@ import {
 const env = process.env;
 const mode = process.argv[2];
 const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
-const issueNumber = Number(event.issue?.number ?? event.inputs?.issue);
+const pullIssue = /^ai\/issue-([1-9]\d*)$/.exec(
+  event.pull_request?.head.ref ?? '',
+)?.[1];
+const issueNumber = Number(
+  event.issue?.number ?? event.inputs?.issue ?? pullIssue,
+);
 const gh = createGitHub({
   token: env.GH_TOKEN,
   publishToken: env.AI_AUTOMATION_TOKEN,
@@ -37,6 +53,7 @@ const maxReviews = 3;
 const sha = /^[a-f0-9]{40}$/;
 let state;
 let reviewResumeStarted = false;
+let dependencyStarted = false;
 
 class ReviewStop extends Stop {
   constructor(review, reviewUrl, runUrl) {
@@ -135,15 +152,25 @@ function fetchCommit(head) {
 }
 
 async function develop() {
+  const dependencyResume =
+    env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
+    event.inputs?.phase === 'dependency';
   if (
-    env.GITHUB_EVENT_NAME !== 'issues' ||
-    event.action !== 'labeled' ||
-    event.label?.name !== approvalLabel
+    !dependencyResume &&
+    (env.GITHUB_EVENT_NAME !== 'issues' ||
+      event.action !== 'labeled' ||
+      event.label?.name !== approvalLabel)
   )
     throw new Stop('ai:develop가 붙은 이슈 이벤트가 필요합니다.');
   const approval = await gh.approval(issueNumber);
   const restarting = state && canRestartUnpublished(state, event, approval);
-  if (state && !restarting) {
+  const reapprovedDependency =
+    state?.status === 'waiting_dependency' &&
+    !state.pr &&
+    !state.published &&
+    approval?.event === 'labeled' &&
+    approval.id !== state.approval;
+  if (state && !restarting && !dependencyResume && !reapprovedDependency) {
     console.log(
       `이슈 #${issueNumber}의 작업 기록이 있어 중복 실행을 건너뜁니다. 현재 상태: ${safeText(state.status)}. 이슈의 마지막 AI 개발 기록을 확인하세요.`,
     );
@@ -154,11 +181,15 @@ async function develop() {
   if (!env.AI_AUTOMATION_TOKEN)
     throw new Stop('ai-development 환경에 AI_AUTOMATION_TOKEN을 등록하세요.');
   const issue = await gh.repo(issuePath);
-  if (!authorized(issue) || fingerprint(issue) !== fingerprint(event.issue))
+  if (dependencyResume && !canResumeDependency(state, issue, approval)) return;
+  if (
+    !authorized(issue) ||
+    (!dependencyResume && fingerprint(issue) !== fingerprint(event.issue))
+  )
     throw new Stop('이슈 또는 승인 라벨이 바뀌었습니다.');
   if (
     approval?.event !== 'labeled' ||
-    approval.actor?.login !== event.sender.login
+    (!dependencyResume && approval.actor?.login !== event.sender.login)
   )
     throw new Stop('실행 이벤트와 현재 ai:develop 승인자가 일치하지 않습니다.');
   const base = await gh.ref(baseBranch);
@@ -167,6 +198,29 @@ async function develop() {
   const branch = `ai/issue-${issueNumber}`;
   if (await gh.ref(branch))
     throw new Stop('기존 작업 브랜치가 있어 자동으로 덮어쓸 수 없습니다.');
+  if (dependencyResume) await gh.assertMaintainer(approval.actor.login);
+  const pending = await pendingDependencies(gh, issue);
+  if (pending.length) {
+    if (dependencyResume) return;
+    state = {
+      version: 1,
+      issue: issueNumber,
+      issueHash: fingerprint(issue),
+      approval: approval.id,
+      run: Number(env.GITHUB_RUN_ID),
+      base,
+      branch,
+      head: base,
+      attempts: 0,
+    };
+    await gh.record(
+      state,
+      'waiting_dependency',
+      `선행 이슈 ${pending.map((number) => `#${number}`).join(', ')}의 dev 병합을 기다립니다.`,
+    );
+    return;
+  }
+  dependencyStarted = true;
   const { createModels } = await import('./models.mjs');
   const { checkpoint, formatChanges, resolveEdits, snapshot } =
     await import('./workspace.mjs');
@@ -477,14 +531,13 @@ ${rules}`;
 }
 
 async function resumeReview() {
+  const expectedHead = event.inputs?.expected_head?.trim();
   if (
     env.GITHUB_EVENT_NAME !== 'workflow_dispatch' ||
     event.inputs?.phase !== 'review' ||
-    !canResumeReview(state, issueNumber)
+    !canResumeReview(state, issueNumber, expectedHead)
   )
-    throw new Stop(
-      'Claude 추론 응답 오류로 중단된 기존 PR만 리뷰를 재개할 수 있습니다.',
-    );
+    throw new Stop('리뷰 재개 조건이나 지정한 PR 커밋을 확인할 수 없습니다.');
   await gh.assertEnvironment();
   await gh.assertProtection();
   const issue = await gh.repo(issuePath);
@@ -507,7 +560,23 @@ async function resumeReview() {
       throw new Stop('이슈의 기존 PR이나 제목·본문이 변경됐습니다.');
   }
   assertReviewPull(pull);
-  if (base !== state.base) {
+  if (expectedHead) {
+    if (pull.head.sha !== expectedHead)
+      throw new Stop('지정한 커밋이 현재 PR의 HEAD와 다릅니다.');
+    fetchCommit(expectedHead);
+    execFileSync('git', ['merge-base', '--is-ancestor', base, expectedHead], {
+      stdio: 'ignore',
+    });
+    const { snapshot } = await import('./workspace.mjs');
+    const candidate = snapshot(base, expectedHead);
+    if (
+      !candidate.hasOnlyEditableChanges() ||
+      !candidate.existingBranchEdits().length
+    )
+      throw new Stop(
+        '지정한 PR에서 자동 개발이 허용된 제품 변경만 확인할 수 있어야 합니다.',
+      );
+  } else if (base !== state.base) {
     fetchCommit(previous);
     const git = (args) =>
       execFileSync('git', args, {
@@ -630,8 +699,7 @@ async function closeIssue(pull) {
   assertPull(pull, state);
   if (!pull.merged || !sha.test(pull.merge_commit_sha ?? ''))
     throw new Stop('dev 머지 커밋을 확인할 수 없습니다.');
-  const ancestry = await gh.repo(`/compare/${pull.merge_commit_sha}...dev`);
-  if (ancestry.merge_base_commit?.sha !== pull.merge_commit_sha)
+  if (!(await mergedIntoDev(gh, pull.merge_commit_sha)))
     throw new Stop('확인된 머지 커밋이 dev에 없습니다.');
   await gh.record(
     state,
@@ -659,10 +727,13 @@ async function closeIssue(pull) {
   }
   if (issue.state !== 'closed' || issue.state_reason !== 'completed')
     throw new Stop('이슈가 완료 사유로 닫혔는지 확인할 수 없습니다.');
+  const cleanup = await cleanupBranch(gh, pull, state, (branch, head) =>
+    deleteBranchAtHead(branch, head, env.GH_TOKEN),
+  );
   await gh.record(
     state,
     'completed',
-    `PR #${state.pr}를 dev에 squash merge했고 이슈 완료를 확인했습니다.`,
+    `PR #${state.pr}를 dev에 squash merge했고 이슈 완료를 확인했습니다. ${cleanup}`,
   );
 }
 
@@ -734,23 +805,60 @@ async function complete() {
   await closeIssue(await gh.repo(path));
 }
 
+async function syncManualMerge() {
+  if (!state?.pr || state.status === 'completed') return;
+  if (
+    env.GITHUB_EVENT_NAME !== 'workflow_dispatch' &&
+    (env.GITHUB_EVENT_NAME !== 'pull_request_target' ||
+      state.pr !== event.pull_request?.number ||
+      !event.pull_request.merged)
+  )
+    return;
+  const pull = await gh.repo(`/pulls/${state.pr}`);
+  if (!(await isTrackedDevMerge(gh, pull, state))) return;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const issue = await gh.repo(issuePath);
+    if (issue.state === 'closed' && issue.state_reason === 'completed') {
+      const completed = { ...state, head: pull.head.sha };
+      await gh.record(
+        completed,
+        'completed',
+        `PR #${state.pr}의 dev 병합과 이슈 완료를 확인했습니다.`,
+      );
+      return;
+    }
+    if (issue.state !== 'open') return;
+    if (attempt < 4) await sleep(2_000);
+  }
+}
+
 async function main() {
   if (
     env.GITHUB_REPOSITORY !== repository ||
+    env.GITHUB_REF !== 'refs/heads/dev'
+  )
+    throw new Stop('실행 저장소 또는 브랜치가 잘못됐습니다.');
+  if (mode === 'schedule-dependencies' && env.GITHUB_EVENT_NAME === 'schedule')
+    return dispatchReadyDependencies(gh);
+  if (
     event.repository?.full_name !== repository ||
-    env.GITHUB_REF !== 'refs/heads/dev' ||
     !Number.isSafeInteger(issueNumber) ||
     issueNumber < 1 ||
-    !['develop', 'resume-review', 'complete'].includes(mode)
+    !['develop', 'resume-review', 'complete', 'sync'].includes(mode)
   )
     throw new Stop('실행 저장소, 브랜치 또는 이슈 번호가 잘못됐습니다.');
-  await gh.assertMaintainer(event.sender.login);
+  const schedulerDispatch =
+    env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
+    event.inputs?.phase === 'dependency' &&
+    event.sender.login === 'github-actions[bot]';
+  if (!schedulerDispatch) await gh.assertMaintainer(event.sender.login);
   if (
     env.GITHUB_TRIGGERING_ACTOR &&
     env.GITHUB_TRIGGERING_ACTOR !== event.sender.login
   )
     await gh.assertMaintainer(env.GITHUB_TRIGGERING_ACTOR);
   state = await gh.state(issueNumber);
+  if (mode === 'sync') return syncManualMerge();
   if (mode === 'resume-review') return resumeReview();
   await (mode === 'develop' ? develop() : complete());
 }
@@ -762,6 +870,8 @@ try {
     error instanceof Stop ? error.message : safeText(error.message, 500);
   if (
     state &&
+    mode !== 'sync' &&
+    (event.inputs?.phase !== 'dependency' || dependencyStarted) &&
     (mode !== 'resume-review' || reviewResumeStarted) &&
     state.status !== 'ci_failed' &&
     state.status !== 'completed'

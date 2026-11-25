@@ -253,12 +253,22 @@ export function snapshot(base, head) {
   const diff = () =>
     git('diff', '--no-ext-diff', '--no-textconv', base, head, '--');
   const readUiSpecs = new Set();
+  const changedPaths = () =>
+    git('diff', '--name-only', '--no-renames', '-z', base, head)
+      .split('\0')
+      .filter(Boolean);
   return {
     files,
     read,
+    hasOnlyEditableChanges() {
+      return changedPaths().every(
+        (path) =>
+          isEditable(path) &&
+          (!files.has(path) || files.get(path) === '100644'),
+      );
+    },
     existingBranchEdits() {
-      return git('diff', '--name-only', '--no-renames', '-z', base, head)
-        .split('\0')
+      return changedPaths()
         .filter(isEditable)
         .map((path) => ({ path, text: files.has(path) ? read(path) : null }));
     },

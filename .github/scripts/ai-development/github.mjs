@@ -164,16 +164,20 @@ export function canRestartUnpublished(state, event, approval) {
   );
 }
 
-export function canResumeReview(state, issue) {
+export function canResumeReview(state, issue, expectedHead) {
+  const statusAllows = expectedHead
+    ? ['failed', 'needs_human', 'ci_failed'].includes(state?.status) &&
+      /^[a-f0-9]{40}$/.test(expectedHead) &&
+      state.reviewedHead !== expectedHead
+    : state?.status === 'failed' && state.code === 'review_api_thinking';
   return Boolean(
-    state?.status === 'failed' &&
-    state.code === 'review_api_thinking' &&
+    statusAllows &&
     state.branch === `ai/issue-${issue}` &&
     state.published &&
     Number.isSafeInteger(state.pr) &&
     state.pr > 0 &&
     [state.head, state.base].every((value) => /^[a-f0-9]{40}$/.test(value)) &&
-    state.reviewedHead !== state.head &&
+    (expectedHead || state.reviewedHead !== state.head) &&
     !state.observedHead,
   );
 }

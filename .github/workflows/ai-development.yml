@@ -1,9 +1,13 @@
 name: AI development
-run-name: 'AI development for Issue #${{ github.event.issue.number || inputs.issue }}'
+run-name: "${{ (github.event.issue.number || inputs.issue) && format('AI development for Issue #{0}', github.event.issue.number || inputs.issue) || format('AI development · {0}', github.event.pull_request.head.ref || github.event_name) }}"
 
 on:
   issues:
     types: [labeled]
+  pull_request_target:
+    types: [closed]
+  schedule:
+    - cron: '17,47 * * * *'
   workflow_dispatch:
     inputs:
       issue:
@@ -14,12 +18,15 @@ on:
         description: 'Resume CI/closure or retry an interrupted Claude review'
         type: choice
         default: complete
-        options: [complete, review]
+        options: [complete, review, dependency, sync]
+      expected_head:
+        description: 'Exact PR HEAD SHA after manually resolving a conflict (review only)'
+        type: string
 
 permissions: {}
 
 concurrency:
-  group: ai-development-${{ github.event.issue.number || inputs.issue }}
+  group: ai-development-${{ github.event.pull_request.head.ref || ((github.event.issue.number || inputs.issue) && format('ai/issue-{0}', github.event.issue.number || inputs.issue)) || 'dependencies' }}
   cancel-in-progress: false
 
 jobs:
@@ -28,7 +35,7 @@ jobs:
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
       ((github.event_name == 'issues' && github.event.label.name == 'ai:develop') ||
-       (github.event_name == 'workflow_dispatch' && inputs.phase == 'review'))
+       (github.event_name == 'workflow_dispatch' && (inputs.phase == 'review' || inputs.phase == 'dependency')))
     runs-on: ubuntu-24.04
     environment: ai-development
     timeout-minutes: 65
@@ -51,7 +58,7 @@ jobs:
         run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
       - name: Develop and review
         id: develop
-        run: node .github/scripts/ai-development/run.mjs ${{ github.event_name == 'workflow_dispatch' && 'resume-review' || 'develop' }}
+        run: node .github/scripts/ai-development/run.mjs ${{ inputs.phase == 'review' && 'resume-review' || 'develop' }}
         env:
           GH_TOKEN: ${{ github.token }}
           AI_AUTOMATION_TOKEN: ${{ secrets.AI_AUTOMATION_TOKEN }}
@@ -66,7 +73,7 @@ jobs:
       always() && !cancelled() &&
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
-      ((github.event_name == 'workflow_dispatch' && inputs.phase != 'review') || needs.develop.outputs.ready == 'true')
+      ((github.event_name == 'workflow_dispatch' && inputs.phase == 'complete') || needs.develop.outputs.ready == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 23
     permissions:
@@ -83,5 +90,51 @@ jobs:
           node-version: 24
       - name: Verify CI, merge, and confirm issue closure
         run: node .github/scripts/ai-development/run.mjs complete
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  dependencies:
+    if: github.repository == 'han41858/money-flow' && github.ref == 'refs/heads/dev' && github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      actions: write
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - run: node .github/scripts/ai-development/run.mjs schedule-dependencies
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  sync:
+    if: >-
+      github.repository == 'han41858/money-flow' && github.ref == 'refs/heads/dev' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.phase == 'sync') ||
+       (github.event_name == 'pull_request_target' && github.event.pull_request.merged &&
+        github.event.pull_request.base.ref == 'dev' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        startsWith(github.event.pull_request.head.ref, 'ai/issue-')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: dev
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - run: node .github/scripts/ai-development/run.mjs sync
         env:
           GH_TOKEN: ${{ github.token }}

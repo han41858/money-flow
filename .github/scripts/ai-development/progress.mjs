@@ -11,6 +11,7 @@ const clock = new Intl.DateTimeFormat('ko-KR', {
 });
 const terminal = new Set(['needs_human', 'failed', 'ci_failed', 'completed']);
 const labels = {
+  waiting_dependency: '선행 이슈 대기',
   developing: '개발 중',
   publishing: '게시 중',
   reviewing: '리뷰 중',

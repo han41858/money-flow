@@ -232,16 +232,13 @@ export function createGitHub({
         progress = undefined;
         await comment(state.issue, body(''));
       } else {
-        const steps = [
-          ...(progress?.issue === state.issue ? progress.steps : []),
-          `- ${clock.format(now)} ${status} · ${message.replaceAll('\n', ' ')}`,
-        ];
-        const text = body(
-          steps.length > 1
-            ? `<details><summary>진행 기록</summary>\n\n${steps.join('\n')}\n\n</details>\n\n`
-            : '',
-        );
-        let id = progress?.issue === state.issue ? progress.id : undefined;
+        const current = progress?.issue === state.issue ? progress : undefined;
+        const entry = `${status} · ${message.replaceAll('\n', ' ')}`;
+        const steps = [...(current?.steps ?? [])];
+        if (entry !== current?.lastEntry)
+          steps.push(`- ${clock.format(now)} ${entry}`);
+        const text = body(`**진행 기록**\n\n${steps.join('\n')}\n\n`);
+        let id = current?.id;
         if (id)
           try {
             await repo(`/issues/comments/${id}`, {
@@ -255,7 +252,7 @@ export function createGitHub({
             id = undefined;
           }
         id ??= (await comment(state.issue, text)).id;
-        progress = { issue: state.issue, id, steps };
+        progress = { issue: state.issue, id, steps, lastEntry: entry };
       }
       console.log(
         JSON.stringify({

@@ -523,6 +523,8 @@ test('진행 상태는 한 댓글을 수정하고 종료 상태는 새 댓글로
   await gh.record(state, 'developing', '다시 시작합니다.');
   gone = true;
   await gh.record(state, 'developing', '이어갑니다.');
+  gone = false;
+  await gh.record(state, 'developing', '이어갑니다.');
   await gh.record(state, 'waiting_ci', '오류', 'run_error');
   await gh.record(state, 'waiting_ci', '대기 중입니다.', 'waiting_ci', true);
   assert.deepEqual(
@@ -535,6 +537,7 @@ test('진행 상태는 한 댓글을 수정하고 종료 상태는 새 댓글로
       'POST 10/comments',
       'PATCH comments/5',
       'POST 10/comments',
+      'PATCH comments/7',
       'POST 10/comments',
       'POST 10/comments',
     ],
@@ -542,11 +545,15 @@ test('진행 상태는 한 댓글을 수정하고 종료 상태는 새 댓글로
   const edited = calls[2][2];
   assert.equal(edited.split('\n\n')[0], '**AI 개발 · reviewing**');
   assert.equal(edited.split('\n\n')[1], '리뷰 중입니다.');
+  assert.match(calls[0][2], /\*\*진행 기록\*\*\n\n- .* 준비합니다\./);
+  assert.match(edited, /\*\*진행 기록\*\*\n\n- /);
+  assert.doesNotMatch(edited, /<\/?(?:details|summary)\b/);
   assert.match(
     edited,
     /developing · 준비합니다\.\n.*1\/3회차.*\n.*reviewing · /,
   );
   assert.doesNotMatch(calls[3][2], /진행 기록/);
+  assert.equal(calls[7][2].match(/^- .* 이어갑니다\.$/gm)?.length, 1);
   for (const [, , body] of calls)
     assert.equal(
       readState(

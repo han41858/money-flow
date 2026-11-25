@@ -1,5 +1,9 @@
 import { checkpoint } from './workspace.mjs';
-import { probeBrowser, ReproductionFailure } from './validation.mjs';
+import {
+  probeBrowser,
+  ReproductionFailure,
+  ValidationFailure,
+} from './validation.mjs';
 import {
   isBrowserSpec,
   reproducedTests,
@@ -30,14 +34,28 @@ export function candidateReproduction({
       'UI 변경은 요청 동작을 재현하는 tests/*.spec.ts 검사나 이슈에 지정된 재현 검사가 필요합니다.',
     );
 
-  const testEdits = specs.filter(({ path }) =>
-    selected.some(({ file }) => file === path),
-  );
+  const testEdits = changes.filter(({ path }) => {
+    if (!path.startsWith('tests/')) return false;
+    return !isBrowserSpec(path) || selected.some(({ file }) => file === path);
+  });
   const baseline = testEdits.length ? createCheckpoint(base, testEdits) : base;
-  const results =
-    testEdits.length || !targets.length
-      ? probe(baseline, selected)
-      : initialResults;
+  let results = initialResults;
+  if (testEdits.length || !targets.length) {
+    try {
+      results = probe(baseline, selected);
+    } catch (error) {
+      if (
+        !testEdits.length ||
+        !(error instanceof ValidationFailure) ||
+        error.stage !== 'build'
+      )
+        throw error;
+      throw new ReproductionFailure(
+        '수정 전 코드에 후보 테스트와 지원 파일만 적용한 트리에서 빌드가 실패했습니다. 재현 테스트가 후보 제품 코드의 API에 의존하는지 확인하세요.',
+        error,
+      );
+    }
+  }
   const cases = reproducedTests(results, selected, {
     requireAll: targets.length > 0,
   });

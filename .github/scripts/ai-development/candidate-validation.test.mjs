@@ -16,6 +16,7 @@ import {
   confirmBaselineFailure,
   ReproductionFailure,
   retryValidationStage,
+  reviewValidation,
   ValidationFailure,
 } from './validation.mjs';
 
@@ -127,6 +128,36 @@ test('Playwright 보고서에서 실제 결과와 단언의 기대값·실제값
     ],
   };
   assert.deepEqual(browserResults(report), [failed]);
+});
+
+test('리뷰에 검사한 HEAD와 재현 및 관련 테스트의 실제 결과를 전한다', () => {
+  const related = {
+    ...passed,
+    file: 'tests/groups.spec.ts',
+    title: '그룹 이동',
+    status: 'skipped',
+    outcome: 'skipped',
+  };
+  const unrelated = { ...passed, file: 'tests/storage.spec.ts' };
+  const evidence = reviewValidation(
+    'published-head',
+    'https://github.com/han41858/money-flow/actions/runs/1',
+    [unrelated, related, passed],
+    [spec],
+    [related.file],
+  );
+  assert.equal(evidence.head, 'published-head');
+  assert.match(evidence.runUrl, /actions\/runs\/1$/);
+  assert(evidence.isolatedChecksPassed.includes('test:e2e'));
+  assert.equal(evidence.chromium.reported, 3);
+  assert.equal(evidence.chromium.passed, 2);
+  assert.deepEqual(
+    evidence.chromium.tests.map(({ file, outcome }) => [file, outcome]),
+    [
+      [spec.file, 'passed'],
+      [related.file, 'skipped'],
+    ],
+  );
 });
 
 test('재현 테스트와 지원 파일을 기준 트리에 적용하고 후보의 실제 통과를 확인한다', () => {

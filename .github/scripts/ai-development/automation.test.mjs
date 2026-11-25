@@ -156,6 +156,22 @@ test('리뷰 지적이 남아 있는 승인은 거부한다', () => {
   );
 });
 
+test('리뷰에서 검증 부족과 사람의 판단이 필요한 경우를 각각 반환한다', () => {
+  const verification = {
+    status: 'verification_needed',
+    summary: '터치 입력에서 네 모서리의 크기 조절을 확인해 주세요.',
+    findings: [],
+  };
+  const human = {
+    status: 'needs_human',
+    summary: '공간이 부족하면 기존 노드 이동을 허용할지 결정해 주세요.',
+    findings: [],
+  };
+  assert.deepEqual(validateReview(verification), verification);
+  assert.deepEqual(validateReview(human), human);
+  assert.throws(() => validateReview({ ...verification, summary: ' ' }));
+});
+
 test('모델 호출 직전 승인이 철회되면 공급자에 요청하지 않는다', async () => {
   const models = createModels({
     keys: { codex: 'mock', claude: 'mock' },

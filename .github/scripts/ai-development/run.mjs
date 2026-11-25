@@ -119,9 +119,8 @@ function fetchCommit(head) {
 async function develop() {
   if (
     env.GITHUB_EVENT_NAME !== 'issues' ||
-    (event.action === 'opened'
-      ? !authorized(event.issue)
-      : event.action !== 'labeled' || event.label?.name !== approvalLabel)
+    event.action !== 'labeled' ||
+    event.label?.name !== approvalLabel
   )
     throw new Stop('ai:develop가 붙은 이슈 이벤트가 필요합니다.');
   const approval = await gh.approval(issueNumber);
@@ -140,10 +139,8 @@ async function develop() {
   if (!authorized(issue) || fingerprint(issue) !== fingerprint(event.issue))
     throw new Stop('이슈 또는 승인 라벨이 바뀌었습니다.');
   if (
-    approval
-      ? approval.event !== 'labeled' ||
-        approval.actor?.login !== event.sender.login
-      : event.action !== 'opened'
+    approval?.event !== 'labeled' ||
+    approval.actor?.login !== event.sender.login
   )
     throw new Stop('실행 이벤트와 현재 ai:develop 승인자가 일치하지 않습니다.');
   const base = await gh.ref(baseBranch);

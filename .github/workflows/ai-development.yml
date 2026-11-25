@@ -3,7 +3,7 @@ run-name: 'AI development for Issue #${{ github.event.issue.number || inputs.iss
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
   workflow_dispatch:
     inputs:
       issue:
@@ -23,8 +23,7 @@ jobs:
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
       github.event_name == 'issues' &&
-      (github.event.label.name == 'ai:develop' ||
-       (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'ai:develop')))
+      github.event.label.name == 'ai:develop'
     runs-on: ubuntu-24.04
     environment: ai-development
     timeout-minutes: 65

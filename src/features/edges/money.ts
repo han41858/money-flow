@@ -16,19 +16,27 @@ export function exactAmount({ min, max }: Pick<MoneyEdge, 'min' | 'max'>) {
 }
 
 export function amountLabel(min: number, max = min): string {
-  if (min !== max && max >= 100000000)
+  if (min !== max && Math.max(Math.abs(min), Math.abs(max)) >= 100000000)
     return amountLabel(min) + '~' + amountLabel(max);
   if (min !== max) {
     return min % 10000 === 0 && max % 10000 === 0
       ? comma.format(min / 10000) + '~' + comma.format(max / 10000) + '만'
       : comma.format(min) + '~' + comma.format(max);
   }
+  if (min < 0) return '-' + amountLabel(-min);
   if (!min || min % 10000 !== 0) return comma.format(min);
   const eok = Math.floor(min / 100000000);
   const man = (min % 100000000) / 10000;
   return [eok && comma.format(eok) + '억', man && comma.format(man) + '만']
     .filter(Boolean)
     .join(' ');
+}
+
+export function difference(
+  income: Pick<MoneyEdge, 'min' | 'max'>,
+  spending: Pick<MoneyEdge, 'min' | 'max'>,
+) {
+  return { min: income.min - spending.max, max: income.max - spending.min };
 }
 
 export function sum(edges: MoneyEdge[]) {

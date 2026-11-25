@@ -2,11 +2,11 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Coins,
-  Sprout,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { Diagram } from '../types/diagram';
-import { amountLabel, sum } from '../features/edges/money';
+import { amountLabel, difference, sum } from '../features/edges/money';
 
 function Summary({
   icon: Icon,
@@ -39,7 +39,7 @@ export function Metrics({ diagram }: { diagram: Diagram }) {
   const { nodes, edges } = diagram;
   const byId = new Map(nodes.map((n) => [n.id, n]));
 
-  function expense(category: 'consumption' | 'saving' | 'loan') {
+  function expense(category: 'consumption' | 'loan') {
     return sum(
       edges.filter((e) => {
         const n = byId.get(e.target);
@@ -48,25 +48,30 @@ export function Metrics({ diagram }: { diagram: Diagram }) {
     );
   }
 
+  const income = sum(
+    edges.filter((e) => byId.get(e.source)?.type === 'income'),
+  );
+  const spending = expense('consumption');
+
   return (
     <div className="metrics">
       <Summary
         icon={ArrowDownLeft}
         theme="income"
         label="월 수입"
-        value={sum(edges.filter((e) => byId.get(e.source)?.type === 'income'))}
+        value={income}
       />
       <Summary
         icon={ArrowUpRight}
         theme="spend"
         label="월 소비 지출"
-        value={expense('consumption')}
+        value={spending}
       />
       <Summary
-        icon={Sprout}
-        theme="save"
-        label="월 저축·투자"
-        value={expense('saving')}
+        icon={Wallet}
+        theme="balance"
+        label="월 잔액"
+        value={difference(income, spending)}
       />
       {nodes.some((n) => n.type === 'expense' && n.category === 'loan') && (
         <Summary

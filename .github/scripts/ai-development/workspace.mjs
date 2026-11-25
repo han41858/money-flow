@@ -1,6 +1,10 @@
 import { format } from 'prettier';
 import formatterOptions from '../../../prettier.config.mjs';
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { isBrowserSpec, uiSpecRelevant } from './reproduction.mjs';
 
 const maxBuffer = 8 * 1024 * 1024;
 const maxFileBytes = 1024 * 1024;
@@ -175,9 +179,60 @@ function isInspectable(path) {
   return isEditable(path) || path === 'AGENTS.md' || path === 'package.json';
 }
 
+const git = (...args) =>
+  execFileSync('git', args, { encoding: 'utf8', maxBuffer, timeout: 30_000 });
+
+// No ref points to the candidate. Its tree can be inspected, validated and
+// repaired locally, while the real branch retains its last verified HEAD.
+export function checkpoint(head, changes) {
+  const directory = mkdtempSync(join(tmpdir(), 'money-flow-ai-index-'));
+  const run = (args, input) =>
+    execFileSync('git', args, {
+      encoding: 'utf8',
+      maxBuffer,
+      timeout: 30_000,
+      input,
+      env: {
+        PATH: process.env.PATH,
+        GIT_INDEX_FILE: join(directory, 'index'),
+        GIT_AUTHOR_NAME: 'Codex',
+        GIT_AUTHOR_EMAIL: 'noreply@openai.com',
+        GIT_COMMITTER_NAME: 'Codex',
+        GIT_COMMITTER_EMAIL: 'noreply@openai.com',
+      },
+    }).trim();
+  try {
+    run(['read-tree', head]);
+    const index = changes
+      .map(({ path, text }) => {
+        if (!isEditable(path))
+          throw new WorkspaceError('허용 범위 밖의 파일입니다.');
+        const mode = text === null ? '0' : '100644';
+        const oid =
+          text === null
+            ? '0'.repeat(head.length)
+            : run(['hash-object', '-w', '--stdin'], text);
+        return `${mode} ${oid}\t${path}\0`;
+      })
+      .join('');
+    run(['update-index', '-z', '--index-info'], index);
+    const tree = run(['write-tree']);
+    return run([
+      '-c',
+      'commit.gpgSign=false',
+      'commit-tree',
+      tree,
+      '-p',
+      head,
+      '-m',
+      'AI validation candidate',
+    ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 export function snapshot(base, head) {
-  const git = (...args) =>
-    execFileSync('git', args, { encoding: 'utf8', maxBuffer, timeout: 30_000 });
   const files = new Map(
     git('ls-tree', '-rz', head)
       .split('\0')
@@ -197,26 +252,31 @@ export function snapshot(base, head) {
   };
   const diff = () =>
     git('diff', '--no-ext-diff', '--no-textconv', base, head, '--');
-  let readUiSpec = false;
+  const readUiSpecs = new Set();
   return {
     files,
     read,
     existingBranchEdits() {
       return git('diff', '--name-only', '--no-renames', '-z', base, head)
         .split('\0')
-        .filter((path) => isEditable(path) && files.get(path) === '100644')
-        .map((path) => ({ path, text: read(path) }));
+        .filter(isEditable)
+        .map((path) => ({ path, text: files.has(path) ? read(path) : null }));
     },
-    needsUiSpec(paths) {
-      if (readUiSpec) return false;
+    needsUiSpec(paths, declaredSpecs = []) {
       const changed =
         paths ??
         git('diff', '--name-only', '--no-renames', '-z', base, head).split(
           '\0',
         );
-      return changed.some((path) =>
-        /^src\/(?:app|features)\/.*\.tsx$|^src\/.*\.css$/.test(path),
-      );
+      if (!declaredSpecs.length && !changed.some(uiSpecRelevant)) return false;
+      const relevant = declaredSpecs.length
+        ? declaredSpecs.map(({ file }) => file)
+        : changed.filter(isBrowserSpec);
+      const existing = relevant.filter((path) => files.has(path));
+      if (existing.length)
+        return !existing.some((path) => readUiSpecs.has(path));
+      // A proposed new test is validated by replaying it against the old code.
+      return !(relevant.length && paths) && readUiSpecs.size === 0;
     },
     inspect(name, input) {
       if (name === 'read_diff') return outputPage(diff(), input.line, 120);
@@ -236,11 +296,8 @@ export function snapshot(base, head) {
           return hits.join('\n') || '일치하는 줄이 없습니다.';
         }
         const page = outputPage(source, input.line, 120);
-        if (
-          /^tests\/[\w.-]+\.spec\.ts$/.test(input.path) &&
-          /^\d+: [^\n]*\S/m.test(page)
-        )
-          readUiSpec = true;
+        if (isBrowserSpec(input.path) && /^\d+: [^\n]*\S/m.test(page))
+          readUiSpecs.add(input.path);
         return page;
       }
       const paths = [...files.keys()].filter(

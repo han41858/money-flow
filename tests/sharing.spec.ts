@@ -2,6 +2,7 @@ import { chooseSavedFlow, openExample } from './exampleFixture';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import { example } from '../src/app/example';
+import { v2Link } from './shareV2Fixture';
 
 async function share(page: Page) {
   await page.getByRole('button', { name: '공유 및 내보내기' }).click();
@@ -11,7 +12,7 @@ async function share(page: Page) {
   await expect(dialog.getByText(/3,200,000원/)).toBeVisible();
   await dialog.getByRole('button', { name: '공유 링크 만들기' }).click();
   const output = dialog.getByLabel('읽기 전용 주소');
-  await expect(output).toHaveValue(/#share=2\./);
+  await expect(output).toHaveValue(/#share=\d+\.[\w-]+$/);
   return output.inputValue();
 }
 test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시적 복사만 독립된 흐름을 저장한다', async ({
@@ -67,12 +68,49 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
     '우리 집 자금 흐름',
   );
 });
+test('같은 흐름의 v3 주소는 v2보다 짧고 읽기 전용 화면의 내용은 같다', async ({
+  page,
+}) => {
+  await openExample(page);
+  const current = await share(page);
+  const previous = v2Link(example, current.split('#')[0]);
+
+  async function readSharedView(url: string) {
+    await page.goto(url);
+    await expect(page.getByText('Money Flow · 읽기 전용')).toBeVisible();
+    const nodes = page.locator('.react-flow__node-money');
+    const groups = page.locator('.react-flow__node-region');
+    const amounts = page.locator('.edge-label');
+    await expect(nodes).toHaveCount(example.nodes.length);
+    await expect(groups).toHaveCount(example.groups.length);
+    await expect(amounts).toHaveCount(example.edges.length);
+    await amounts.filter({ hasText: '320만' }).click();
+    const details = page.getByRole('region', { name: '선택 상세' });
+    await expect(details).toContainText('3,200,000원');
+    return {
+      nodes: (await nodes.allTextContents()).sort(),
+      groups: (await groups.allTextContents()).sort(),
+      amounts: (await amounts.allTextContents()).sort(),
+      details: await details.innerText(),
+    };
+  }
+
+  const legacyView = await readSharedView(previous);
+  // Reload even when the old writer emits exactly the same URL as the fixture.
+  await page.goto('/');
+  expect(await readSharedView(current)).toEqual(legacyView);
+  expect(current.length).toBeLessThan(previous.length);
+  expect(current).toMatch(/#share=3\./);
+});
+
 test('손상된 공유 링크에서도 편집기를 열거나 로컬 데이터베이스를 만들지 않는다', async ({
   page,
 }) => {
-  await page.goto('/#share=1.broken');
-  await expect(page.getByRole('alert')).toContainText('공유 링크');
-  expect(await page.evaluate(() => indexedDB.databases())).toEqual([]);
+  for (const version of [1, 3]) {
+    await page.goto(`/#share=${version}.broken`);
+    await expect(page.getByRole('alert')).toContainText('공유 링크');
+    expect(await page.evaluate(() => indexedDB.databases())).toEqual([]);
+  }
 });
 test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다', async ({
   page,

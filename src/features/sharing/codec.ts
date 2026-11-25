@@ -1,5 +1,6 @@
 import type { Diagram } from '../../types/diagram';
 import { decodeDiagram } from '../../lib/storage/format';
+import { decodeBinary, encodeBinary } from './binary';
 
 const tooLong =
   '공유 주소가 8,000자를 넘습니다. JSON 파일로 내보내 공유하세요.';
@@ -10,98 +11,36 @@ const compressions: Partial<Record<string, CompressionFormat>> = {
   '1': 'gzip',
   '2': 'deflate-raw',
 };
-const currentFormat = '2';
-
-function shortIds(items: { id: string }[]) {
-  return new Map(items.map((item, index) => [item.id, index.toString(36)]));
-}
-
-// Random IDs do not compress and dominate the link length.
-// Replace them with list indices and round coordinates to whole pixels.
-export function compactForShare(diagram: Diagram) {
-  const nodeIds = shortIds(diagram.nodes);
-  const edgeIds = shortIds(diagram.edges);
-  const groupIds = shortIds(diagram.groups);
-  const institutionIds = shortIds(diagram.customInstitutions);
-  const round = ({ x, y }: { x: number; y: number }) => ({
-    x: Math.round(x),
-    y: Math.round(y),
-  });
-
-  return {
-    schemaVersion: diagram.schemaVersion,
-    name: diagram.name,
-    description: diagram.description,
-    nodes: diagram.nodes.map((node) => ({
-      ...node,
-      id: nodeIds.get(node.id)!,
-      position: round(node.position),
-      groupId: node.groupId && groupIds.get(node.groupId),
-      // Built-in institution IDs are kept as they are.
-      institutionId:
-        node.institutionId &&
-        (institutionIds.get(node.institutionId) ?? node.institutionId),
-    })),
-    edges: diagram.edges.map((edge) => ({
-      ...edge,
-      id: edgeIds.get(edge.id)!,
-      source: nodeIds.get(edge.source)!,
-      target: nodeIds.get(edge.target)!,
-    })),
-    groups: diagram.groups.map((group) => ({
-      ...group,
-      id: groupIds.get(group.id)!,
-      parentId: group.parentId && groupIds.get(group.parentId),
-      position: round(group.position),
-      width: Math.max(1, Math.round(group.width)),
-      height: Math.max(1, Math.round(group.height)),
-    })),
-    customInstitutions: diagram.customInstitutions.map((institution) => ({
-      ...institution,
-      id: institutionIds.get(institution.id)!,
-    })),
-  };
-}
+const maxUrlLength = 8000;
+const rawMode = 0;
+const deflateMode = 1;
 
 export async function encodeShare(diagram: Diagram, pageUrl: string) {
   const url = new URL(pageUrl);
   url.hash = '';
   url.search = '';
-  const payload = JSON.stringify(compactForShare(decodeDiagram(diagram)));
-  const compressed = new Blob([payload])
+  const binary = encodeBinary(decodeDiagram(diagram));
+  const compressed = new Blob([binary])
     .stream()
-    .pipeThrough(new CompressionStream(compressions[currentFormat]!));
-  const bytes = new Uint8Array(await new Response(compressed).arrayBuffer());
-  if (bytes.length > 6000) throw new Error(tooLong);
-  const data = btoa(String.fromCharCode(...bytes))
+    .pipeThrough(new CompressionStream('deflate-raw'));
+  const deflated = new Uint8Array(await new Response(compressed).arrayBuffer());
+
+  // Both candidates use the same URL prefix and a one-byte mode marker.
+  // Unpadded base64url length grows strictly with the byte length.
+  const useDeflate = deflated.length < binary.length;
+  const bytes = useDeflate ? deflated : binary;
+  const mode = useDeflate ? deflateMode : rawMode;
+  const prefix = `${url.href}#share=3.`;
+  if (prefix.length + Math.ceil(((bytes.length + 1) * 4) / 3) > maxUrlLength)
+    throw new Error(tooLong);
+  const data = btoa(String.fromCharCode(mode, ...bytes))
     .replaceAll('+', '-')
     .replaceAll('/', '_')
     .replace(/=+$/, '');
-  url.hash = 'share=' + currentFormat + '.' + data;
-  if (url.href.length > 8000) throw new Error(tooLong);
-  return url.href;
+  return prefix + data;
 }
 
-export async function decodeShare(pageUrl: string): Promise<Diagram> {
-  if (pageUrl.length > 8000) throw new Error(tooLong);
-  const match = /^#share=(\d+)\.([\w-]+)$/.exec(new URL(pageUrl).hash);
-  if (!match) throw new Error(malformed);
-  const compression = compressions[match[1]];
-  if (!compression) throw new Error('지원하지 않는 공유 링크 버전입니다.');
-  let value: unknown;
-  try {
-    const bytes = Uint8Array.from(
-      atob(match[2].replaceAll('-', '+').replaceAll('_', '/')),
-      (c) => c.charCodeAt(0),
-    );
-    const raw = new Blob([bytes])
-      .stream()
-      .pipeThrough(new DecompressionStream(compression));
-    value = await new Response(raw).json();
-  } catch {
-    throw new Error(malformed);
-  }
-  if (!value || typeof value !== 'object') throw new Error(malformed);
+function withSharedIdentity(value: object): Diagram {
   // Local identity and timestamps are assigned only when the recipient saves a copy.
   const epoch = new Date(0).toISOString();
   return decodeDiagram({
@@ -111,4 +50,40 @@ export async function decodeShare(pageUrl: string): Promise<Diagram> {
     updatedAt: epoch,
     viewport: { x: 0, y: 0, zoom: 1 },
   });
+}
+
+export async function decodeShare(pageUrl: string): Promise<Diagram> {
+  if (pageUrl.length > maxUrlLength) throw new Error(tooLong);
+  const match = /^#share=(\d+)\.([\w-]+)$/.exec(new URL(pageUrl).hash);
+  if (!match) throw new Error(malformed);
+  const [, version, data] = match;
+  const compression = compressions[version];
+  if (version !== '3' && !compression)
+    throw new Error('지원하지 않는 공유 링크 버전입니다.');
+  let value: unknown;
+  try {
+    const bytes = Uint8Array.from(
+      atob(data.replaceAll('-', '+').replaceAll('_', '/')),
+      (c) => c.charCodeAt(0),
+    );
+    if (version === '3') {
+      const mode = bytes[0];
+      const payload = bytes.slice(1);
+      if (mode === rawMode) return withSharedIdentity(decodeBinary(payload));
+      if (mode !== deflateMode) throw new Error(malformed);
+      const inflated = new Blob([payload])
+        .stream()
+        .pipeThrough(new DecompressionStream('deflate-raw'));
+      const binary = new Uint8Array(await new Response(inflated).arrayBuffer());
+      return withSharedIdentity(decodeBinary(binary));
+    }
+    const raw = new Blob([bytes])
+      .stream()
+      .pipeThrough(new DecompressionStream(compression!));
+    value = await new Response(raw).json();
+  } catch {
+    throw new Error(malformed);
+  }
+  if (!value || typeof value !== 'object') throw new Error(malformed);
+  return withSharedIdentity(value);
 }

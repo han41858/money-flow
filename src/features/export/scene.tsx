@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Diagram } from '../../types/diagram';
 import { buildGraph, type FlowNode, type FlowEdge } from '../editor/graph';
 import { amountLabel, edgeWidth } from '../edges/money';
-import { transferGeometry } from '../edges/geometry';
+import { labelBlocker, transferGeometry } from '../edges/geometry';
 import type { NodeSizes, Group } from '../groups/geometry';
 import {
   cardLabel,
@@ -140,7 +140,8 @@ function edgeShape(
   bounds: Bounds,
   measure: MeasureText,
 ) {
-  const { edge, color, sourcePort, targetPort, targetPortCount } = flow.data!;
+  const { edge, color, sourcePort, targetPort, targetPortCount, obstacles } =
+    flow.data!;
   const from = anchor(
     nodes.get(flow.source)!,
     sourcePort,
@@ -150,15 +151,17 @@ function edgeShape(
   );
   const to = anchor(nodes.get(flow.target)!, targetPort, false, sizes, measure);
   const stroke = edgeWidth(edge);
-  const { path, arrow, x, y } = transferGeometry(
+  const { body, shaft, arrow, x, y } = transferGeometry(
     from.x,
     from.y,
     to.x,
     to.y,
     stroke,
     targetPortCount,
+    labelBlocker(amountLabel(edge.min, edge.max), obstacles),
   );
-  bounds.path(path, stroke / 2);
+  bounds.path(body, stroke / 2);
+  bounds.path(shaft, 0);
   bounds.path(arrow, 0);
   const value = amountLabel(edge.min, edge.max);
   const width = measure(value, 13, true) + 4;
@@ -166,8 +169,15 @@ function edgeShape(
   return {
     line: (
       <g key={flow.id}>
-        <path d={path} fill="none" stroke={color} strokeWidth={stroke} />
-        <path d={arrow} fill={color} />
+        <path
+          className="transfer-body"
+          d={body}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+        />
+        <path className="transfer-shaft" d={shaft} fill={color} />
+        <path className="transfer-arrow" d={arrow} fill={color} />
       </g>
     ),
     label: (
@@ -178,7 +188,7 @@ function edgeShape(
           textAnchor="middle"
           fontSize={13}
           fontWeight={650}
-          fill="#35473c"
+          fill="#353a47"
           stroke="white"
           strokeWidth={3}
           strokeLinejoin="round"
@@ -196,10 +206,12 @@ export function renderSvg(
   sizes: NodeSizes,
   measure: MeasureText = estimatedTextWidth,
 ) {
-  const graph = buildGraph(diagram);
+  const graph = buildGraph(diagram, measure);
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   const bounds = new Bounds();
-  const groups = diagram.groups.map((g) => groupShape(g, bounds, measure));
+  const groups = graph.groupNodes.map(({ data }) =>
+    groupShape(data.group, bounds, measure),
+  );
   const edges = graph.edges.map((e) =>
     edgeShape(e, nodes, sizes, bounds, measure),
   );
@@ -212,7 +224,7 @@ export function renderSvg(
       height={frame.height}
       viewBox={[frame.x, frame.y, frame.width, frame.height].join(' ')}
       fontFamily={cardFont}
-      fill="#21372e"
+      fill="#1e263a"
     >
       <title>{diagram.name}</title>
       <rect {...frame} fill="white" />

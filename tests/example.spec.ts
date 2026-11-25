@@ -78,7 +78,7 @@ test('좁은 화면에서도 예제와 노드 속성을 조회한다', async ({ 
     page.getByRole('heading', { name: '공동 생활비 통장' }),
   ).toBeVisible();
   await page.getByRole('button', { name: '속성 닫기' }).click();
-  await page.getByRole('button', { name: '노드 목록 열기' }).click();
+  await page.getByRole('button', { name: '편집 도구 열기' }).click();
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools.getByText('노드 7개 · 연결 6개')).toBeVisible();
   await expect(tools.getByRole('status')).toHaveText('이 브라우저에 저장됨');
@@ -113,9 +113,42 @@ test('억 단위 수입 범위와 대출 상환을 월간 요약과 연결선에
   await page.getByRole('button', { name: '정기 적금', exact: true }).click();
   await page.getByRole('combobox', { name: /^분류/ }).selectOption('loan');
   await expect(page.locator('.metric.loan')).toContainText('100만원');
-  await expect(page.locator('.metric.save')).toContainText('0원');
+  await expect(page.locator('.metric.balance strong')).toHaveText(
+    '1억 82만~2억 112만원',
+  );
   await page.getByRole('combobox', { name: /^분류/ }).selectOption('saving');
   await expect(page.locator('.metric.loan')).toHaveCount(0);
+});
+
+test('월 잔액은 수입과 소비 지출을 편집하면 갱신되고 0원과 음수를 표시한다', async ({
+  page,
+}) => {
+  await openExample(page);
+  const metrics = page.locator('.metrics');
+  const balance = metrics.locator('.metric').filter({
+    has: page.getByText('월 잔액', { exact: true }),
+  });
+  const value = balance.locator('strong');
+  await expect(metrics.getByText('월 저축·투자', { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(value).toHaveText('402~432만원');
+
+  const edge = (id: string) =>
+    page.locator(`.react-flow__edge[data-id="${id}"]`);
+  const amount = page.getByLabel('월 금액 (원)', { exact: true });
+  await edge('spending').press('Enter');
+  await page.getByLabel('금액 방식').selectOption('fixed');
+  await amount.fill('5520000');
+  await amount.press('Enter');
+  await expect(metrics.locator('.metric.spend strong')).toHaveText('560만원');
+  await expect(value).toHaveText('0원');
+
+  await edge('salary-a').press('Enter');
+  await amount.fill('3100000');
+  await amount.press('Enter');
+  await expect(metrics.locator('.metric.income strong')).toHaveText('550만원');
+  await expect(value).toHaveText('-10만원');
 });
 
 test('속성 패널을 열고 노드를 추가하거나 전체 보기를 해도 카드가 가려지지 않는다', async ({

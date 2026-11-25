@@ -1,8 +1,182 @@
 import { getBezierPath, Position } from '@xyflow/react';
-import { nodeHeight } from '../nodes/sizing';
+import { estimatedTextWidth, nodeHeight } from '../nodes/sizing';
+
+const labelFontSize = 13;
+const labelHalfHeight = 14;
 
 export function portFraction(index: number, count: number) {
   return (index + 0.5) / count;
+}
+
+type Point = { x: number; y: number };
+
+function interpolate(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function offset(point: Point, normal: Point, distance: number): Point {
+  return { x: point.x + normal.x * distance, y: point.y + normal.y * distance };
+}
+
+function svgPoint({ x, y }: Point) {
+  return x + ',' + y;
+}
+
+type Cubic = [Point, Point, Point, Point];
+
+function parseCurve(path: string): Cubic {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = path
+    .slice(1)
+    .split(/[C, ]+/)
+    .map(Number);
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y1 },
+    { x: x2, y: y2 },
+    { x: x3, y: y3 },
+  ];
+}
+
+function taper(
+  [start, control1, control2, finish]: Cubic,
+  width: number,
+  end: number,
+) {
+  // Allow a longer taper on shallow connections while preserving the full
+  // stroke through steep bends and the turn of a backward connection.
+  const terminalRun = finish.x - control2.x;
+  const backwardRun = Math.max(0, control1.x - control2.x);
+  const rise = Math.abs(finish.y - start.y);
+  const taperShare = 0.42 / (1 + rise / (2 * Math.max(terminalRun, 1)));
+  const turnLimit = terminalRun / (2 * backwardRun + terminalRun);
+  const t = 1 - Math.min(taperShare, turnLimit || 0.14);
+  const a = interpolate(start, control1, t);
+  const b = interpolate(control1, control2, t);
+  const c = interpolate(control2, finish, t);
+  const d = interpolate(a, b, t);
+  const e = interpolate(b, c, t);
+  const joint = interpolate(d, e, t);
+  const dx = e.x - joint.x;
+  const dy = e.y - joint.y;
+  const magnitude = Math.hypot(dx, dy);
+  const normal = magnitude
+    ? { x: -dy / magnitude, y: dx / magnitude }
+    : { x: 0, y: 1 };
+  const terminalNormal = { x: 0, y: 1 };
+  // Overlap the stroke slightly to avoid an antialiased seam at the join.
+  const overlap = offset(joint, { x: normal.y, y: -normal.x }, -0.35);
+  const side = (sign: number) => [
+    svgPoint(offset(overlap, normal, (sign * width) / 2)),
+    svgPoint(offset(e, normal, (sign * width) / 2)),
+    svgPoint(offset(c, terminalNormal, sign * end)),
+    svgPoint(offset(finish, terminalNormal, sign * end)),
+  ];
+  const [p0, p1, p2, p3] = side(1);
+  const [q0, q1, q2, q3] = side(-1);
+  return {
+    body: `M${svgPoint(start)} C${svgPoint(a)} ${svgPoint(d)} ${svgPoint(joint)}`,
+    shaft: `M${p0} C${p1} ${p2} ${p3} L${q3} C${q2} ${q1} ${q0} Z`,
+  };
+}
+
+export type Box = { x: number; y: number; width: number; height: number };
+
+export function amountLabelBox(text: string, { x, y }: Point): Box {
+  const width = estimatedTextWidth(text, labelFontSize) + 16;
+  return {
+    x: x - width / 2,
+    y: y - labelHalfHeight,
+    width,
+    height: labelHalfHeight * 2,
+  };
+}
+
+// Checks the centered label against cards and the bounds of the arrowhead.
+export function labelBlocker(text: string, cards: Box[]) {
+  const { width, height } = amountLabelBox(text, { x: 0, y: 0 });
+  return (x: number, y: number, arrow?: Box) => {
+    const overlaps = (box: Box) =>
+      x + width / 2 > box.x &&
+      x - width / 2 < box.x + box.width &&
+      y + height / 2 > box.y &&
+      y - height / 2 < box.y + box.height;
+    return Boolean(arrow && overlaps(arrow)) || cards.some(overlaps);
+  };
+}
+
+function curveDistances([start, control1, control2, finish]: Cubic) {
+  const segments = 64;
+  const samples = [{ point: start, length: 0 }];
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
+    const u = 1 - t;
+    const point = {
+      x:
+        u ** 3 * start.x +
+        3 * u ** 2 * t * control1.x +
+        3 * u * t ** 2 * control2.x +
+        t ** 3 * finish.x,
+      y:
+        u ** 3 * start.y +
+        3 * u ** 2 * t * control1.y +
+        3 * u * t ** 2 * control2.y +
+        t ** 3 * finish.y,
+    };
+    const previous = samples[i - 1];
+    const length =
+      previous.length +
+      Math.hypot(point.x - previous.point.x, point.y - previous.point.y);
+    samples.push({ point, length });
+  }
+
+  return {
+    length: samples[segments].length,
+    samples,
+    at(distance: number) {
+      let low = 0;
+      let high = segments;
+      while (high - low > 1) {
+        const mid = (low + high) >> 1;
+        if (samples[mid].length < distance) low = mid;
+        else high = mid;
+      }
+      const from = samples[low];
+      const to = samples[high];
+      const span = to.length - from.length;
+      return span
+        ? interpolate(from.point, to.point, (distance - from.length) / span)
+        : from.point;
+    },
+  };
+}
+
+function placeLabel(
+  distances: ReturnType<typeof curveDistances>,
+  arrow: Box,
+  sourceX: number,
+  blocked: ReturnType<typeof labelBlocker>,
+  targetX: number,
+) {
+  const middle = distances.length / 2;
+  const center = distances.at(middle);
+  if (!blocked(center.x, center.y, arrow)) return center;
+
+  // Either direction can have a closer clear spot, including on backward edges.
+  const step = Math.max(1, middle / 128);
+  for (let shift = step; shift <= middle; shift += step) {
+    const before = distances.at(middle - shift);
+    const after = distances.at(middle + shift);
+    if (!blocked(before.x, before.y, arrow)) return before;
+    if (!blocked(after.x, after.y, arrow)) return after;
+  }
+
+  // In a tight gap the label may not fit anywhere on the shaft. Keep it
+  // between the cards and clear of the arrow where possible.
+  const fallbackX = (sourceX + targetX) / 2;
+  const fallbackY = Math.min(center.y, arrow.y - labelHalfHeight);
+  if (!blocked(fallbackX, fallbackY, arrow))
+    return { x: fallbackX, y: fallbackY };
+  return center;
 }
 
 export function transferGeometry(
@@ -12,6 +186,7 @@ export function transferGeometry(
   targetY: number,
   width: number,
   targetPortCount: number,
+  blocked = labelBlocker('', []),
 ) {
   const tip = targetX - 7;
   const pitch = nodeHeight / targetPortCount;
@@ -22,14 +197,22 @@ export function transferGeometry(
   const length =
     gap > 0 ? Math.min(desiredLength, Math.max(8, gap * 0.7)) : desiredLength;
   const base = tip - length;
-  const [path, x, y] = getBezierPath({
+  const curve = {
     sourceX,
     sourceY,
     sourcePosition: Position.Right,
     targetX: base,
     targetY,
     targetPosition: Position.Left,
-  });
+  };
+  const [path] = getBezierPath(curve);
+  const cubic = parseCurve(path);
+  const end = Math.min(
+    width / 2,
+    Math.max(1, half - 2),
+    Math.max(1, width / 4),
+  );
+  const { body, shaft } = taper(cubic, width, end);
   const arrow =
     'M ' +
     base +
@@ -44,7 +227,21 @@ export function transferGeometry(
     ' ' +
     (targetY + half) +
     ' Z';
-  const labelNearArrow =
-    Math.abs(x - tip) < length + 28 && Math.abs(y - targetY) < half + 12;
-  return { path, arrow, x, y: labelNearArrow ? y - 22 : y };
+  const arrowBounds = {
+    x: base,
+    y: targetY - half,
+    width: length,
+    height: half * 2,
+  };
+  const distances = curveDistances(cubic);
+  const label = placeLabel(distances, arrowBounds, sourceX, blocked, targetX);
+  return {
+    path,
+    body,
+    shaft,
+    arrow,
+    arrowBounds,
+    centerline: distances.samples,
+    ...label,
+  };
 }

@@ -9,7 +9,9 @@ test('모든 노드·금액·그룹을 순수 SVG로 만들고 XML 문자를 이
   for (const g of example.groups) expect(svg).toContain(g.color);
   for (const e of example.edges)
     expect(svg).toContain(amountLabel(e.min, e.max));
-  expect(svg.match(/<path d="M [^"]+ Z"/g)).toHaveLength(example.edges.length);
+  expect(svg.match(/<path\b[^>]*\bclass="transfer-arrow"/g)).toHaveLength(
+    example.edges.length,
+  );
   for (const icon of [
     'arrow-down-left',
     'landmark',

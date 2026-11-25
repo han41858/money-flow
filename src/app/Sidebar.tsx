@@ -2,14 +2,14 @@ import {
   ChevronRight,
   ClipboardPaste,
   Frame,
-  Layers2,
   ListTree,
+  PanelLeft,
   Plus,
   X,
 } from 'lucide-react';
 import type { Diagram } from '../types/diagram';
 import { useLibrary } from '../features/diagrams/library';
-import type { Kind, Selection } from '../features/editor/store';
+import type { Kind, NodeClipboard, Selection } from '../features/editor/store';
 import { describe, kindIcons, kindNames } from '../features/nodes/presentation';
 
 type Panel = 'tools' | 'details' | null;
@@ -27,7 +27,7 @@ export function Sidebar({
   diagram: Diagram;
   mobile: Panel;
   setMobile: (panel: Panel) => void;
-  clipboard: unknown;
+  clipboard: NodeClipboard | null;
   add: (kind: Kind) => void;
   addGroup: () => void;
   pasteNodes: () => void;
@@ -42,7 +42,7 @@ export function Sidebar({
     >
       <div className="side-head">
         <span>
-          <Layers2 size={16} />
+          <PanelLeft size={16} />
           편집 도구
         </span>
         <button
@@ -64,7 +64,6 @@ export function Sidebar({
             >
               <Icon size={16} />
               {kindNames[type]}
-              <Plus size={13} />
             </button>
           );
         })}
@@ -80,7 +79,8 @@ export function Sidebar({
         onClick={pasteNodes}
         title="붙여넣기 (Ctrl/⌘ V)"
       >
-        <ClipboardPaste size={15} /> 노드 붙여넣기
+        <ClipboardPaste size={15} />
+        {clipboard?.groups?.length ? '그룹 붙여넣기' : '노드 붙여넣기'}
       </button>
       <div className="side-content">
         <div className="side-head">

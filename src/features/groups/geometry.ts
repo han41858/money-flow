@@ -1,5 +1,6 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
 import { cardSize } from '../nodes/sizing';
+import { groupDepths } from './hierarchy';
 
 export type Group = Diagram['groups'][number];
 type Point = MoneyNode['position'];
@@ -53,20 +54,57 @@ function containsCenter(group: Group, node: MoneyNode, sizes: NodeSizes) {
   );
 }
 
+function deepestMatchingGroup(
+  groups: Group[],
+  matches: (group: Group) => boolean,
+  depths: ReadonlyMap<string, number> = groupDepths(groups)!,
+) {
+  let match: Group | undefined;
+  let depth = -1;
+  // Document order breaks ties between overlapping groups of the same depth.
+  for (const group of groups) {
+    const candidateDepth = depths.get(group.id)!;
+    if (candidateDepth < depth || !matches(group)) continue;
+    match = group;
+    depth = candidateDepth;
+  }
+  return match?.id;
+}
+
 export function assignGroup(
   node: MoneyNode,
   groups: Group[],
   sizes: NodeSizes,
+  depths?: ReadonlyMap<string, number>,
 ) {
-  // Document order is creation order, including after import or undo.
-  let groupId: string | undefined;
-  for (let i = groups.length - 1; i >= 0; i--) {
-    if (containsCenter(groups[i], node, sizes)) {
-      groupId = groups[i].id;
-      break;
-    }
-  }
+  const groupId = deepestMatchingGroup(
+    groups,
+    (group) => containsCenter(group, node, sizes),
+    depths,
+  );
   return groupId === node.groupId ? node : { ...node, groupId };
+}
+
+export function assignParent(group: Group, groups: Group[]): Group {
+  const byId = new Map(groups.map((candidate) => [candidate.id, candidate]));
+  const { position, width, height } = group;
+  const parentId = deepestMatchingGroup(groups, (candidate) => {
+    const { x, y } = candidate.position;
+    if (
+      (candidate.width === width && candidate.height === height) ||
+      position.x < x ||
+      position.y < y ||
+      position.x + width > x + candidate.width ||
+      position.y + height > y + candidate.height
+    )
+      return false;
+    for (let ancestor: Group | undefined = candidate; ancestor;) {
+      if (ancestor.id === group.id) return false;
+      ancestor = ancestor.parentId ? byId.get(ancestor.parentId) : undefined;
+    }
+    return true;
+  });
+  return parentId === group.parentId ? group : { ...group, parentId };
 }
 
 export function membersAfterResize(
@@ -75,9 +113,10 @@ export function membersAfterResize(
   region: Group,
   sizes: NodeSizes,
 ) {
+  const depths = groupDepths(groups)!;
   return nodes.map((node) =>
     node.groupId === region.id || containsCenter(region, node, sizes)
-      ? assignGroup(node, groups, sizes)
+      ? assignGroup(node, groups, sizes, depths)
       : node,
   );
 }
@@ -95,7 +134,12 @@ export function newGroupBounds(
         y: center.y - defaultGroupSize.height / 2,
       },
     };
-  const { position, width, height } = nodeBounds(selected, sizes);
+  return paddedGroupBounds(nodeBounds(selected, sizes));
+}
+
+type Bounds = Pick<Group, 'position' | 'width' | 'height'>;
+
+export function paddedGroupBounds({ position, width, height }: Bounds): Bounds {
   return {
     position: { x: position.x - 24, y: position.y - 44 },
     width: width + 48,
@@ -103,20 +147,25 @@ export function newGroupBounds(
   };
 }
 
-export function nodeBounds(
-  nodes: MoneyNode[],
-  sizes: NodeSizes,
-): Pick<Group, 'position' | 'width' | 'height'> {
+export function nodeBounds(nodes: MoneyNode[], sizes: NodeSizes): Bounds {
+  return enclosingBounds(
+    nodes.map((node) => ({
+      position: node.position,
+      ...(sizes.get(node.id) ?? cardSize(node.name)),
+    })),
+  );
+}
+
+export function enclosingBounds(items: Bounds[]): Bounds {
   let left = Infinity;
   let top = Infinity;
   let right = -Infinity;
   let bottom = -Infinity;
-  for (const node of nodes) {
-    const { width, height } = sizes.get(node.id) ?? cardSize(node.name);
-    left = Math.min(left, node.position.x);
-    top = Math.min(top, node.position.y);
-    right = Math.max(right, node.position.x + width);
-    bottom = Math.max(bottom, node.position.y + height);
+  for (const { position, width, height } of items) {
+    left = Math.min(left, position.x);
+    top = Math.min(top, position.y);
+    right = Math.max(right, position.x + width);
+    bottom = Math.max(bottom, position.y + height);
   }
   return {
     position: { x: left, y: top },

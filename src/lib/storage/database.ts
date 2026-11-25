@@ -101,8 +101,8 @@ async function write<T>(work: (tx: WriteTransaction) => Promise<T>) {
   return value;
 }
 
-function entry(diagram: Diagram, fit = false): Entry {
-  return { id: diagram.id, revision: 1, diagram, fit };
+function entry(diagram: Diagram): Entry {
+  return { id: diagram.id, revision: 1, diagram, fit: false };
 }
 
 function checked(row: Entry) {
@@ -127,7 +127,7 @@ export function restore(initial: () => Diagram) {
     row ??= (await docs.openCursor())?.value;
     const first = !row;
     if (!row) {
-      row = entry(initial(), true);
+      row = entry(initial());
       await docs.add(row);
     }
     const result = checked(row);

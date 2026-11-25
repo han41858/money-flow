@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
 import { nodeHeight, portSize } from '../nodes/sizing';
-import { transferGeometry } from './geometry';
+import { labelBlocker, transferGeometry } from './geometry';
 import type { FlowEdge } from '../editor/graph';
-import { edgeWidth, exactAmount } from './money';
+import { amountLabel, edgeWidth, exactAmount } from './money';
 import { TransferAmount } from './TransferAmount';
 
 export const TransferEdge = memo(function TransferEdge({
@@ -15,7 +15,7 @@ export const TransferEdge = memo(function TransferEdge({
   if (!data) return null;
   const { color, edge } = data;
   const stroke = edgeWidth(edge);
-  const { path, arrow, x, y } = transferGeometry(
+  const { path, body, shaft, arrow, x, y } = transferGeometry(
     // The visible handles sit outside the card; established edges use its sides.
     coords.sourceX - portSize,
     coords.sourceY + (data.sourcePort - 0.5) * nodeHeight,
@@ -23,36 +23,53 @@ export const TransferEdge = memo(function TransferEdge({
     coords.targetY + (data.targetPort - 0.5) * nodeHeight,
     stroke,
     data.targetPortCount,
+    labelBlocker(amountLabel(edge.min, edge.max), data.obstacles),
   );
   const title = exactAmount(edge);
   return (
     <>
       <title>{title}</title>
-      {selected && (
-        <path
-          d={path}
-          fill="none"
-          stroke="#20392d"
-          strokeWidth={stroke + 4}
-          pointerEvents="none"
-          aria-hidden="true"
-        />
-      )}
-      <BaseEdge
-        id={id}
-        path={path}
-        style={{
-          stroke: color,
-          strokeWidth: stroke,
-        }}
-      />
-      <path
-        className="transfer-arrow"
-        d={arrow}
-        fill={color}
-        pointerEvents="none"
-      />
+      <BaseEdge id={id} path={path} style={{ stroke: 'transparent' }} />
       <EdgeLabelRenderer>
+        {/* Keep the edge hit target in React Flow's native layer under the nodes. */}
+        <svg
+          className="transfer-visual"
+          data-edge-id={id}
+          data-selected={selected || undefined}
+          aria-hidden="true"
+        >
+          {selected && (
+            <g stroke="#1d263c" pointerEvents="none">
+              <path d={body} fill="none" strokeWidth={stroke + 4} />
+              <path
+                d={shaft}
+                fill="none"
+                strokeWidth={4}
+                strokeLinejoin="round"
+              />
+            </g>
+          )}
+          <path
+            className="transfer-body"
+            d={body}
+            fill="none"
+            stroke={color}
+            strokeWidth={stroke}
+            pointerEvents="none"
+          />
+          <path
+            className="transfer-shaft"
+            d={shaft}
+            fill={color}
+            pointerEvents="none"
+          />
+          <path
+            className="transfer-arrow"
+            d={arrow}
+            fill={color}
+            pointerEvents="none"
+          />
+        </svg>
         <TransferAmount
           edge={edge}
           readOnly={data.readOnly}

@@ -158,8 +158,22 @@ export function createEditor(initial: Diagram) {
     apply(operations.editGroup(current(), id, patch));
   }
 
-  function resizeGroup(id: string, size: Size, sizes: NodeSizes) {
-    apply(operations.resizeGroup(current(), id, size, sizes));
+  function resizeGroup(
+    id: string,
+    size: Size,
+    sizes: NodeSizes,
+    position?: { x: number; y: number },
+  ) {
+    const diagram = current();
+    const positioned = position
+      ? {
+          ...diagram,
+          groups: diagram.groups.map((group) =>
+            group.id === id ? { ...group, position } : group,
+          ),
+        }
+      : diagram;
+    apply(operations.resizeGroup(positioned, id, size, sizes));
   }
 
   function move(
@@ -174,23 +188,21 @@ export function createEditor(initial: Diagram) {
     apply(operations.autoArrange(current(), sizes));
   }
 
-  function copyNodes(selected: readonly string[]) {
-    return clipboard.copyNodes(current(), selected);
+  function copyNodes(
+    selected: readonly string[],
+    selectedGroups: readonly string[] = [],
+  ) {
+    return clipboard.copyNodes(current(), selected, selectedGroups);
   }
 
-  function pasteNodes(
+  function paste(
     copied: NodeClipboard,
     center: Position,
     measure?: MeasureText,
   ) {
-    const { change, ids } = clipboard.pasteNodes(
-      current(),
-      copied,
-      center,
-      measure,
-    );
-    commit(change);
-    return ids;
+    const result = clipboard.pasteNodes(current(), copied, center, measure);
+    commit(result.change);
+    return result;
   }
 
   function remove(selected: Selection) {
@@ -225,7 +237,9 @@ export function createEditor(initial: Diagram) {
     move,
     autoArrange,
     copyNodes,
-    pasteNodes,
+    pasteNodes: (...args: Parameters<typeof paste>) => paste(...args).ids,
+    pasteSelection: (...args: Parameters<typeof paste>): Selection =>
+      paste(...args).selection,
     remove,
     newDiagram,
     load,

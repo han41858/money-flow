@@ -1,5 +1,4 @@
 import { visibleArea } from './visibleArea';
-import { cardSize } from '../nodes/sizing';
 import {
   useRef,
   useMemo,
@@ -22,6 +21,7 @@ import {
 import { Grid2X2, Maximize, Minus, Plus, WandSparkles } from 'lucide-react';
 import { canvasLabels } from './accessibility';
 import { MoneyNodeCard } from '../nodes/MoneyNodeCard';
+import { browserTextWidth } from '../nodes/sizing';
 import { TransferEdge } from '../edges/TransferEdge';
 import { buildGraph, type FlowNode, type FlowEdge } from './graph';
 import { editor, type Selection } from './store';
@@ -32,7 +32,13 @@ import { recordViewport, useLibrary } from '../diagrams/library';
 
 import { useStableItems } from './stable';
 import { GroupRegion, type RegionNode } from '../groups/GroupRegion';
-import { absoluteFrom, measuredSizes, type Size } from '../groups/geometry';
+import {
+  absoluteFrom,
+  measuredSizes,
+  nodeBounds,
+  type NodeSizes,
+  type Size,
+} from '../groups/geometry';
 type CanvasNode = FlowNode | RegionNode;
 const nodeTypes = { money: MoneyNodeCard, region: GroupRegion };
 const edgeTypes = { transfer: TransferEdge };
@@ -53,6 +59,7 @@ export function Canvas({
   readOnly = false,
 }: Props) {
   const areaRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const interacted = useRef(false);
   const trackView = () => {
     interacted.current = true;
@@ -60,6 +67,7 @@ export function Canvas({
   const fit = useLibrary((s) => s.fit);
   const [grid, setGrid] = useState(true);
   const [source, setSource] = useState<string | null>(null);
+  const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [positions, setPositions] = useState<Map<string, XYPosition>>(
     new Map(),
   );
@@ -67,13 +75,19 @@ export function Canvas({
     new Map(),
   );
   const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
-  const graph = useMemo(() => buildGraph(diagram), [diagram]);
+  const graph = useMemo(() => buildGraph(diagram, browserTextWidth), [diagram]);
   const regions = useMemo(
     () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
     [graph],
   );
   const [resizing, setResizing] = useState<{ id: string; size: Size } | null>(
     null,
+  );
+  const resizePositions = useRef(new Map<string, XYPosition>());
+  const [shouldFit] = useState(
+    () =>
+      (fit || readOnly) &&
+      Boolean(diagram.nodes.length || diagram.groups.length),
   );
   const [initialFit] = useState(() =>
     !readOnly && window.matchMedia('(max-width:720px)').matches
@@ -93,7 +107,6 @@ export function Canvas({
     getInternalNode,
     getViewport,
     setViewport,
-    flowToScreenPosition,
   } = useReactFlow();
   const flowNodes = useStableItems<CanvasNode>([
     ...graph.groupNodes.map((n) => ({
@@ -104,19 +117,30 @@ export function Canvas({
       selected: selected.groups.includes(n.data.group.id),
       ...(resizing?.id === n.id ? resizing.size : {}),
     })),
-    ...graph.nodes.map((n) => ({
-      ...n,
-      position: positions.get(n.id) ?? n.position,
-      measured: measurements.get(n.id),
-      data: { ...n.data, readOnly },
-      selected: selected.nodes.includes(n.id),
-      className:
+    ...graph.nodes.map((n) => {
+      const connectionTarget =
         source && source !== n.id
           ? canConnect(diagram, source, n.id)
-            ? 'valid-target'
-            : 'invalid-target'
-          : '',
-    })),
+          : undefined;
+      return {
+        ...n,
+        position: positions.get(n.id) ?? n.position,
+        measured: measurements.get(n.id),
+        data: {
+          ...n.data,
+          readOnly,
+          connectionTarget,
+          portFocused: focusedNode === n.id,
+        },
+        selected: selected.nodes.includes(n.id),
+        className:
+          connectionTarget === undefined
+            ? ''
+            : connectionTarget
+              ? 'valid-target'
+              : 'invalid-target',
+      };
+    }),
   ]);
   const flowEdges = useStableItems<FlowEdge>(
     graph.edges.map((e) => ({
@@ -128,45 +152,68 @@ export function Canvas({
   const zoom = useStore((s) => s.transform[2]);
 
   function fitVisibleArea() {
-    const area = areaRef.current!;
-    const canvas = area.getBoundingClientRect();
-    const visible = visibleArea(area);
-    void fitView({
-      ...fitOptions,
-      duration: 180,
-      padding: {
-        top: `${Math.ceil(visible.top - canvas.top) + 16}px`,
-        right: `${Math.ceil(canvas.right - visible.right) + 16}px`,
-        bottom: '56px',
-        left: '16px',
-      },
-    });
+    const sizes = measuredSizes(diagram.nodes, getInternalNode);
+    centerDiagram(diagram, sizes);
   }
 
   function arrange() {
-    trackView();
     const sizes = measuredSizes(diagram.nodes, getInternalNode);
     editor.autoArrange(sizes);
-    const arranged = editor.current();
-    if (arranged.nodes === diagram.nodes) return;
+    centerDiagram(editor.current(), sizes);
+  }
+
+  function centerDiagram({ nodes, groups }: Diagram, sizes: NodeSizes) {
+    if (!nodes.length && !groups.length) return;
+    trackView();
+    const bounds = nodeBounds(nodes, sizes);
+    let { x: left, y: top } = bounds.position;
+    let right = left + bounds.width;
+    let bottom = top + bounds.height;
+    for (const group of groups) {
+      left = Math.min(left, group.position.x);
+      top = Math.min(top, group.position.y);
+      right = Math.max(right, group.position.x + group.width);
+      bottom = Math.max(bottom, group.position.y + group.height);
+    }
 
     const area = areaRef.current!;
-    const { top } = area.getBoundingClientRect();
+    const canvas = area.getBoundingClientRect();
     const visible = visibleArea(area);
-    const viewport = getViewport();
-    let dy = 0;
-    for (const node of arranged.nodes) {
-      const point = flowToScreenPosition(node.position);
-      const size = sizes.get(node.id) ?? cardSize(node.name);
-      if (
-        point.x < visible.right &&
-        point.x + size.width * viewport.zoom > visible.left &&
-        point.y + size.height * viewport.zoom > top &&
-        point.y < visible.top
-      )
-        dy = Math.max(dy, visible.top + 8 - point.y);
-    }
-    if (dy) void setViewport({ ...viewport, y: viewport.y + dy });
+    const screenTop = Math.max(0, visible.top);
+    const controlsTop = controlsRef.current?.getBoundingClientRect().top;
+    const screenBottom = Math.min(
+      window.innerHeight,
+      visible.bottom,
+      controlsTop ?? Infinity,
+    );
+    const width = visible.right - visible.left;
+    const height = screenBottom - screenTop;
+    if (width <= 0 || height <= 0) return;
+
+    const currentZoom = getViewport().zoom;
+    const diagramWidth = right - left;
+    const diagramHeight = bottom - top;
+    const overflows =
+      diagramWidth * currentZoom > width ||
+      diagramHeight * currentZoom > height;
+    const margin = Math.min(16, width / 4, height / 4);
+    const nextZoom = overflows
+      ? Math.min(
+          (width - 2 * margin) / diagramWidth,
+          (height - 2 * margin) / diagramHeight,
+        )
+      : currentZoom;
+    void setViewport({
+      x:
+        (visible.left + visible.right) / 2 -
+        canvas.left -
+        ((left + right) / 2) * nextZoom,
+      y:
+        (screenTop + screenBottom) / 2 -
+        canvas.top -
+        ((top + bottom) / 2) * nextZoom,
+      zoom: nextZoom,
+    });
   }
 
   function selectionChanges(
@@ -211,20 +258,50 @@ export function Canvas({
     if (measured.size)
       setMeasurements((previous) => new Map([...previous, ...measured]));
     if (readOnly) return;
-    for (const c of changes) {
-      if (c.type !== 'dimensions' || c.resizing === undefined || !c.dimensions)
-        continue;
-      const group = regions.get(c.id);
-      if (!group) continue;
-      if (c.resizing) setResizing({ id: c.id, size: c.dimensions });
-      else {
+    const resize = changes.find(
+      (change) =>
+        change.type === 'dimensions' &&
+        change.resizing !== undefined &&
+        change.dimensions &&
+        regions.has(change.id),
+    );
+    if (resize?.type === 'dimensions' && resize.dimensions) {
+      const group = regions.get(resize.id)!;
+      if (resize.resizing) {
+        // Keep the moving origin and the children's compensating positions
+        // in the preview; these position changes are not separate moves.
+        const next = new Map(resizePositions.current);
+        for (const change of changes) {
+          if (change.type === 'position' && change.position)
+            next.set(change.id, change.position);
+        }
+        resizePositions.current = next;
+        setPositions((previous) => new Map([...previous, ...next]));
+        setResizing({ id: resize.id, size: resize.dimensions });
+      } else {
+        const preview = resizePositions.current;
+        const local = preview.get(resize.id);
+        const parentId = getInternalNode(resize.id)?.parentId;
+        const parent = parentId ? getInternalNode(parentId) : undefined;
+        const position =
+          local && parent
+            ? absoluteFrom(local, parent.internals.positionAbsolute)
+            : local;
         editor.resizeGroup(
           group.id,
-          c.dimensions,
+          resize.dimensions,
           measuredSizes(diagram.nodes, getInternalNode),
+          position,
         );
+        resizePositions.current = new Map();
+        setPositions((previous) => {
+          const next = new Map(previous);
+          for (const id of preview.keys()) next.delete(id);
+          return next;
+        });
         setResizing(null);
       }
+      return;
     }
     const moving = new Map<string, XYPosition>();
     const finished = new Map<string, XYPosition>();
@@ -239,16 +316,20 @@ export function Canvas({
       const groupPositions = new Map<string, XYPosition>();
       const nodePositions = new Map<string, XYPosition>();
       for (const [id, point] of finished) {
-        const group = regions.get(id);
-        if (group) groupPositions.set(group.id, point);
-        else {
-          const parentId = getInternalNode(id)?.parentId;
-          const parent = parentId ? regions.get(parentId) : undefined;
-          nodePositions.set(
-            id,
-            parent ? absoluteFrom(point, parent.position) : point,
+        let absolute = point;
+        let parentId = getInternalNode(id)?.parentId;
+        while (parentId) {
+          const parent = getInternalNode(parentId);
+          if (!parent) break;
+          absolute = absoluteFrom(
+            absolute,
+            finished.get(parentId) ?? parent.position,
           );
+          parentId = parent.parentId;
         }
+        const group = regions.get(id);
+        if (group) groupPositions.set(group.id, absolute);
+        else nodePositions.set(id, absolute);
       }
       editor.move(
         nodePositions,
@@ -278,6 +359,15 @@ export function Canvas({
         data-port-mode={readOnly ? undefined : source ? 'connecting' : 'idle'}
         onPointerDownCapture={trackView}
         onWheelCapture={trackView}
+        onFocusCapture={(event) => {
+          const target = event.target;
+          if (target.matches('.react-flow__node-money:focus-visible'))
+            setFocusedNode(target.getAttribute('data-id'));
+        }}
+        onBlurCapture={(event) => {
+          if (event.target.matches('.react-flow__node-money'))
+            setFocusedNode(null);
+        }}
         onKeyDownCapture={(e) => {
           trackView();
           if (
@@ -342,18 +432,15 @@ export function Canvas({
             onViewportChange={(vp) =>
               !readOnly && recordViewport(diagram.id, vp, interacted.current)
             }
-            fitView={
-              (fit || readOnly) &&
-              (graph.nodes.length > 0 || graph.groupNodes.length > 0)
-            }
+            fitView={shouldFit}
             fitViewOptions={initialFit}
-            minZoom={0.15}
+            minZoom={Math.min(0.15, zoom, diagram.viewport.zoom)}
             maxZoom={2}
             aria-label="월간 자금 흐름도"
           >
             {grid && (
               <Background
-                color="#cbd5cf"
+                color="#cbced5"
                 gap={19}
                 size={1.4}
                 variant={BackgroundVariant.Dots}
@@ -375,7 +462,11 @@ export function Canvas({
                 연결할 노드의 왼쪽 점을 선택하세요
               </Panel>
             )}
-            <Panel position="bottom-left" className="canvas-controls">
+            <Panel
+              position={readOnly ? 'bottom-left' : 'bottom-right'}
+              className="canvas-controls"
+              ref={controlsRef}
+            >
               <button aria-label="축소" onClick={() => void zoomOut()}>
                 <Minus size={16} />
               </button>
@@ -386,7 +477,6 @@ export function Canvas({
               <button
                 className="zoom-reset"
                 aria-label="100% 배율로 설정"
-                title="100% 배율로 설정"
                 onClick={() => void zoomTo(1)}
               >
                 100%
@@ -394,7 +484,6 @@ export function Canvas({
               <i />
               <button
                 aria-label="전체 보기"
-                title="전체 보기"
                 onClick={
                   readOnly
                     ? () => void fitView({ ...fitOptions, duration: 180 })
@@ -406,7 +495,6 @@ export function Canvas({
               {!readOnly && (
                 <button
                   aria-label="자동 정렬"
-                  title="자동 정렬"
                   disabled={!graph.nodes.length}
                   onClick={arrange}
                 >
@@ -415,7 +503,6 @@ export function Canvas({
               )}
               <button
                 aria-label="격자 표시"
-                title="격자 표시"
                 aria-pressed={grid}
                 onClick={() => setGrid(!grid)}
               >

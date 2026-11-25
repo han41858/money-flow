@@ -1,11 +1,13 @@
-import type { NodeTotal } from '../nodes/sizing';
+import type { MeasureText, NodeTotal } from '../nodes/sizing';
 import { type Node, type Edge } from '@xyflow/react';
 import { amountLabel, exactAmount, sum } from '../edges/money';
-import { portFraction } from '../edges/geometry';
+import { portFraction, type Box } from '../edges/geometry';
+import { cardSize } from '../nodes/sizing';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
 import { relativeTo } from '../groups/geometry';
+import { groupsInLayerOrder } from '../groups/hierarchy';
 import type { RegionNode } from '../groups/GroupRegion';
 export type FlowNode = Node<
   {
@@ -15,6 +17,8 @@ export type FlowNode = Node<
     outputs: string[];
     totals: NodeTotal[];
     readOnly?: boolean;
+    connectionTarget?: boolean;
+    portFocused?: boolean;
   },
   'money'
 >;
@@ -25,26 +29,36 @@ export type FlowEdge = Edge<
     sourcePort: number;
     targetPort: number;
     targetPortCount: number;
+    obstacles: Box[];
     readOnly?: boolean;
   },
   'transfer'
 >;
 
-export function buildGraph(diagram: Diagram) {
+export function buildGraph(diagram: Diagram, measure?: MeasureText) {
   let prefix = 'group:';
   while (diagram.nodes.some((n) => n.id.startsWith(prefix))) prefix += ':';
-  const groupNodes: RegionNode[] = diagram.groups.map((group) => ({
-    id: prefix + group.id,
-    type: 'region',
-    position: group.position,
-    width: group.width,
-    height: group.height,
-    data: { group },
-    ariaLabel: group.name,
-    connectable: false,
-    dragHandle: '.group-title',
-    zIndex: -1,
-  }));
+  const groups = new Map(diagram.groups.map((group) => [group.id, group]));
+  const groupNodes: RegionNode[] = groupsInLayerOrder(diagram.groups).map(
+    (group) => {
+      const parent = group.parentId ? groups.get(group.parentId) : undefined;
+      return {
+        id: prefix + group.id,
+        type: 'region',
+        position: parent
+          ? relativeTo(group.position, parent.position)
+          : group.position,
+        parentId: parent ? prefix + parent.id : undefined,
+        width: group.width,
+        height: group.height,
+        data: { group },
+        ariaLabel: group.name,
+        connectable: false,
+        dragHandle: '.group-region',
+        zIndex: -1,
+      };
+    },
+  );
   const byGroupId = new Map(groupNodes.map((n) => [n.data.group.id, n]));
   const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
 
@@ -91,7 +105,7 @@ export function buildGraph(diagram: Diagram) {
       id: node.id,
       type: 'money',
       position: parent
-        ? relativeTo(node.position, parent.position)
+        ? relativeTo(node.position, parent.data.group.position)
         : node.position,
       parentId: parent?.id,
       ariaLabel: node.name,
@@ -110,6 +124,10 @@ export function buildGraph(diagram: Diagram) {
     };
   });
   const byNodeId = new Map(nodes.map((n) => [n.id, n.data]));
+  const obstacles = diagram.nodes.map((node) => ({
+    ...node.position,
+    ...cardSize(node.name, measure),
+  }));
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     const outputs = byNodeId.get(edge.source)!.outputs;
@@ -125,6 +143,7 @@ export function buildGraph(diagram: Diagram) {
         sourcePort: portFraction(outputs.indexOf(edge.id), outputs.length),
         targetPort: portFraction(inputs.indexOf(edge.id), inputs.length),
         targetPortCount: inputs.length,
+        obstacles,
       },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { example } from '../../app/example';
 import { diagramSchema } from '../../types/diagram';
 import { canConnect } from '../edges/connections';
-import { cardSize, nodeHeight, totalLineHeight } from '../nodes/sizing';
+import { cardSize, nodeHeight } from '../nodes/sizing';
 import { arrangeDiagram } from './arrange';
 import { createEditor, nodeOfType } from './store';
 
@@ -103,15 +103,45 @@ describe('편집 이력', () => {
     expect(position('income-b').y).toBeLessThan(position('income-a').y);
     expect(position('savings').x).toBe(position('card').x);
     expect(position('savings').y).toBeLessThan(position('card').y);
-    expect(position('card').x - position('joint').x).toBe(
-      Math.max(...before.nodes.map((node) => cardSize(node.name).width)) + 96,
-    );
     expect(position('card').y - position('savings').y).toBeGreaterThanOrEqual(
       nodeHeight + 24,
     );
     expect(arranged.groups.map((group) => group.id)).toEqual(
       before.groups.map((group) => group.id),
     );
+  });
+  it('자동 정렬은 금액이 겹치거나 긴 금액이 놓이는 단계만 넓힌다', () => {
+    const arrange = (edges = example.edges) => {
+      const { nodes } = arrangeDiagram({ ...example, edges }, new Map());
+      const x = (id: string) =>
+        nodes.find((node) => node.id === id)!.position.x;
+      const width = Math.max(
+        ...example.nodes.map((node) => cardSize(node.name).width),
+      );
+      return [
+        x('joint') - x('income-a') - width,
+        x('card') - x('joint') - width,
+        x('telecom') - x('card') - width,
+      ];
+    };
+    const short = example.edges.map((edge) => ({
+      ...edge,
+      min: 5_000_000,
+      max: 5_000_000,
+    }));
+    const compact = arrange(short);
+    expect(compact[0]).toBe(64);
+    expect(compact[1]).toBeGreaterThan(64);
+    expect(compact[2]).toBe(64);
+    const withRange = arrange(
+      short.map((edge) =>
+        edge.target === 'telecom'
+          ? { ...edge, min: 1_280_000, max: 1_580_000 }
+          : edge,
+      ),
+    );
+    expect(withRange.slice(0, 2)).toEqual(compact.slice(0, 2));
+    expect(withRange[2]).toBeGreaterThanOrEqual(97);
   });
   it.each([true, false])(
     '분기에서 하위 노드의 중심과 형제 간격을 맞춘다 (그룹: %s)',
@@ -147,9 +177,7 @@ describe('편집 이력', () => {
       const savings = position('savings');
       expect(first.x).toBeGreaterThan(card.x);
       expect(first.x).toBe(last.x);
-      expect(card.y + (nodeHeight + totalLineHeight) / 2).toBe(
-        (first.y + last.y + nodeHeight) / 2,
-      );
+      expect(card.y + nodeHeight / 2).toBe((first.y + last.y + nodeHeight) / 2);
       expect(savings.y).toBe(last.y + nodeHeight + 24);
       expect(arrangeDiagram({ ...diagram, ...layout }, new Map())).toEqual(
         layout,

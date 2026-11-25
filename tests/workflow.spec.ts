@@ -19,12 +19,15 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     page.locator('.react-flow__node-money').filter({ hasText: name });
   await connect(page, node('급여 A'), node('공동 통장'));
   const path = page.locator('.react-flow__edge-path');
-  const initial = await path.evaluate((el) => getComputedStyle(el).strokeWidth);
-  await page.getByLabel('월 금액 (원)').fill('2800000');
+  const shaft = page.locator('.transfer-shaft');
+  const initial = await shaft.getAttribute('d');
+  await page.getByLabel('월 금액 (원)').fill('8000000');
   await page.getByLabel('월 금액 (원)').press('Enter');
-  await expect
-    .poll(() => path.evaluate((el) => getComputedStyle(el).strokeWidth))
-    .not.toBe(initial);
+  await expect(shaft).not.toHaveAttribute('d', initial!);
+  await expect(page.locator('.transfer-body')).not.toHaveAttribute(
+    'stroke-width',
+    '2',
+  );
   for (const [member, name] of [
     ['급여 A', '개인 A'],
     ['공동 통장', '공동 자금'],
@@ -37,6 +40,24 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     await page
       .getByRole('textbox', { name: '그룹 이름', exact: true })
       .press('Enter');
+
+    const group = page
+      .locator('.react-flow__node-region')
+      .filter({ hasText: name });
+    const card = node(member);
+    const bounds = (await card.boundingBox())!;
+    // 이름 편집 영역을 피해 카드 위쪽을 잡고, 카드 중심을 그룹에 놓는다.
+    await card.hover({ position: { x: bounds.width / 2, y: 2 } });
+    const target = await point(group);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y - bounds.height / 2 + 2, {
+      steps: 15,
+    });
+    await page.mouse.up();
+    await selectNode(card);
+    await expect(
+      page.locator('.property').filter({ hasText: '소속 그룹' }),
+    ).toContainText(name);
   }
   const handle = page.locator('.group-title').filter({ hasText: '공동 자금' });
   const start = await point(handle);
@@ -55,7 +76,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
   await page.reload();
   await chooseSavedFlow(page, '새 자금 흐름');
   await expect(handle).toBeVisible();
-  await expect(page.getByText('280만', { exact: true })).toBeVisible();
+  await expect(page.getByText('800만', { exact: true })).toBeVisible();
   await selectNode(node('공동 통장'));
   await expect(
     page.locator('.property').filter({ hasText: '소속 그룹' }),
@@ -70,7 +91,7 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     .getByLabel('항목 찾기')
     .selectOption({ label: '급여 A → 공동 통장' });
   await expect(shared.getByRole('region', { name: '선택 상세' })).toContainText(
-    '2,800,000원',
+    '8,000,000원',
   );
   await shared.close();
   for (const format of ['SVG', 'PNG']) {
@@ -118,15 +139,61 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await openExample(page);
-  const trigger = page.getByRole('button', { name: '노드 목록 열기' });
+  const trigger = page.getByRole('button', { name: '편집 도구 열기' });
+  await expect(trigger.locator('.lucide-panel-left')).toBeVisible();
+  const tab = (await trigger.boundingBox())!;
+  const canvas = (await page.locator('#editor-main').boundingBox())!;
+  const controls = (await page.locator('.canvas-controls').boundingBox())!;
+  expect(tab.x).toBe(canvas.x);
+  expect(controls.x).toBeGreaterThan(tab.x + tab.width);
+  expect(controls.x + controls.width).toBeGreaterThan(canvas.width - 24);
   await trigger.focus();
   await page.keyboard.press('Enter');
   const tools = page.getByRole('dialog', { name: '편집 도구' });
   await expect(tools).toBeVisible();
+  const motion = () =>
+    tools.evaluate((panel) => [
+      getComputedStyle(panel).animationName,
+      getComputedStyle(panel, '::backdrop').animationName,
+    ]);
+  expect(await motion()).toEqual([
+    'mobile-tools-slide-in',
+    'mobile-tools-backdrop-in',
+  ]);
+  await tools.evaluate(async (panel) => {
+    await Promise.all(
+      panel.getAnimations().map((animation) => animation.finished),
+    );
+  });
+  const header = (await page.locator('.topbar').boundingBox())!;
+  const panel = (await tools.boundingBox())!;
+  expect(panel.y).toBe(header.y + header.height);
+  expect(panel.width).toBeLessThan(250);
+  const buttons = await Promise.all(
+    ['수입', '계좌', '카드', '지출'].map((kind) =>
+      tools.getByRole('button', { name: kind + ' 추가' }).boundingBox(),
+    ),
+  );
+  const first = buttons[0]!;
+  for (const [index, box] of buttons.entries()) {
+    expect(box!.y).toBe(first.y);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(panel.x + panel.width);
+    if (index > 0) expect(box!.x).toBeGreaterThan(buttons[index - 1]!.x);
+  }
   await expect(tools.getByRole('button', { name: '탐색 닫기' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+
+  const share = page.getByRole('button', { name: '공유 및 내보내기' });
+  const sharePoint = await point(share);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await trigger.click();
+  await expect(tools).toBeVisible();
+  expect(await motion()).toEqual(['none', 'none']);
+  await page.mouse.click(sharePoint.x, sharePoint.y);
+  await expect(tools).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await share.click();
   await page.getByRole('button', { name: '공유 링크 만들기' }).click();
   await page.goto(await page.getByLabel('읽기 전용 주소').inputValue());
   await page.getByLabel('항목 찾기').selectOption({ label: '생활비 카드' });
@@ -136,4 +203,50 @@ test('320px 화면의 도구 패널이 포커스를 유지하고 Esc로 닫히�
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     320,
   );
+});
+
+test('큰 화면에서도 캔버스 컨트롤은 오른쪽에 있고 속성 패널을 피한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  await expect(
+    page.getByLabel('다이어그램 탐색').locator('.lucide-panel-left'),
+  ).toBeVisible();
+  const controls = page.locator('.canvas-controls');
+  const canvas = (await page.locator('#editor-main').boundingBox())!;
+  const before = (await controls.boundingBox())!;
+  expect(canvas.x + canvas.width - before.x - before.width).toBeLessThan(24);
+  await page
+    .getByRole('button', { name: '공동 생활비 통장', exact: true })
+    .first()
+    .click();
+  const inspector = (await page.locator('.detail-wrap').boundingBox())!;
+  const after = (await controls.boundingBox())!;
+  const gap = inspector.x - after.x - after.width;
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThan(24);
+});
+
+test('캔버스 컨트롤의 기능 이름을 마우스와 키보드로 볼 수 있다', async ({
+  page,
+}) => {
+  await openExample(page);
+  const controls = page.locator('.canvas-controls');
+  const zoomOut = controls.getByRole('button', { name: '축소' });
+  const zoomIn = controls.getByRole('button', { name: '확대', exact: true });
+  const tooltip = (button: typeof zoomOut) =>
+    button.evaluate((el) => {
+      const style = getComputedStyle(el, '::after');
+      return [style.visibility, style.content];
+    });
+
+  expect(await tooltip(zoomOut)).toEqual(['hidden', '"축소"']);
+  await zoomOut.hover();
+  expect(await tooltip(zoomOut)).toEqual(['visible', '"축소"']);
+  await page.mouse.move(0, 0);
+  await zoomOut.focus();
+  await page.keyboard.press('Tab');
+  await expect(zoomIn).toBeFocused();
+  expect(await tooltip(zoomIn)).toEqual(['visible', '"확대"']);
 });

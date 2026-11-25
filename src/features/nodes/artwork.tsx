@@ -61,7 +61,7 @@ export function NodeArtwork({
           y={(height - 18) / 2}
           width={18}
           height={18}
-          color="#314937"
+          color="#313849"
           aria-hidden="true"
         />
       )}
@@ -72,7 +72,7 @@ export function NodeArtwork({
         dominantBaseline="central"
         fontSize={nameFontSize}
         fontWeight={700}
-        fill="#1c2923"
+        fill="#1c2029"
       >
         {label}
       </text>
@@ -86,7 +86,7 @@ export function NodeArtwork({
                 y={height + totalLineHeight - 1}
                 textAnchor={side === 'left' ? 'start' : 'end'}
                 fontSize={totalFontSize}
-                fill="#415548"
+                fill="#414755"
               >
                 {label}
               </text>

@@ -226,10 +226,13 @@ export function probeBrowser(head, targets, validate = validateCandidate) {
 }
 
 export class ReproductionFailure extends ValidationFailure {
-  constructor(message) {
-    super(25, message);
+  constructor(message, failure) {
+    super(25);
     this.stage = 'UI 재현';
     this.message = message;
+    this.diagnostics = [safeText(message), failure?.diagnostics]
+      .filter(Boolean)
+      .join('\n');
   }
 }
 

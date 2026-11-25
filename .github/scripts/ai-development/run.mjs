@@ -244,10 +244,14 @@ ${snapshot(base, base).read('AGENTS.md')}`;
       prepareChanges: (edits) => formatChanges(resolveEdits(edits, work), work),
     });
     if (plan.blockedOnUiSpec) throw new UiSpecUnread();
-    if (plan.status !== 'completed' || !plan.changes.length)
-      throw new Stop(
-        safeText(plan.summary) || '게시할 완성된 변경이 없습니다.',
-      );
+    if (plan.status !== 'completed' || !plan.changes.length) {
+      const summary =
+        safeText(plan.summary) || '게시할 완성된 변경이 없습니다.';
+      const handoff = state.pr
+        ? `\n\n기존 변경은 [PR #${state.pr}](https://github.com/${repository}/pull/${state.pr})에서 이어갈 수 있습니다. 요구사항을 정리한 뒤 이 PR에서 수정과 검토를 계속하세요.`
+        : '';
+      throw new Stop(summary + handoff);
+    }
     await guard();
     candidateHead = checkpoint(candidateHead, plan.changes);
     const changes = snapshot(state.head, candidateHead).existingBranchEdits();

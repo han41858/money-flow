@@ -379,7 +379,13 @@ export function createModels({
       );
   }
 
-  async function call(agent, body, mode, turn) {
+  async function call(
+    agent,
+    body,
+    mode,
+    turn,
+    requestTimeout = limits.requestTimeout,
+  ) {
     const isCodex = agent === 'codex';
     const name = agents[agent].name;
     const endpoint = isCodex
@@ -403,7 +409,7 @@ export function createModels({
       };
       let response;
       let rejectionReason;
-      const timeout = AbortSignal.timeout(limits.requestTimeout);
+      const timeout = AbortSignal.timeout(requestTimeout);
       try {
         touch();
         const signal = AbortSignal.any([idle.signal, timeout]);
@@ -505,6 +511,39 @@ export function createModels({
         summary: missingBlocker,
       };
       let toolCalls = 0;
+      let retriedOutputLimit = false;
+      async function callTurn(body, turn) {
+        const response = await call(agent, body, mode, turn);
+        if (
+          agent !== 'codex' ||
+          mode !== 'development' ||
+          retriedOutputLimit ||
+          response.incomplete_details?.reason !== 'max_output_tokens'
+        )
+          return response;
+
+        retriedOutputLimit = true;
+        log(
+          JSON.stringify({
+            agent,
+            mode,
+            turn,
+            diagnostic:
+              '출력 토큰 한도에 도달해 같은 요청을 한 번 다시 실행합니다.',
+            outputTokens: limits.outputTokens,
+            retryOutputTokens: limits.codexRetryOutputTokens,
+          }),
+        );
+        // Retry from the same input. A truncated structured response is not
+        // part of the conversation and must not reach validation or publishing.
+        return call(
+          agent,
+          { ...body, max_output_tokens: limits.codexRetryOutputTokens },
+          mode,
+          turn,
+          limits.codexRetryRequestTimeout,
+        );
+      }
       for (let turn = 1; turn <= turnLimit; turn++) {
         const started = performance.now();
         const finalTurn =
@@ -531,8 +570,7 @@ export function createModels({
           toolCalls++;
           return invokeTool(inspect, name, isCodex ? parseJSON(args) : args);
         }
-        const data = await call(
-          agent,
+        const data = await callTurn(
           isCodex
             ? {
                 model,
@@ -577,7 +615,6 @@ export function createModels({
                   }),
                 ),
               },
-          mode,
           turn,
         ).catch((error) => {
           log(

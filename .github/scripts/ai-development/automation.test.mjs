@@ -175,6 +175,61 @@ test('모델 호출 직전 승인이 철회되면 공급자에 요청하지 않�
   );
 });
 
+for (const retrySucceeds of [true, false]) {
+  test(`Codex 개발 출력이 잘리면 같은 요청을 한 번만 재시도한다 (${retrySucceeds ? '복구' : '실패'})`, async () => {
+    const requests = [];
+    let guarded = 0;
+    const completed = {
+      status: 'completed',
+      title: '🐛 화면: 표시 수정',
+      summary: '표시를 수정합니다.',
+      edits: [{ path: 'src/example.ts', before: 'old', after: 'new' }],
+    };
+    const models = createModels({
+      keys: { codex: 'mock', claude: 'mock' },
+      modelNames: { codex: 'mock', claude: 'mock' },
+      beforeRequest: async () => {
+        guarded++;
+      },
+      log: () => {},
+      request: async (_url, init) => {
+        requests.push(JSON.parse(init.body));
+        if (requests.length === 2 && retrySucceeds)
+          return Response.json({
+            status: 'completed',
+            output: [
+              {
+                content: [
+                  { type: 'output_text', text: JSON.stringify(completed) },
+                ],
+              },
+            ],
+          });
+        return Response.json({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+          output: [{ content: [{ type: 'output_text', text: '{"status":' }] }],
+        });
+      },
+    });
+    const run = models.run({
+      agent: 'codex',
+      mode: 'development',
+      instructions: 'test',
+      context: '{}',
+    });
+    if (retrySucceeds) assert.deepEqual(await run, completed);
+    else await assert.rejects(run, /출력 토큰 한도/);
+    assert.equal(guarded, 2);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].max_output_tokens, 12_000);
+    assert.deepEqual(requests[1], {
+      ...requests[0],
+      max_output_tokens: 18_000,
+    });
+  });
+}
+
 test('GitHub 일시 오류는 읽기 요청만 재시도한다', async () => {
   let calls = 0;
   const gh = createGitHub({

@@ -3,6 +3,8 @@ export const config = {
     turns: 15,
     reviewTurns: 15,
     outputTokens: 12_000,
+    codexRetryOutputTokens: 18_000,
+    codexRetryRequestTimeout: 240_000,
     edits: 25,
     toolCallsPerTurn: 4,
     toolCallsTotal: 24,

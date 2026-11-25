@@ -85,6 +85,15 @@ export function canResumeDependency(state, issue, approval) {
   );
 }
 
+export function dependencyRetry(state, devMoved) {
+  const prior = state.dependencyRetries ?? 0;
+  if (devMoved && prior < 2) {
+    state.dependencyRetries = prior + 1;
+    return { status: 'waiting_dependency', code: 'dependency_dev_moved' };
+  }
+  return { status: 'needs_human', code: 'dependency_blocked' };
+}
+
 export async function dispatchReadyDependencies(gh) {
   const issues = await gh.pages(
     `/issues?state=open&labels=${encodeURIComponent(approvalLabel)}`,

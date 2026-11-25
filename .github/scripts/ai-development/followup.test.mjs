@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { cleanupBranch, isTrackedDevMerge } from './completion.mjs';
 import {
   canResumeDependency,
+  dependencyRetry,
   dependencyNumbers,
   dispatchReadyDependencies,
   pendingDependencies,
@@ -77,6 +78,17 @@ test('병합한 동일 HEAD의 브랜치만 원격 HEAD 조건을 전달해 삭�
   );
 });
 
+test('선행 이슈 재개에서 dev 갱신만 제한적으로 다시 시도한다', () => {
+  const waitingState = {};
+  const retry = { status: 'waiting_dependency', code: 'dependency_dev_moved' };
+  const blocked = { status: 'needs_human', code: 'dependency_blocked' };
+  assert.deepEqual(dependencyRetry(waitingState, true), retry);
+  assert.deepEqual(dependencyRetry(waitingState, true), retry);
+  assert.equal(waitingState.dependencyRetries, 2);
+  assert.deepEqual(dependencyRetry(waitingState, true), blocked);
+  assert.deepEqual(dependencyRetry({}, false), blocked);
+});
+
 const issue = {
   number: 10,
   title: '후속 작업',
@@ -146,6 +158,13 @@ test('선행 이슈는 완료 상태와 같은 저장소 dev 병합 커밋을 �
 
 test('후속 재개는 원래 승인과 범위가 유지된 대기 이슈에만 dispatch한다', async () => {
   assert(canResumeDependency(waiting, issue, approval));
+  assert(
+    !canResumeDependency(
+      { ...waiting, status: 'needs_human' },
+      issue,
+      approval,
+    ),
+  );
   assert(!canResumeDependency(waiting, { ...issue, body: '' }, approval));
   assert(!canResumeDependency(waiting, issue, { ...approval, id: 20 }));
   const calls = [];
@@ -201,6 +220,14 @@ test('중단된 기존 PR의 새 HEAD는 전체 SHA를 지정해야만 리뷰 �
     base,
   };
   assert(canResumeReview(state, 10, base));
+  assert(canResumeReview({ ...state, status: 'reviewing' }, 10, base));
+  assert(
+    !canResumeReview(
+      { ...state, status: 'developing', published: false },
+      10,
+      base,
+    ),
+  );
   assert(!canResumeReview(state, 10));
   assert(!canResumeReview(state, 10, 'abc'));
   assert(!canResumeReview({ ...state, reviewedHead: base }, 10, base));

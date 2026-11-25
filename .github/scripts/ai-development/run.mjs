@@ -8,6 +8,7 @@ import {
 } from './completion.mjs';
 import {
   canResumeDependency,
+  dependencyRetry,
   dispatchReadyDependencies,
   pendingDependencies,
 } from './dependencies.mjs';
@@ -53,7 +54,9 @@ const maxReviews = 3;
 const sha = /^[a-f0-9]{40}$/;
 let state;
 let reviewResumeStarted = false;
+let dependencyPreflight = false;
 let dependencyStarted = false;
+class DependencyBaseChanged extends Stop {}
 
 class ReviewStop extends Stop {
   constructor(review, reviewUrl, runUrl) {
@@ -165,7 +168,9 @@ async function develop() {
   const approval = await gh.approval(issueNumber);
   const restarting = state && canRestartUnpublished(state, event, approval);
   const reapprovedDependency =
-    state?.status === 'waiting_dependency' &&
+    (state?.status === 'waiting_dependency' ||
+      (state?.status === 'needs_human' &&
+        state.code === 'dependency_blocked')) &&
     !state.pr &&
     !state.published &&
     approval?.event === 'labeled' &&
@@ -176,10 +181,6 @@ async function develop() {
     );
     return;
   }
-  await gh.assertEnvironment();
-  await gh.assertProtection();
-  if (!env.AI_AUTOMATION_TOKEN)
-    throw new Stop('ai-development 환경에 AI_AUTOMATION_TOKEN을 등록하세요.');
   const issue = await gh.repo(issuePath);
   if (dependencyResume && !canResumeDependency(state, issue, approval)) return;
   if (
@@ -192,27 +193,46 @@ async function develop() {
     (!dependencyResume && approval.actor?.login !== event.sender.login)
   )
     throw new Stop('실행 이벤트와 현재 ai:develop 승인자가 일치하지 않습니다.');
+  if (dependencyResume) {
+    dependencyPreflight = true;
+    await gh.assertMaintainer(approval.actor.login);
+  }
+  await gh.assertEnvironment();
+  await gh.assertProtection();
+  if (!env.AI_AUTOMATION_TOKEN)
+    throw new Stop('ai-development 환경에 AI_AUTOMATION_TOKEN을 등록하세요.');
   const base = await gh.ref(baseBranch);
+  if (dependencyResume && sha.test(base ?? '') && base !== env.GITHUB_SHA)
+    throw new DependencyBaseChanged('대기 중 dev가 갱신되었습니다.');
   if (!sha.test(base ?? '') || base !== env.GITHUB_SHA)
     throw new Stop('실행 기준과 최신 dev가 다릅니다. 최신 dev에서 실행하세요.');
   const branch = `ai/issue-${issueNumber}`;
   if (await gh.ref(branch))
     throw new Stop('기존 작업 브랜치가 있어 자동으로 덮어쓸 수 없습니다.');
-  if (dependencyResume) await gh.assertMaintainer(approval.actor.login);
-  const pending = await pendingDependencies(gh, issue);
+  const initialState = {
+    version: 1,
+    issue: issueNumber,
+    issueHash: fingerprint(issue),
+    approval: approval.id,
+    run: Number(env.GITHUB_RUN_ID),
+    base,
+    branch,
+    head: base,
+    attempts: 0,
+  };
+  let pending;
+  try {
+    pending = await pendingDependencies(gh, issue);
+  } catch (error) {
+    if (!dependencyResume && error instanceof Stop) {
+      state = initialState;
+      dependencyPreflight = true;
+    }
+    throw error;
+  }
   if (pending.length) {
     if (dependencyResume) return;
-    state = {
-      version: 1,
-      issue: issueNumber,
-      issueHash: fingerprint(issue),
-      approval: approval.id,
-      run: Number(env.GITHUB_RUN_ID),
-      base,
-      branch,
-      head: base,
-      attempts: 0,
-    };
+    state = initialState;
     await gh.record(
       state,
       'waiting_dependency',
@@ -220,7 +240,6 @@ async function develop() {
     );
     return;
   }
-  dependencyStarted = true;
   const { createModels } = await import('./models.mjs');
   const { checkpoint, formatChanges, resolveEdits, snapshot } =
     await import('./workspace.mjs');
@@ -258,15 +277,7 @@ async function develop() {
   const restartingValidation = restarting && state.code === 'validation_failed';
   const restartingUiSpec = restarting && state.code === 'ui_spec_unread';
   state = {
-    version: 1,
-    issue: issueNumber,
-    issueHash: fingerprint(issue),
-    approval: approval?.id ?? 0,
-    run: Number(env.GITHUB_RUN_ID),
-    base,
-    branch,
-    head: base,
-    attempts: 0,
+    ...initialState,
     preflightRestarts:
       state?.preflightRestarts ||
       Number(Boolean(restarting && !restartingValidation && !restartingUiSpec)),
@@ -275,6 +286,8 @@ async function develop() {
     uiSpecRestarts:
       (state?.uiSpecRestarts ?? 0) + Number(Boolean(restartingUiSpec)),
   };
+  dependencyPreflight = false;
+  dependencyStarted = true;
   await gh.record(state, 'developing', '격리 검증 환경을 준비합니다.');
   prepareValidation();
   await guard();
@@ -868,7 +881,17 @@ try {
 } catch (error) {
   const message =
     error instanceof Stop ? error.message : safeText(error.message, 500);
-  if (
+  if (dependencyPreflight) {
+    const { status, code } = dependencyRetry(
+      state,
+      error instanceof DependencyBaseChanged,
+    );
+    const next =
+      status === 'waiting_dependency'
+        ? '다음 예약 실행에서 최신 dev를 기준으로 다시 시도합니다.'
+        : '문제를 해결한 뒤 ai:develop 라벨을 다시 붙여 승인하세요.';
+    await gh.record(state, status, `${message} ${next}`, code).catch(() => {});
+  } else if (
     state &&
     mode !== 'sync' &&
     (event.inputs?.phase !== 'dependency' || dependencyStarted) &&

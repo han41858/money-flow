@@ -166,7 +166,13 @@ export function canRestartUnpublished(state, event, approval) {
 
 export function canResumeReview(state, issue, expectedHead) {
   const statusAllows = expectedHead
-    ? ['failed', 'needs_human', 'ci_failed'].includes(state?.status) &&
+    ? [
+        'failed',
+        'needs_human',
+        'ci_failed',
+        'developing',
+        'reviewing',
+      ].includes(state?.status) &&
       /^[a-f0-9]{40}$/.test(expectedHead) &&
       state.reviewedHead !== expectedHead
     : state?.status === 'failed' && state.code === 'review_api_thinking';

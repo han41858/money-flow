@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { X, Share2 } from 'lucide-react';
+import { Check, X, Share2 } from 'lucide-react';
 import { snapshot, exportFile } from '../diagrams/library';
 import { measuredSizes } from '../groups/geometry';
 import { exportImage } from '../export/image';
@@ -42,7 +42,7 @@ export function ShareDialog({ close }: { close: () => void }) {
       <div className="library-top">
         <h2 id="share-title">
           <Share2 size={20} />
-          공유 및 내보내기
+          공유
         </h2>
         <button onClick={close} aria-label="공유 창 닫기">
           <X size={18} />
@@ -86,6 +86,9 @@ export function ShareDialog({ close }: { close: () => void }) {
                 })
               }
             >
+              {message === '링크를 복사했습니다.' && (
+                <Check size={16} aria-hidden="true" />
+              )}
               링크 복사
             </button>
           ) : (
@@ -103,7 +106,7 @@ export function ShareDialog({ close }: { close: () => void }) {
         </div>
       </section>
       <section>
-        <h3>파일 내보내기</h3>
+        <h3>파일 다운로드</h3>
         <p>이미지는 화면 밖의 영역을 포함한 전체 흐름을 담습니다.</p>
         <div className="library-actions">
           {(['svg', 'png'] as const).map((format) => (
@@ -123,7 +126,7 @@ export function ShareDialog({ close }: { close: () => void }) {
               {format.toUpperCase()} 저장
             </button>
           ))}
-          <button onClick={exportFile}>JSON 내보내기</button>
+          <button onClick={exportFile}>JSON 파일 다운로드</button>
         </div>
       </section>
       {error && <p role="alert">{error}</p>}

@@ -75,7 +75,7 @@ export function LibraryDialog({ close }: { close: () => void }) {
         </button>
       </div>
       <p className="backup-note">
-        데이터는 이 브라우저에만 저장됩니다. JSON 파일로 내보내 백업할 수
+        데이터는 이 브라우저에만 저장됩니다. JSON 파일을 다운로드해 백업할 수
         있습니다.
       </p>
       <StorageNotice />
@@ -149,7 +149,7 @@ export function LibraryDialog({ close }: { close: () => void }) {
           </button>
           <button onClick={library.exportFile}>
             <Download />
-            JSON 내보내기
+            JSON 파일 다운로드
           </button>
           <button
             className="danger"

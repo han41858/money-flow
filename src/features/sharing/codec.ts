@@ -3,7 +3,7 @@ import { decodeDiagram } from '../../lib/storage/format';
 import { decodeBinary, encodeBinary } from './binary';
 
 const tooLong =
-  '공유 주소가 8,000자를 넘습니다. JSON 파일로 내보내 공유하세요.';
+  '공유 주소가 8,000자를 넘습니다. ‘JSON 파일 다운로드’를 선택해 공유하세요.';
 const malformed = '공유 링크가 손상되었습니다. 전체 주소를 다시 확인하세요.';
 
 // Format 1 used gzip. Format 2 uses headerless deflate-raw and compact IDs.

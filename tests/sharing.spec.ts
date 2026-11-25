@@ -5,7 +5,7 @@ import { example } from '../src/app/example';
 import { v2Link } from './shareV2Fixture';
 
 async function share(page: Page) {
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   await page.getByText('공유할 이름과 금액 확인').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('급여 A', { exact: true })).toBeVisible();
@@ -23,7 +23,18 @@ test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시�
   await openExample(page);
   const url = await share(page);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.getByRole('button', { name: '링크 복사' }).click();
+  const dialog = page.getByRole('dialog', { name: '공유', exact: true });
+  const copy = dialog.getByRole('button', { name: '링크 복사', exact: true });
+  await copy.click();
+  await expect(dialog.getByRole('status')).toHaveText('링크를 복사했습니다.');
+  await expect(copy.locator('svg.lucide-check')).toBeVisible();
+  await expect(copy.locator('svg.lucide-check')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  );
+  await expect(
+    dialog.getByRole('button', { name: 'JSON 파일 다운로드', exact: true }),
+  ).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
   const guest = await browser.newContext();
   const viewer = await guest.newPage();
@@ -103,6 +114,33 @@ test('같은 흐름의 v3 주소는 v2보다 짧고 읽기 전용 화면의 내�
   expect(current).toMatch(/#share=3\./);
 });
 
+test('공유 주소가 길이 제한을 넘으면 JSON 파일 다운로드를 안내하고 파일을 저장한다', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.evaluate(() => {
+    // 페이지를 다시 로드하지 않고 공유 주소의 경로를 길게 만든다.
+    history.replaceState(history.state, '', `/${'a'.repeat(8000)}`);
+  });
+  await page.locator('.share-trigger').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: '공유 링크 만들기' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText(
+    '공유 주소가 8,000자를 넘습니다. ‘JSON 파일 다운로드’를 선택해 공유하세요.',
+  );
+  await expect(dialog.getByLabel('읽기 전용 주소')).toHaveCount(0);
+  const download = page.waitForEvent('download');
+  await dialog
+    .getByRole('button', { name: 'JSON 파일 다운로드', exact: true })
+    .click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe(`${example.name}.json`);
+  const json = JSON.parse(await readFile((await file.path())!, 'utf8'));
+  expect(json.name).toBe(example.name);
+  expect(json.schemaVersion).toBe(example.schemaVersion);
+  expect(json.nodes).toHaveLength(example.nodes.length);
+});
+
 test('손상된 공유 링크에서도 편집기를 열거나 로컬 데이터베이스를 만들지 않는다', async ({
   page,
 }) => {
@@ -117,7 +155,7 @@ test('화면 밖의 데이터까지 SVG와 두 배 크기 PNG로 내려받는다
 }, info) => {
   await openExample(page);
   await page.getByRole('button', { name: '확대', exact: true }).click();
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   const svgDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'SVG 저장' }).click();
   const svgPath = info.outputPath('diagram.svg');
@@ -182,7 +220,7 @@ test('이름에 맞춘 노드 너비·브랜드 배경·유형 아이콘과 화�
   const liveEdge = page.locator('.transfer-visual[data-edge-id="salary-a"]');
   const liveArrow = await liveEdge.locator('.transfer-arrow').getAttribute('d');
   const liveShaft = await liveEdge.locator('.transfer-shaft').getAttribute('d');
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   const next = page.waitForEvent('download');
   await page.getByRole('button', { name: 'SVG 저장' }).click();
   const svg = await readFile((await (await next).path())!, 'utf8');
@@ -251,7 +289,7 @@ test('중첩 그룹을 공유 화면과 SVG에 부모부터 렌더링한다', as
       node.id === 'income-a' ? { ...node, groupId: 'salary-group' } : node,
     ),
   });
-  await page.getByRole('button', { name: '공유 및 내보내기' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'SVG 저장' }).click();
   const svgPath = info.outputPath('nested.svg');

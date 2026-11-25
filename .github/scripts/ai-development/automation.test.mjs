@@ -5,6 +5,7 @@ import {
   assertPull,
   authorized,
   canRestartUnpublished,
+  canResumeReview,
   createGitHub,
   fingerprint,
   issueMarker,
@@ -160,6 +161,100 @@ test('리뷰 지적이 남아 있는 승인은 거부한다', () => {
     }),
   );
 });
+
+test('Claude 서명 오류로 게시된 미승인 PR만 리뷰를 재개한다', () => {
+  const state = {
+    version: 1,
+    issue: 10,
+    status: 'failed',
+    code: 'run_error',
+    branch,
+    published: true,
+    pr: 20,
+    head,
+    base: 'b'.repeat(40),
+  };
+  const encoded = Buffer.from(JSON.stringify(state)).toString('base64');
+  const restored = readState(
+    [
+      {
+        user: { login: 'github-actions[bot]', type: 'Bot' },
+        body: `**AI 개발 · 실패**\n\nClaude API HTTP 400. (리뷰 요청 7회차, 추론 블록 또는 서명, 필드 messages.1.content.0)\n\n<!-- money-flow-ai-state:${encoded} -->`,
+      },
+    ],
+    10,
+  );
+  assert.equal(restored.code, 'review_api_thinking');
+  assert(canResumeReview(restored, 10));
+  assert(!canResumeReview(state, 10));
+  assert(!canResumeReview({ ...restored, reviewedHead: head }, 10));
+  assert(!canResumeReview({ ...restored, observedHead: head }, 10));
+  assert(!canResumeReview(restored, 11));
+});
+
+for (const recovered of [true, false]) {
+  test(`Claude 서명 오류에서만 읽기 근거를 보존해 한 번 재요청한다 (${recovered})`, async () => {
+    const requests = [];
+    let authorizedCalls = 0;
+    const verdict = { status: 'pass', summary: '확인했습니다.', findings: [] };
+    const mockRoot = { status: 400 };
+    const models = createModels({
+      keys: { claude: 'mock' },
+      modelNames: { claude: 'mock' },
+      log: () => {},
+      beforeRequest: async () => {
+        authorizedCalls++;
+      },
+      request: async (_url, init) => {
+        requests.push(JSON.parse(init.body));
+        if (requests.length === 1)
+          return Response.json({
+            stop_reason: 'tool_use',
+            content: [
+              { type: 'thinking', thinking: 'internal', signature: 'opaque' },
+              {
+                type: 'tool_use',
+                id: 'tool-1',
+                name: 'read_file',
+                input: { path: 'tests/sharing.spec.ts', line: 1 },
+              },
+            ],
+          });
+        if (requests.length === 2 || !recovered)
+          return Response.json(
+            {
+              error: {
+                message: 'messages.1.content.0: invalid thinking signature',
+              },
+            },
+            mockRoot,
+          );
+        return Response.json({
+          stop_reason: 'end_turn',
+          content: [{ type: 'text', text: JSON.stringify(verdict) }],
+        });
+      },
+    });
+    const review = models.run({
+      agent: 'claude',
+      mode: 'review',
+      instructions: 'test',
+      context: 'initial evidence',
+      inspect: () => 'trusted tool output',
+    });
+    if (recovered) assert.deepEqual(await review, verdict);
+    else await assert.rejects(review, /Claude API HTTP 400/);
+    assert.equal(requests.length, 3);
+    assert.equal(authorizedCalls, 3);
+    assert.match(JSON.stringify(requests[1].messages), /opaque/);
+    assert.doesNotMatch(
+      JSON.stringify(requests[2].messages),
+      /internal|opaque/,
+    );
+    assert.match(JSON.stringify(requests[2].messages), /trusted tool output/);
+    assert.deepEqual(requests[2].thinking, { type: 'disabled' });
+  });
+}
 
 test('리뷰에서 검증 부족과 사람의 판단이 필요한 경우를 각각 반환한다', () => {
   const verification = {

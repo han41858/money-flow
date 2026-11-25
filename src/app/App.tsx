@@ -75,11 +75,11 @@ function Workspace({
     setMobile(null);
   };
   const copyNodes = useCallback(() => {
-    const copied = editor.copyNodes(selection.nodes);
+    const copied = editor.copyNodes(selection.nodes, selection.groups);
     if (!copied) return false;
     setClipboard(copied);
     return true;
-  }, [selection.nodes, setClipboard]);
+  }, [selection.nodes, selection.groups, setClipboard]);
   const pasteNodes = useCallback(() => {
     if (!clipboard) return false;
     const canvas = document
@@ -89,8 +89,7 @@ function Workspace({
       x: canvas.left + canvas.width / 2,
       y: canvas.top + canvas.height / 2,
     });
-    const ids = editor.pasteNodes(clipboard, center, browserTextWidth);
-    setSelected({ ...emptySelection, nodes: ids });
+    setSelected(editor.pasteSelection(clipboard, center, browserTextWidth));
     setMobile(null);
     return true;
   }, [clipboard, screenToFlowPosition]);
@@ -112,19 +111,45 @@ function Workspace({
   };
 
   function addGroup() {
-    const area = visibleArea(document.querySelector('.flow-area')!, true);
+    const canvas = document.querySelector('.flow-area')!;
+    const area = visibleArea(canvas, true);
     const center = screenToFlowPosition({
       x: (area.left + area.right) / 2,
       y: (area.top + area.bottom) / 2,
     });
     const sizes = measuredSizes(nodes, getInternalNode);
-    const bounds = newGroupBounds(
-      nodes.filter((n) => selected.nodes.includes(n.id)),
-      sizes,
-      center,
-    );
-    const id = editor.addGroup(bounds, sizes);
+    const id = editor.addGroup(newGroupBounds([], sizes, center), sizes);
+    const group = editor.current().groups.find((item) => item.id === id)!;
     select({ nodes: [], edges: [], groups: [id] });
+    requestAnimationFrame(() => {
+      const visible = visibleArea(canvas, true);
+      const top = flowToScreenPosition(group.position);
+      const viewport = getViewport();
+      const reveal = (
+        start: number,
+        length: number,
+        min: number,
+        max: number,
+      ) => Math.max(min - start, Math.min(0, max - start - length));
+      const dx = reveal(
+        top.x,
+        group.width * viewport.zoom,
+        visible.left,
+        visible.right,
+      );
+      const dy = reveal(
+        top.y,
+        group.height * viewport.zoom,
+        visible.top,
+        visible.bottom,
+      );
+      if (dx || dy)
+        void setViewport({
+          ...viewport,
+          x: viewport.x + dx,
+          y: viewport.y + dy,
+        });
+    });
   }
 
   function add(kind: Kind) {

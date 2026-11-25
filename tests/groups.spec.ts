@@ -2,6 +2,7 @@ import { chooseSavedFlow, openExample } from './exampleFixture';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { point, selectNode } from './gestures';
 import { example } from '../src/app/example';
+import { newGroupBounds } from '../src/features/groups/geometry';
 async function drag(page: Page, handle: Locator, dx: number, dy: number) {
   const b = (await handle.boundingBox())!;
   const x = b.x + b.width / 2;
@@ -11,15 +12,26 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number) {
   await page.mouse.move(x + dx, y + dy, { steps: 14 });
   await page.mouse.up();
 }
-test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 연결을 유지한다', async ({
+test('그룹 편집·드래그·리사이즈·삭제 뒤 노드와 그룹 간 연결을 유지한다', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await openExample(page);
+  const salary = example.nodes.find((node) => node.id === 'income-a')!;
+  const group = {
+    ...newGroupBounds([salary], new Map(), salary.position),
+    id: 'salary-region',
+    parentId: salary.groupId,
+    name: '새 그룹',
+    color: '#92ab86',
+  };
+  await openExample(page, {
+    ...example,
+    groups: [...example.groups, group],
+    nodes: example.nodes.map((node) =>
+      node === salary ? { ...node, groupId: group.id } : node,
+    ),
+  });
   const income = page.locator('[data-id="income-a"]');
-  await selectNode(income);
-  await page.getByRole('button', { name: '그룹 추가' }).click();
-  await page.getByRole('button', { name: '속성 닫기' }).click();
   const groupId = await page
     .locator('.react-flow__node-region')
     .filter({ hasText: '새 그룹' })
@@ -85,6 +97,111 @@ test('그룹 생성·편집·드래그·리사이즈·삭제 뒤 노드와 그�
   await expect(
     page.getByRole('heading', { name: '연결선 상세' }),
   ).toBeVisible();
+});
+
+test('기존 노드를 선택해도 새 그룹은 빈 공간에 생기고 노드 소속은 유지된다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await openExample(page);
+  const salary = page.locator('[data-id="income-a"]');
+  await selectNode(salary);
+  await page.getByRole('button', { name: '그룹 추가' }).click();
+  const region = page
+    .locator('.react-flow__node-region')
+    .filter({ hasText: '새 그룹' });
+  await expect(region).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const group = (await region.boundingBox())!;
+      const cards = await page.locator('.react-flow__node-money').all();
+      for (const card of cards) {
+        const node = (await card.boundingBox())!;
+        if (
+          group.x < node.x + node.width &&
+          node.x < group.x + group.width &&
+          group.y < node.y + node.height &&
+          node.y < group.y + group.height
+        )
+          return true;
+      }
+      return false;
+    })
+    .toBe(false);
+  const name = example.nodes.find((node) => node.id === 'income-a')!.name;
+  await page.locator('.node-row').filter({ hasText: name }).click();
+  await expect(
+    page.locator('.property').filter({ hasText: '소속 그룹' }),
+  ).toContainText('개인 A');
+});
+
+test('Ctrl+C와 Ctrl+V로 그룹, 하위 그룹, 소속 노드를 같은 상대 위치에 붙여넣는다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const [income, , account] = example.nodes;
+  const color = '#92ab86';
+  await openExample(page, {
+    ...example,
+    groups: [
+      {
+        id: 'copy-root',
+        name: '상위 그룹',
+        color,
+        position: { x: 60, y: 80 },
+        width: 550,
+        height: 310,
+      },
+      {
+        id: 'copy-child',
+        parentId: 'copy-root',
+        name: '하위 그룹',
+        color,
+        position: { x: 320, y: 130 },
+        width: 260,
+        height: 210,
+      },
+    ],
+    nodes: [
+      { ...income, groupId: 'copy-root', position: { x: 90, y: 160 } },
+      { ...account, groupId: 'copy-child', position: { x: 345, y: 200 } },
+    ],
+    edges: [example.edges[0]],
+  });
+  const originals = [
+    'group:copy-root',
+    'group:copy-child',
+    income.id,
+    account.id,
+  ].map((id) => page.locator(`.react-flow__node[data-id="${id}"]`));
+  await originals[0].locator('.group-title svg').click();
+  await page.keyboard.press('Control+c');
+  await page.keyboard.press('Control+v');
+  const regions = page.locator('.react-flow__node-region');
+  const cards = page.locator('.react-flow__node-money');
+  await expect(regions).toHaveCount(4);
+  await expect(cards).toHaveCount(4);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
+  const copies = [
+    page
+      .locator('.react-flow__node-region:not([data-id="group:copy-root"])')
+      .filter({ hasText: '상위 그룹' }),
+    page
+      .locator('.react-flow__node-region:not([data-id="group:copy-child"])')
+      .filter({ hasText: '하위 그룹' }),
+    page
+      .locator(`.react-flow__node-money:not([data-id="${income.id}"])`)
+      .filter({ hasText: income.name }),
+    page
+      .locator(`.react-flow__node-money:not([data-id="${account.id}"])`)
+      .filter({ hasText: account.name }),
+  ];
+  const before = await Promise.all(originals.map((item) => item.boundingBox()));
+  const after = await Promise.all(copies.map((item) => item.boundingBox()));
+  for (const [i, box] of after.entries()) {
+    expect(box!.x - after[0]!.x).toBeCloseTo(before[i]!.x - before[0]!.x, 0);
+    expect(box!.y - after[0]!.y).toBeCloseTo(before[i]!.y - before[0]!.y, 0);
+  }
 });
 
 test('그룹 안에 만든 계좌가 즉시 함께 이동하고 금융사 선택은 유형 변경 후에도 보존된다', async ({

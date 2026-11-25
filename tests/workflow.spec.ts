@@ -40,6 +40,24 @@ test('새 가계 흐름을 작성하고 그룹·금액을 복원한 뒤 읽기 �
     await page
       .getByRole('textbox', { name: '그룹 이름', exact: true })
       .press('Enter');
+
+    const group = page
+      .locator('.react-flow__node-region')
+      .filter({ hasText: name });
+    const card = node(member);
+    const bounds = (await card.boundingBox())!;
+    // 이름 편집 영역을 피해 카드 위쪽을 잡고, 카드 중심을 그룹에 놓는다.
+    await card.hover({ position: { x: bounds.width / 2, y: 2 } });
+    const target = await point(group);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y - bounds.height / 2 + 2, {
+      steps: 15,
+    });
+    await page.mouse.up();
+    await selectNode(card);
+    await expect(
+      page.locator('.property').filter({ hasText: '소속 그룹' }),
+    ).toContainText(name);
   }
   const handle = page.locator('.group-title').filter({ hasText: '공동 자금' });
   const start = await point(handle);

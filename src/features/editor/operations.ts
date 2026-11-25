@@ -8,12 +8,14 @@ import {
   assignGroup,
   assignParent,
   membersAfterResize,
+  rectsOverlap,
   relativeTo,
   type Group,
   type NodeSizes,
   type Size,
 } from '../groups/geometry';
 import { groupDepths, groupsInLayerOrder } from '../groups/hierarchy';
+import { cardSize } from '../nodes/sizing';
 import { arrangeDiagram } from './arrange';
 import type { Selection } from './store';
 
@@ -29,23 +31,48 @@ export function addGroup(
   bounds: Pick<Group, 'position' | 'width' | 'height'>,
   sizes: NodeSizes,
 ) {
-  const group = assignParent(
-    {
-      ...bounds,
-      id: crypto.randomUUID(),
-      name: '새 그룹',
-      color: groupColors[d.groups.length % groupColors.length],
-    },
-    d.groups,
-  );
-  const groups = [...d.groups, group];
-  return {
-    change: {
-      groups,
-      nodes: membersAfterResize(d.nodes, groups, group, sizes),
-    },
-    id: group.id,
+  const { position: start, width, height } = bounds;
+  const occupied = [
+    ...d.nodes.map((node) => ({
+      ...node.position,
+      ...(sizes.get(node.id) ?? cardSize(node.name)),
+    })),
+    ...d.groups.map((group) => ({
+      ...group.position,
+      width: group.width,
+      height: group.height,
+    })),
+  ];
+  const gap = 20;
+  const candidates = [start];
+  for (const rect of occupied) {
+    candidates.push(
+      { x: rect.x - width - gap, y: start.y },
+      { x: rect.x + rect.width + gap, y: start.y },
+      { x: start.x, y: rect.y - height - gap },
+      { x: start.x, y: rect.y + rect.height + gap },
+    );
+  }
+  const distance = ({ x, y }: Position) =>
+    Math.abs(x - start.x) + Math.abs(y - start.y);
+  // A candidate past the rightmost obstacle is always available.
+  const position = candidates
+    .sort((a, b) => distance(a) - distance(b))
+    .find(
+      (point) =>
+        !occupied.some((rect) =>
+          rectsOverlap({ ...point, width, height }, rect),
+        ),
+    )!;
+  const group = {
+    position,
+    width,
+    height,
+    id: crypto.randomUUID(),
+    name: '새 그룹',
+    color: groupColors[d.groups.length % groupColors.length],
   };
+  return { change: { groups: [...d.groups, group] }, id: group.id };
 }
 
 export function editGroup(

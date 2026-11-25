@@ -15,6 +15,55 @@ async function share(page: Page) {
   await expect(output).toHaveValue(/#share=\d+\.[\w-]+$/);
   return output.inputValue();
 }
+
+test('링크 복사에 성공하면 배치 변경 없이 버튼에 체크를 표시한다', async ({
+  page,
+  context,
+}) => {
+  await openExample(page);
+  const url = await share(page);
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const dialog = page.getByRole('dialog');
+  const button = dialog.getByRole('button', { name: '링크 복사' });
+  const check = button.locator('svg.lucide-check');
+  const status = dialog.getByRole('status');
+  const exportHeading = dialog.getByRole('heading', { name: '파일 내보내기' });
+  const buttonBounds = await button.boundingBox();
+  const exportBounds = await exportHeading.boundingBox();
+  await expect(check).toHaveCount(0);
+
+  await button.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+  await expect(check).toBeVisible();
+  await expect(status).toHaveText('링크를 복사했습니다.');
+  await expect(status).toHaveCSS('clip-path', 'inset(50%)');
+  await expect(
+    dialog.getByText('링크를 복사했습니다.', { exact: true }),
+  ).toHaveCount(1);
+  expect(await button.boundingBox()).toEqual(buttonBounds);
+  expect(await exportHeading.boundingBox()).toEqual(exportBounds);
+
+  await page.evaluate(() => navigator.clipboard.writeText(''));
+  await button.click();
+  await expect(button).toBeEnabled();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+  await expect(check).toBeVisible();
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: async () => {
+        throw new Error('클립보드 쓰기 실패');
+      },
+    });
+  });
+  await button.click();
+  await expect(dialog.getByRole('alert')).toHaveText('클립보드 쓰기 실패');
+  await expect(check).toHaveCount(0);
+  await expect(status).toBeEmpty();
+  await expect(button).toBeEnabled();
+});
+
 test('링크 열람·선택·확대는 저장소를 생성하지 않고 명시적 복사만 독립된 흐름을 저장한다', async ({
   page,
   browser,

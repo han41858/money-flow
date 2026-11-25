@@ -9,13 +9,14 @@ import {
 } from '../groups/geometry';
 import { groupsInLayerOrder } from '../groups/hierarchy';
 import { amountLabel } from '../edges/money';
-import { cardSize, estimatedTextWidth } from '../nodes/sizing';
+import { amountLabelBox } from '../edges/geometry';
+import { cardSize } from '../nodes/sizing';
+import { amountConflicts } from './amountSpacing';
 
 const columnGap = 64;
-// Matches the `.edge-label` font size and its horizontal padding plus the
-// clearance that keeps the label off both cards.
-const labelFontSize = 13;
-const labelClearance = 24;
+const labelClearance = 8;
+const gapStep = 12;
+const maxGapSteps = 6;
 const rowGap = 24;
 const regionGap = 24;
 
@@ -324,17 +325,58 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
   for (const { source, target, min, max } of diagram.edges) {
     const rank = ranks.get(source)!;
     if (ranks.get(target) !== rank + 1) continue;
+    const { width } = amountLabelBox(amountLabel(min, max), { x: 0, y: 0 });
     gaps[rank] = Math.max(
       gaps[rank] ?? columnGap,
-      Math.ceil(estimatedTextWidth(amountLabel(min, max), labelFontSize)) +
-        labelClearance,
+      Math.ceil(width) + labelClearance,
     );
   }
-  const columns = [0];
-  for (const rank of ranks.values())
-    for (let next = columns.length; next <= rank; next++)
-      columns[next] =
-        columns[next - 1] + columnWidth + (gaps[next - 1] ?? columnGap);
+  const pack = () => {
+    const columns = [0];
+    for (const rank of ranks.values())
+      for (let next = columns.length; next <= rank; next++)
+        columns[next] =
+          columns[next - 1] + columnWidth + (gaps[next - 1] ?? columnGap);
+    return packDiagram(diagram, ordered, nodeSizes, ranks, soleParent, columns);
+  };
+
+  let layout = pack();
+  const bestGaps = [...gaps];
+  const bestConflicts = new Map<number, number>();
+  // Changing a column gap can change packing within groups. Recheck against
+  // the resulting coordinates, keeping the narrowest gap giving a better result.
+  for (let attempt = 0; attempt <= maxGapSteps; attempt++) {
+    const conflicts = amountConflicts(
+      { ...diagram, ...layout },
+      nodeSizes,
+      ranks,
+    );
+    for (const [rank, count] of conflicts) {
+      if (count < (bestConflicts.get(rank) ?? Infinity)) {
+        bestConflicts.set(rank, count);
+        bestGaps[rank] = gaps[rank];
+      }
+    }
+    if (![...conflicts.values()].some(Boolean)) return layout;
+    if (attempt === maxGapSteps) break;
+    for (const [rank, count] of conflicts)
+      if (count) gaps[rank] = (gaps[rank] ?? columnGap) + gapStep;
+    layout = pack();
+  }
+  // A crossing may remain even with more space. Keep the narrowest result
+  // that improves readability instead of widening for a collision we cannot fix.
+  for (const rank of bestConflicts.keys()) gaps[rank] = bestGaps[rank];
+  return pack();
+}
+
+function packDiagram(
+  diagram: Diagram,
+  ordered: MoneyNode[],
+  nodeSizes: NodeSizes,
+  ranks: Map<string, number>,
+  soleParent: Map<string, string>,
+  columns: number[],
+) {
   const metrics: Metrics = {
     columnX: (id) => columns[ranks.get(id)!],
     heightOf: (id) => nodeSizes.get(id)!.height,

@@ -81,15 +81,25 @@ function taper(
 
 export type Box = { x: number; y: number; width: number; height: number };
 
+export function amountLabelBox(text: string, { x, y }: Point): Box {
+  const width = estimatedTextWidth(text, labelFontSize) + 16;
+  return {
+    x: x - width / 2,
+    y: y - labelHalfHeight,
+    width,
+    height: labelHalfHeight * 2,
+  };
+}
+
 // Checks the centered label against cards and the bounds of the arrowhead.
 export function labelBlocker(text: string, cards: Box[]) {
-  const halfWidth = (estimatedTextWidth(text, labelFontSize) + 12) / 2 + 2;
+  const { width, height } = amountLabelBox(text, { x: 0, y: 0 });
   return (x: number, y: number, arrow?: Box) => {
     const overlaps = (box: Box) =>
-      x + halfWidth > box.x &&
-      x - halfWidth < box.x + box.width &&
-      y + labelHalfHeight > box.y &&
-      y - labelHalfHeight < box.y + box.height;
+      x + width / 2 > box.x &&
+      x - width / 2 < box.x + box.width &&
+      y + height / 2 > box.y &&
+      y - height / 2 < box.y + box.height;
     return Boolean(arrow && overlaps(arrow)) || cards.some(overlaps);
   };
 }
@@ -121,6 +131,7 @@ function curveDistances([start, control1, control2, finish]: Cubic) {
 
   return {
     length: samples[segments].length,
+    samples,
     at(distance: number) {
       let low = 0;
       let high = segments;
@@ -140,12 +151,12 @@ function curveDistances([start, control1, control2, finish]: Cubic) {
 }
 
 function placeLabel(
-  curve: Cubic,
+  distances: ReturnType<typeof curveDistances>,
   arrow: Box,
+  sourceX: number,
   blocked: ReturnType<typeof labelBlocker>,
   targetX: number,
 ) {
-  const distances = curveDistances(curve);
   const middle = distances.length / 2;
   const center = distances.at(middle);
   if (!blocked(center.x, center.y, arrow)) return center;
@@ -161,7 +172,7 @@ function placeLabel(
 
   // In a tight gap the label may not fit anywhere on the shaft. Keep it
   // between the cards and clear of the arrow where possible.
-  const fallbackX = (curve[0].x + targetX) / 2;
+  const fallbackX = (sourceX + targetX) / 2;
   const fallbackY = Math.min(center.y, arrow.y - labelHalfHeight);
   if (!blocked(fallbackX, fallbackY, arrow))
     return { x: fallbackX, y: fallbackY };
@@ -216,11 +227,21 @@ export function transferGeometry(
     ' ' +
     (targetY + half) +
     ' Z';
-  const label = placeLabel(
-    cubic,
-    { x: base, y: targetY - half, width: length, height: half * 2 },
-    blocked,
-    targetX,
-  );
-  return { path, body, shaft, arrow, ...label };
+  const arrowBounds = {
+    x: base,
+    y: targetY - half,
+    width: length,
+    height: half * 2,
+  };
+  const distances = curveDistances(cubic);
+  const label = placeLabel(distances, arrowBounds, sourceX, blocked, targetX);
+  return {
+    path,
+    body,
+    shaft,
+    arrow,
+    arrowBounds,
+    centerline: distances.samples,
+    ...label,
+  };
 }

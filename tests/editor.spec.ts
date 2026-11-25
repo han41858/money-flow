@@ -640,6 +640,135 @@ for (const [direction, y] of [
     expect(Math.abs(box.y + box.height / 2 - center.y)).toBeLessThan(1);
   });
 
+for (const width of [1440, 390])
+  test(`자동 정렬 후 합류·분기 금액이 겹치지 않는다 (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const nodes = [
+      {
+        id: 'income-a',
+        type: 'income',
+        name: '새 수입',
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'income-b',
+        type: 'income',
+        name: '새 수입',
+        position: { x: 0, y: 64 },
+      },
+      { id: 'joint', type: 'account', name: '새', position: { x: 150, y: 32 } },
+      { id: 'card', type: 'card', name: '새 카드', position: { x: 300, y: 0 } },
+      {
+        id: 'living',
+        type: 'expense',
+        category: 'consumption',
+        name: '새 지출',
+        position: { x: 300, y: 64 },
+      },
+    ] satisfies typeof example.nodes;
+    const links = [
+      {
+        id: 'salary-a',
+        source: 'income-a',
+        target: 'joint',
+        min: 8_000_000,
+        max: 8_000_000,
+      },
+      {
+        id: 'salary-b',
+        source: 'income-b',
+        target: 'joint',
+        min: 2_000_000,
+        max: 2_000_000,
+      },
+      {
+        id: 'card-payment',
+        source: 'joint',
+        target: 'card',
+        min: 5_000_000,
+        max: width === 390 ? 5_750_000 : 5_000_000,
+      },
+      { id: 'spending', source: 'joint', target: 'living', min: 0, max: 0 },
+    ];
+    await openExample(page, { ...example, groups: [], nodes, edges: links });
+    const canvas = page.getByRole('main');
+    await canvas.getByRole('button', { name: '100% 배율로 설정' }).click();
+    await canvas.getByRole('button', { name: '자동 정렬' }).click();
+    const labels = canvas.locator('.edge-label');
+    await expect(labels).toHaveCount(links.length);
+    for (const node of await canvas.locator('.react-flow__node-money').all())
+      await expect(node).toBeInViewport();
+    await expect(canvas.getByLabel('확대 비율')).toHaveText(
+      width === 390 ? /^[1-9]?[0-9]%$/ : '100%',
+    );
+
+    const conflicts = await canvas
+      .locator('.react-flow__edgelabel-renderer')
+      .evaluate((renderer) => {
+        const labels = [...renderer.querySelectorAll('.edge-label')];
+        const arrows = [
+          ...renderer.querySelectorAll<SVGGeometryElement>('.transfer-arrow'),
+        ];
+        const obstacles = [
+          ...renderer.parentElement!.querySelectorAll(
+            '.money-node > svg, .node-totals text',
+          ),
+        ];
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+          a.left < b.right &&
+          a.right > b.left &&
+          a.top < b.bottom &&
+          a.bottom > b.top;
+        return labels.flatMap((label, index) => {
+          const box = label.getBoundingClientRect();
+          const otherLabels = labels.filter((other) => other !== label);
+          const occupied = [...otherLabels, ...obstacles, ...arrows];
+          const intersecting = occupied.filter((el) =>
+            overlaps(box, el.getBoundingClientRect()),
+          );
+          const strokes = [
+            ...renderer.querySelectorAll<SVGElement>('.transfer-visual'),
+          ].filter((_, i) => i !== index);
+          for (const edge of strokes) {
+            for (const shape of edge.querySelectorAll<SVGGeometryElement>(
+              '.transfer-body, .transfer-shaft',
+            )) {
+              const inverse = shape.getScreenCTM()!.inverse();
+              for (const x of [
+                box.left + 1,
+                (box.left + box.right) / 2,
+                box.right - 1,
+              ])
+                for (const y of [
+                  box.top + 1,
+                  (box.top + box.bottom) / 2,
+                  box.bottom - 1,
+                ]) {
+                  const p = new DOMPoint(x, y).matrixTransform(inverse);
+                  if (shape.isPointInFill(p) || shape.isPointInStroke(p))
+                    intersecting.push(shape);
+                }
+            }
+          }
+          return intersecting.map((el) => [
+            label.textContent,
+            el.textContent || el.getAttribute('class'),
+          ]);
+        });
+      });
+    expect(conflicts).toEqual([]);
+
+    await canvas.getByRole('button', { name: '8,000,000원 금액 수정' }).click();
+    const input = canvas.getByRole('textbox', { name: '연결선 금액 (원)' });
+    await input.fill('7900000');
+    await input.press('Enter');
+    await expect(
+      canvas.getByRole('button', { name: '7,900,000원 금액 수정' }),
+    ).toBeVisible();
+  });
+
 test('좁은 화면에서 500만 원 연결 두 개를 정렬해도 금액과 화살촉이 카드와 겹치지 않는다', async ({
   page,
 }) => {

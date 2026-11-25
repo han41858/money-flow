@@ -110,7 +110,7 @@ describe('편집 이력', () => {
       before.groups.map((group) => group.id),
     );
   });
-  it('자동 정렬의 가로 여백은 긴 금액 레이블이 놓이는 단계만 넓힌다', () => {
+  it('자동 정렬은 금액이 겹치거나 긴 금액이 놓이는 단계만 넓힌다', () => {
     const arrange = (edges = example.edges) => {
       const { nodes } = arrangeDiagram({ ...example, edges }, new Map());
       const x = (id: string) =>
@@ -129,16 +129,19 @@ describe('편집 이력', () => {
       min: 5_000_000,
       max: 5_000_000,
     }));
-    expect(arrange(short)).toEqual([64, 64, 64]);
-    expect(
-      arrange(
-        short.map((edge) =>
-          edge.target === 'telecom'
-            ? { ...edge, min: 1_280_000, max: 1_580_000 }
-            : edge,
-        ),
+    const compact = arrange(short);
+    expect(compact[0]).toBe(64);
+    expect(compact[1]).toBeGreaterThan(64);
+    expect(compact[2]).toBe(64);
+    const withRange = arrange(
+      short.map((edge) =>
+        edge.target === 'telecom'
+          ? { ...edge, min: 1_280_000, max: 1_580_000 }
+          : edge,
       ),
-    ).toEqual([64, 64, 97]);
+    );
+    expect(withRange.slice(0, 2)).toEqual(compact.slice(0, 2));
+    expect(withRange[2]).toBeGreaterThanOrEqual(97);
   });
   it.each([true, false])(
     '분기에서 하위 노드의 중심과 형제 간격을 맞춘다 (그룹: %s)',

@@ -64,6 +64,14 @@ function stateRecords(comments, issue) {
     const state = JSON.parse(Buffer.from(encoded, 'base64').toString());
     if (state.version !== 1 || state.issue !== issue) return [];
     if (
+      state.status === 'failed' &&
+      state.code === 'run_error' &&
+      /^Claude API HTTP 400\. \(리뷰 요청 \d+회차, 추론 블록 또는 서명(?:[,)]|$)/.test(
+        body.split('\n\n')[1],
+      )
+    )
+      state.code = 'review_api_thinking';
+    if (
       state.status === 'needs_human' &&
       state.code === 'run_error' &&
       body.split('\n\n')[1] === legacyValidationMessage
@@ -153,6 +161,20 @@ export function canRestartUnpublished(state, event, approval) {
     approval?.event === 'labeled' &&
     approval.actor?.login === event.sender.login &&
     approval.id !== state.approval
+  );
+}
+
+export function canResumeReview(state, issue) {
+  return Boolean(
+    state?.status === 'failed' &&
+    state.code === 'review_api_thinking' &&
+    state.branch === `ai/issue-${issue}` &&
+    state.published &&
+    Number.isSafeInteger(state.pr) &&
+    state.pr > 0 &&
+    [state.head, state.base].every((value) => /^[a-f0-9]{40}$/.test(value)) &&
+    state.reviewedHead !== state.head &&
+    !state.observedHead,
   );
 }
 

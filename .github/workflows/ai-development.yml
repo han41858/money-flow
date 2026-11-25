@@ -7,9 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       issue:
-        description: 'Issue number to resume at CI or closure'
+        description: 'Issue number to resume'
         required: true
         type: number
+      phase:
+        description: 'Resume CI/closure or retry an interrupted Claude review'
+        type: choice
+        default: complete
+        options: [complete, review]
 
 permissions: {}
 
@@ -22,8 +27,8 @@ jobs:
     if: >-
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
-      github.event_name == 'issues' &&
-      github.event.label.name == 'ai:develop'
+      ((github.event_name == 'issues' && github.event.label.name == 'ai:develop') ||
+       (github.event_name == 'workflow_dispatch' && inputs.phase == 'review'))
     runs-on: ubuntu-24.04
     environment: ai-development
     timeout-minutes: 65
@@ -46,7 +51,7 @@ jobs:
         run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
       - name: Develop and review
         id: develop
-        run: node .github/scripts/ai-development/run.mjs develop
+        run: node .github/scripts/ai-development/run.mjs ${{ github.event_name == 'workflow_dispatch' && 'resume-review' || 'develop' }}
         env:
           GH_TOKEN: ${{ github.token }}
           AI_AUTOMATION_TOKEN: ${{ secrets.AI_AUTOMATION_TOKEN }}
@@ -61,7 +66,7 @@ jobs:
       always() && !cancelled() &&
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
-      (github.event_name == 'workflow_dispatch' || needs.develop.outputs.ready == 'true')
+      ((github.event_name == 'workflow_dispatch' && inputs.phase != 'review') || needs.develop.outputs.ready == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 23
     permissions:

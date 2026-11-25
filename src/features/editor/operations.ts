@@ -6,12 +6,14 @@ import {
 import {
   absoluteFrom,
   assignGroup,
+  assignParent,
   membersAfterResize,
   relativeTo,
   type Group,
   type NodeSizes,
   type Size,
 } from '../groups/geometry';
+import { groupDepths, groupsInLayerOrder } from '../groups/hierarchy';
 import { arrangeDiagram } from './arrange';
 import type { Selection } from './store';
 
@@ -27,12 +29,15 @@ export function addGroup(
   bounds: Pick<Group, 'position' | 'width' | 'height'>,
   sizes: NodeSizes,
 ) {
-  const group = {
-    ...bounds,
-    id: crypto.randomUUID(),
-    name: '새 그룹',
-    color: groupColors[d.groups.length % groupColors.length],
-  };
+  const group = assignParent(
+    {
+      ...bounds,
+      id: crypto.randomUUID(),
+      name: '새 그룹',
+      color: groupColors[d.groups.length % groupColors.length],
+    },
+    d.groups,
+  );
   const groups = [...d.groups, group];
   return {
     change: {
@@ -77,8 +82,10 @@ export function resizeGroup(
     (size.width === group.width && size.height === group.height)
   )
     return null;
-  const region = { ...group, ...size };
+  const region = assignParent({ ...group, ...size }, d.groups);
   const groups = d.groups.map((g) => (g === group ? region : g));
+  for (const [index, child] of groups.entries())
+    if (child.parentId === id) groups[index] = assignParent(child, groups);
   return {
     groups,
     nodes: membersAfterResize(d.nodes, groups, region, sizes),
@@ -94,13 +101,26 @@ export function moveItems(
   sizes: NodeSizes,
 ): Change {
   const deltas = new Map<string, Position>();
-  const groups = d.groups.map((g) => {
-    const point = groupPositions.get(g.id);
-    if (!point || (point.x === g.position.x && point.y === g.position.y))
-      return g;
-    deltas.set(g.id, relativeTo(point, g.position));
-    return { ...g, position: point };
-  });
+  const moved = new Map<string, Group>();
+  const dropped = new Set<string>();
+  for (const group of groupsInLayerOrder(d.groups)) {
+    const inherited = group.parentId ? deltas.get(group.parentId) : undefined;
+    const point = inherited
+      ? absoluteFrom(group.position, inherited)
+      : groupPositions.get(group.id);
+    if (
+      !point ||
+      (point.x === group.position.x && point.y === group.position.y)
+    )
+      continue;
+    deltas.set(group.id, relativeTo(point, group.position));
+    moved.set(group.id, { ...group, position: point });
+    if (!inherited) dropped.add(group.id);
+  }
+  const groups = d.groups.map((group) => moved.get(group.id) ?? group);
+  for (const [index, group] of groups.entries())
+    if (dropped.has(group.id)) groups[index] = assignParent(group, groups);
+  const depths = groupDepths(groups)!;
   const nodes = d.nodes.map((n) => {
     const delta = n.groupId && deltas.get(n.groupId);
     if (delta) return { ...n, position: absoluteFrom(n.position, delta) };
@@ -110,7 +130,7 @@ export function moveItems(
       point.x === n.position.x && point.y === n.position.y
         ? n
         : { ...n, position: point };
-    return assignGroup(moved, groups, sizes);
+    return assignGroup(moved, groups, sizes, depths);
   });
   if (deltas.size || nodes.some((n, i) => n !== d.nodes[i]))
     return { groups, nodes };
@@ -118,7 +138,8 @@ export function moveItems(
 }
 
 export function autoArrange(diagram: Diagram, sizes: NodeSizes): Change {
-  if (!diagram.nodes.length) return null;
+  if (!diagram.nodes.length && !diagram.groups.some((g) => g.parentId))
+    return null;
   const arranged = arrangeDiagram(diagram, sizes);
   const moved = (next: Position, previous: Position) =>
     next.x !== previous.x || next.y !== previous.y;
@@ -141,14 +162,27 @@ export function autoArrange(diagram: Diagram, sizes: NodeSizes): Change {
 
 // Removing a node removes its links. Removing a group keeps its members.
 export function removeSelection(d: Diagram, selected: Selection): Change {
-  const groups = d.groups.filter((g) => !selected.groups.includes(g.id));
+  const removed = new Map(
+    d.groups
+      .filter((group) => selected.groups.includes(group.id))
+      .map(({ id, parentId }) => [id, parentId]),
+  );
+  function survivingParent(id: string | undefined) {
+    while (id !== undefined && removed.has(id)) id = removed.get(id);
+    return id;
+  }
+  const groups = d.groups
+    .filter((g) => !removed.has(g.id))
+    .map((group) => {
+      const parentId = survivingParent(group.parentId);
+      return parentId === group.parentId ? group : { ...group, parentId };
+    });
   const nodes = d.nodes
     .filter((n) => !selected.nodes.includes(n.id))
-    .map((n) =>
-      n.groupId && selected.groups.includes(n.groupId)
-        ? { ...n, groupId: undefined }
-        : n,
-    );
+    .map((node) => {
+      const groupId = survivingParent(node.groupId);
+      return groupId === node.groupId ? node : { ...node, groupId };
+    });
   const edges = d.edges.filter(
     (e) =>
       !selected.edges.includes(e.id) &&

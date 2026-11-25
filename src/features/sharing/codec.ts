@@ -51,6 +51,7 @@ export function compactForShare(diagram: Diagram) {
     groups: diagram.groups.map((group) => ({
       ...group,
       id: groupIds.get(group.id)!,
+      parentId: group.parentId && groupIds.get(group.parentId),
       position: round(group.position),
       width: Math.max(1, Math.round(group.width)),
       height: Math.max(1, Math.round(group.height)),

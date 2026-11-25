@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { groupDepths } from '../features/groups/hierarchy';
 import { allowsDirection } from '../features/edges/connections';
 
 const id = z.string().trim().min(1);
@@ -50,6 +51,7 @@ export const diagramSchema = z
         name: id,
         color,
         position: point,
+        parentId: id.optional(),
         width: z.number().positive(),
         height: z.number().positive(),
       }),
@@ -64,6 +66,7 @@ export const diagramSchema = z
       if (new Set(list.map((item) => item.id)).size !== list.length)
         issue('중복된 ID입니다.');
     }
+    if (!groupDepths(d.groups)) issue('그룹의 부모가 없거나 순환 관계입니다.');
     const groups = new Set(d.groups.map((g) => g.id));
     const nodes = new Map(d.nodes.map((n) => [n.id, n]));
     const pairs = new Set<string>();

@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { uiSpecUnreadMessage } from './config.mjs';
+import {
+  appendProgress,
+  importLegacyProgress,
+  progressHistory,
+  renderProgress,
+} from './progress.mjs';
 
 export const repository = 'han41858/money-flow';
 export const baseBranch = 'dev';
@@ -8,20 +14,6 @@ export const approvalLabel = 'ai:develop';
 const stateMarker = '<!-- money-flow-ai-state:';
 const bot = 'github-actions[bot]';
 const api = 'https://api.github.com';
-// These end a run or need a person, so each gets its own comment and
-// notification. Other statuses update the run's progress comment in place.
-const finalStatuses = new Set([
-  'needs_human',
-  'failed',
-  'ci_failed',
-  'completed',
-]);
-const clock = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
 const legacyValidationMessage =
   '후보 코드의 격리 검사가 실패했습니다. 실행 로그에서 실패 단계를 확인하세요.';
 
@@ -62,14 +54,14 @@ export function safeText(text, limit = 800) {
     .replaceAll('`', '｀');
 }
 
-export function readState(comments, issue) {
-  for (const { user, body } of comments.toReversed()) {
-    if (user?.login !== bot || user.type !== 'Bot') continue;
+function stateRecords(comments, issue) {
+  return comments.flatMap(({ id, user, body }) => {
+    if (user?.login !== bot || user.type !== 'Bot') return [];
     const line = body?.split('\n').at(-1);
-    if (!line?.startsWith(stateMarker) || !line.endsWith(' -->')) continue;
+    if (!line?.startsWith(stateMarker) || !line.endsWith(' -->')) return [];
     const encoded = line.slice(stateMarker.length, -4);
     const state = JSON.parse(Buffer.from(encoded, 'base64').toString());
-    if (state.version !== 1 || state.issue !== issue) continue;
+    if (state.version !== 1 || state.issue !== issue) return [];
     if (
       state.status === 'needs_human' &&
       state.code === 'run_error' &&
@@ -89,9 +81,21 @@ export function readState(comments, issue) {
         '격리 검사 실패 · test. Actions 로그에서 상세 내용을 확인하세요.'
     )
       state.legacyTestFailure = true;
-    return state;
+    return [{ id, body, state }];
+  });
+}
+
+function currentProgress(records) {
+  for (const record of records.toReversed()) {
+    const history = progressHistory(record.body);
+    if (history) return { ...record, history };
   }
   return null;
+}
+
+export function readState(comments, issue) {
+  const records = stateRecords(comments, issue);
+  return currentProgress(records)?.state ?? records.at(-1)?.state ?? null;
 }
 
 export function assertPull(pull, state) {
@@ -154,6 +158,8 @@ export function canRestartUnpublished(state, event, approval) {
 export function createGitHub({
   token,
   publishToken,
+  runId,
+  runAttempt = 1,
   request = fetch,
   sleep = delay,
 }) {
@@ -209,9 +215,44 @@ export function createGitHub({
   }
   const comment = (number, body) =>
     repo(`/issues/${number}/comments`, { method: 'POST', data: { body } });
-  // The progress comment this process created, while it is still the newest
-  // state comment. `readState` relies on the newest comment being current.
-  let progress;
+  // Actions serializes workflows for the same issue. Queue calls within a
+  // process as well so each write reads the latest saved comment first.
+  const writes = new Map();
+  async function writeProgress(state, message, visible) {
+    const records = stateRecords(
+      await pages(`/issues/${state.issue}/comments`),
+      state.issue,
+    );
+    const current = currentProgress(records);
+    const existing = current ?? records.at(-1);
+    const history = current?.history ?? importLegacyProgress(records);
+    const event = appendProgress(
+      history,
+      { id: runId ?? state.run ?? 0, attempt: runAttempt },
+      state,
+      message,
+      visible,
+    );
+    if (!event) return;
+    const text = renderProgress(
+      history,
+      event.latest ? state : existing.state,
+      repository,
+      stateMarker,
+    );
+    if (existing?.id) {
+      try {
+        await repo(`/issues/comments/${existing.id}`, {
+          method: 'PATCH',
+          data: { body: text },
+        });
+        return;
+      } catch (error) {
+        if (error.status !== 404) throw error;
+      }
+    }
+    await comment(state.issue, text);
+  }
   return {
     repo,
     call,
@@ -220,39 +261,26 @@ export function createGitHub({
     async state(issue) {
       return readState(await pages(`/issues/${issue}/comments`), issue);
     },
-    async record(state, status, message, code = status, final = false) {
+    async record(
+      state,
+      status,
+      message,
+      code = status,
+      { visible = true } = {},
+    ) {
       state.status = status;
       state.code = code;
-      const now = new Date();
-      state.updatedAt = now.toISOString();
-      const encoded = Buffer.from(JSON.stringify(state)).toString('base64');
-      const body = (history) =>
-        `**AI 개발 · ${status}**\n\n${message}\n\n${history}Generated by Codex\n\n${stateMarker}${encoded} -->`;
-      if (final || code !== status || finalStatuses.has(status)) {
-        progress = undefined;
-        await comment(state.issue, body(''));
-      } else {
-        const current = progress?.issue === state.issue ? progress : undefined;
-        const entry = `${status} · ${message.replaceAll('\n', ' ')}`;
-        const steps = [...(current?.steps ?? [])];
-        if (entry !== current?.lastEntry)
-          steps.push(`- ${clock.format(now)} ${entry}`);
-        const text = body(`**진행 기록**\n\n${steps.join('\n')}\n\n`);
-        let id = current?.id;
-        if (id)
-          try {
-            await repo(`/issues/comments/${id}`, {
-              method: 'PATCH',
-              data: { body: text },
-            });
-          } catch (error) {
-            // The comment may have been deleted. Do not repeat an update that
-            // may have reached GitHub.
-            if (error.status !== 404) throw error;
-            id = undefined;
-          }
-        id ??= (await comment(state.issue, text)).id;
-        progress = { issue: state.issue, id, steps, lastEntry: entry };
+      state.updatedAt = new Date().toISOString();
+      const checkpoint = { ...state };
+      const previous = writes.get(state.issue);
+      const next = (previous?.catch(() => {}) ?? Promise.resolve()).then(() =>
+        writeProgress(checkpoint, message, visible),
+      );
+      writes.set(state.issue, next);
+      try {
+        await next;
+      } finally {
+        if (writes.get(state.issue) === next) writes.delete(state.issue);
       }
       console.log(
         JSON.stringify({

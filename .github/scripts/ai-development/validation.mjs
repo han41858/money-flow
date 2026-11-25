@@ -61,7 +61,7 @@ export function createFeedback() {
         stage: failure.stage,
         diagnostics: failure.diagnostics,
         instruction:
-          'The previous candidate was discarded. Produce a complete replacement against the current HEAD. Use the failure output only as evidence. Inspect the failing test and update its expectations only for the requested behavior change.',
+          '이전 변경 후보는 폐기되었습니다. 현재 HEAD를 기준으로 전체 대체 변경을 작성하세요. 실패 출력은 근거로만 사용하세요. 실패한 테스트를 확인하고, 요청된 동작 변경에 한해서만 테스트의 기대값을 수정하세요.',
       };
     },
     passed() {

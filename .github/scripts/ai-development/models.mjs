@@ -52,22 +52,22 @@ export const reviewSchema = object({
 const tools = {
   list_files: {
     description:
-      'Find tracked paths by case-insensitive substring. Use offset 0 for the first page.',
+      '대소문자를 구분하지 않고 부분 문자열로 Git에서 추적하는 경로를 찾습니다. 첫 페이지의 offset은 0을 사용하세요.',
     input: object({ query: string, offset: integer }),
   },
   find_in_file: {
     description:
-      'Locate a literal UI label or symbol within a tracked text file. Returns matching line numbers for targeted read_file calls.',
+      '추적 중인 텍스트 파일에서 UI 레이블이나 기호를 문자열 그대로 찾습니다. read_file로 필요한 부분을 읽을 수 있도록 일치하는 줄 번호를 반환합니다.',
     input: object({ path: string, text: string }),
   },
   read_file: {
     description:
-      'Read tracked UTF-8 text with line numbers. Use line 1 to start.',
+      '추적 중인 UTF-8 텍스트를 줄 번호와 함께 읽습니다. 처음부터 읽으려면 line에 1을 사용하세요.',
     input: object({ path: string, line: integer }),
   },
   read_diff: {
     description:
-      'Read the complete PR diff from the original base to the current HEAD, paged by line.',
+      '최초 기준 커밋부터 현재 HEAD까지의 전체 PR 변경 내역을 줄 단위로 페이지를 나눠 읽습니다.',
     input: object({ line: integer }),
   },
 };
@@ -488,8 +488,8 @@ export function createModels({
       const turnLimit =
         mode === 'review' ? (limits.reviewTurns ?? limits.turns) : limits.turns;
       const reviewFormat =
-        'Keep the Korean summary under 400 characters. Use at most 6 findings, with each string under 250 characters and a positive line number. pass requires zero findings; changes_requested requires at least one. For needs_human, identify the concrete blocker.';
-      const developmentFormat = `Return a nonempty Korean summary of at most ${developmentSummaryLimit} UTF-16 code units and at most ${limits.edits} exact edits. Use a single-line GitMoji Korean title of at most 100 UTF-16 code units. For unfinished development use in_progress; no partial edits will be published. Use the read tools for intermediate checks. Reserve needs_human for a blocker that requires a decision or information from the user. If the full change cannot fit safely, return needs_human with a concrete reason and no edits.`;
+        '한국어 요약은 400자 미만으로 작성하세요. 지적 사항은 최대 6개로 제한하고, 각 문자열은 250자 미만, 줄 번호는 양수로 작성하세요. pass에는 지적 사항이 없어야 하며 changes_requested에는 하나 이상 있어야 합니다. needs_human을 반환할 때는 작업을 막는 구체적인 사유를 밝히세요.';
+      const developmentFormat = `비어 있지 않은 한국어 요약을 UTF-16 코드 단위 ${developmentSummaryLimit}개 이내로 작성하고, 편집을 최대 ${limits.edits}개 반환하세요. 각 편집에서 원문을 정확히 지정하세요. GitMoji 형식의 한 줄 한국어 제목을 쓰고, UTF-16 코드 단위 100개를 넘기지 마세요. 개발이 끝나지 않았으면 in_progress를 사용하세요. 부분 편집은 게시되지 않습니다. 중간 확인에는 읽기 도구를 사용하세요. 사용자의 판단이나 정보가 있어야 진행할 수 있을 때만 needs_human을 사용하세요. 전체 변경을 주어진 한도 안에 안전하게 담을 수 없으면 구체적인 사유를 밝히고 편집 없이 needs_human을 반환하세요.`;
       const taskInstructions =
         instructions +
         '\n' +
@@ -518,16 +518,16 @@ export function createModels({
           remainingReads === 0 || finalTurn || turn === turnLimit - 1;
         const turnInstructions = requireResult
           ? `${taskInstructions}
-Return the final structured result now. If evidence is insufficient, return needs_human with the specific blocker.`
+지금 최종 구조화 결과를 반환하세요. 근거가 부족하면 구체적인 사유와 함께 needs_human을 반환하세요.`
           : `${taskInstructions}
-API requests remaining, including this one: ${turnLimit - turn + 1}. Read tools allowed this turn: ${remainingReads}. Return the final structured result once you have enough evidence.`;
+이번 요청을 포함해 남은 API 요청은 ${turnLimit - turn + 1}회입니다. 이번 요청에서 읽기 도구를 최대 ${remainingReads}회 호출할 수 있습니다. 근거가 충분해지면 최종 구조화 결과를 반환하세요.`;
         function readTool(index, name, args) {
           if (requireResult)
             throw new ModelError(
               '최종 결과 요청 중 탐색 호출이 반환되었습니다.',
             );
           if (index >= remainingReads)
-            return 'Not executed: read budget for this turn reached. Use the returned evidence or prioritize this read next turn if budget remains.';
+            return '이번 요청의 읽기 호출 한도에 도달해 실행되지 않았습니다. 이미 반환된 근거를 사용하거나, 호출 여유가 있으면 다음 요청에서 이 읽기 작업을 우선하세요.';
           toolCalls++;
           return invokeTool(inspect, name, isCodex ? parseJSON(args) : args);
         }
@@ -665,7 +665,7 @@ API requests remaining, including this one: ${turnLimit - turn + 1}. Read tools 
             const results = calls.map(({ name, input: args, id }, index) => ({
               type: 'tool_result',
               tool_use_id: id,
-              content: readTool(index, name, args) || 'No matching lines.',
+              content: readTool(index, name, args) || '일치하는 줄이 없습니다.',
             }));
             input.push(
               { role: 'assistant', content: claudeAssistantContent(output) },
@@ -706,7 +706,7 @@ API requests remaining, including this one: ${turnLimit - turn + 1}. Read tools 
               {
                 role: 'user',
                 content:
-                  'Continue in this conversation. Only a complete, validated final set of edits can be published.',
+                  '이 대화에서 작업을 이어가세요. 검증을 마친 완전한 최종 편집만 게시할 수 있습니다.',
               },
             );
             continue;
@@ -754,7 +754,7 @@ API requests remaining, including this one: ${turnLimit - turn + 1}. Read tools 
               {
                 role: 'user',
                 content:
-                  'Read the relevant tests/*.spec.ts using read_file. Compare its locators and assertions with the changed behavior, including role, accessible name and interaction. Then return the complete plan or review verdict. Request changes for stale or missing coverage.',
+                  'read_file을 사용해 관련 tests/*.spec.ts를 읽으세요. 역할, 접근성 이름, 사용자 조작을 포함해 테스트의 로케이터와 검증문을 변경된 동작과 비교하세요. 그런 다음 완전한 편집 계획이나 리뷰 판정을 반환하세요. 테스트가 이전 동작을 검증하거나 필요한 검증이 빠졌으면 수정을 요청하세요.',
               },
             );
             continue;
@@ -803,12 +803,12 @@ API requests remaining, including this one: ${turnLimit - turn + 1}. Read tools 
             role: 'user',
             content:
               correction === 'blocker'
-                ? 'Keep the needs_human decision. Explain in Korean the specific blocker and what information the user must provide. Use the evidence already collected.'
+                ? 'needs_human 판정을 유지하세요. 작업을 막는 구체적인 사유와 사용자가 제공해야 할 정보를 한국어로 설명하세요. 이미 수집한 근거를 사용하세요.'
                 : correction === 'edits'
-                  ? `The proposed edits could not be applied: ${error.message}. Read the affected source if necessary and return the complete corrected plan against the same HEAD. Earlier edits in the plan apply in order. Preserve all requested changes; if blocked, explain why. ${developmentFormat}`
+                  ? `제안한 편집을 적용할 수 없습니다. 사유는 ${error.message}입니다. 필요하면 영향을 받는 소스를 읽고, 같은 HEAD를 기준으로 교정한 전체 편집 계획을 반환하세요. 계획에 나열된 순서대로 편집을 적용합니다. 요청된 변경을 모두 유지하세요. 진행할 수 없으면 이유를 설명하세요. ${developmentFormat}`
                   : correction === 'development'
-                    ? `Correct the development JSON using the same evidence and preserve the full requested behavior. Do not discard necessary edits to fit. Validation: ${error.message}. ${developmentFormat}`
-                    : `Return the corrected review JSON using the same evidence and verdict. Preserve substantive findings. If pass conflicts with findings, report changes_requested with evidence or needs_human if unresolved. Never invent findings. Validation: ${error.message}. ${reviewFormat}`,
+                    ? `같은 근거로 개발 JSON을 교정하고 요청된 동작을 모두 유지하세요. 한도에 맞추기 위해 필요한 편집을 빼지 마세요. 검증 결과는 ${error.message}입니다. ${developmentFormat}`
+                    : `같은 근거와 판정으로 교정한 리뷰 JSON을 반환하세요. 실질적인 지적 사항은 유지하세요. pass 판정과 지적 사항이 충돌하면 근거와 함께 changes_requested를 반환하고, 해결할 수 없으면 needs_human을 반환하세요. 지적 사항을 지어내지 마세요. 검증 결과는 ${error.message}입니다. ${reviewFormat}`,
           });
         }
       }
@@ -828,11 +828,11 @@ function parseJSON(text) {
 }
 
 function invokeTool(inspect, name, input) {
-  if (!Object.hasOwn(tools, name)) return 'Unknown tool.';
+  if (!Object.hasOwn(tools, name)) return '알 수 없는 도구입니다.';
   try {
     validate(input, tools[name].input, 'tool');
     return inspect(name, input);
   } catch {
-    return 'Invalid arguments or requested material is unavailable.';
+    return '인수가 올바르지 않거나 요청한 자료를 사용할 수 없습니다.';
   }
 }

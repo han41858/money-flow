@@ -1,6 +1,6 @@
 import { setTimeout as wait } from 'node:timers/promises';
 import { CorrectableEditError } from './workspace.mjs';
-import { agents, config } from './config.mjs';
+import { agents, config, uiSpecUnreadMessage } from './config.mjs';
 
 // Only messages composed here from fixed labels may be published to the issue.
 class ModelError extends Error {
@@ -499,9 +499,12 @@ export function createModels({
       const taskInstructions =
         instructions +
         '\n' +
-        (mode === 'review' ? reviewFormat : developmentFormat);
+        (mode === 'review' ? reviewFormat : developmentFormat) +
+        '\nUI를 변경하거나 리뷰하는 경우 탐색 초반에 관련 tests/*.spec.ts 본문을 read_file로 읽으세요.';
+      const uiSpecInstruction =
+        'read_file을 사용해 관련 tests/*.spec.ts를 읽으세요. 역할, 접근성 이름, 사용자 조작을 포함해 테스트의 로케이터와 검증문을 변경된 동작과 비교하세요. 그런 다음 완전한 편집 계획이나 리뷰 판정을 반환하세요. 테스트가 이전 동작을 검증하거나 필요한 검증이 빠졌으면 수정을 요청하세요.';
       let correction;
-      let promptedForSpec = false;
+      let uiSpecReadTurn;
       let reviewCanPass = true;
       const missingBlocker =
         '자동화가 사람 확인을 요청했지만 구체적인 중단 사유를 제공하지 않았습니다.';
@@ -544,21 +547,37 @@ export function createModels({
           limits.codexRetryRequestTimeout,
         );
       }
-      for (let turn = 1; turn <= turnLimit; turn++) {
+      for (
+        let turn = 1;
+        turn <= (uiSpecReadTurn ? uiSpecReadTurn + 1 : turnLimit);
+        turn++
+      ) {
         const started = performance.now();
-        const finalTurn =
-          turn === turnLimit || (Boolean(correction) && correction !== 'edits');
+        const readUiSpec = turn === uiSpecReadTurn;
+        const finalTurn = uiSpecReadTurn
+          ? !readUiSpec
+          : turn === turnLimit ||
+            (Boolean(correction) && correction !== 'edits');
         // Reserve the last review request for repairing an invalid verdict.
-        const remainingReads = Math.min(
-          limits.toolCallsPerTurn,
-          limits.toolCallsTotal - toolCalls,
-        );
+        const remainingReads = readUiSpec
+          ? 1
+          : Math.min(
+              limits.toolCallsPerTurn,
+              limits.toolCallsTotal - toolCalls,
+            );
         const requireResult =
-          remainingReads === 0 || finalTurn || turn === turnLimit - 1;
-        const turnInstructions = requireResult
-          ? `${taskInstructions}
+          !readUiSpec &&
+          (remainingReads === 0 || finalTurn || turn === turnLimit - 1);
+        const availableTools = readUiSpec
+          ? { read_file: tools.read_file }
+          : tools;
+        const turnInstructions = readUiSpec
+          ? taskInstructions +
+            '\n이번 요청에서 관련 UI 테스트 본문을 read_file로 한 번 읽으세요. 최종 결과는 다음 요청에서 반환하세요.'
+          : requireResult
+            ? `${taskInstructions}
 지금 최종 구조화 결과를 반환하세요. 근거가 부족하면 구체적인 사유와 함께 needs_human을 반환하세요.`
-          : `${taskInstructions}
+            : `${taskInstructions}
 이번 요청을 포함해 남은 API 요청은 ${turnLimit - turn + 1}회입니다. 이번 요청에서 읽기 도구를 최대 ${remainingReads}회 호출할 수 있습니다. 근거가 충분해지면 최종 구조화 결과를 반환하세요.`;
         function readTool(index, name, args) {
           if (requireResult)
@@ -567,6 +586,10 @@ export function createModels({
             );
           if (index >= remainingReads)
             return '이번 요청의 읽기 호출 한도에 도달해 실행되지 않았습니다. 이미 반환된 근거를 사용하거나, 호출 여유가 있으면 다음 요청에서 이 읽기 작업을 우선하세요.';
+          if (readUiSpec && name !== 'read_file')
+            throw new ModelError(
+              'UI 테스트 확인 중에는 read_file만 호출할 수 있습니다.',
+            );
           toolCalls++;
           return invokeTool(inspect, name, isCodex ? parseJSON(args) : args);
         }
@@ -589,7 +612,7 @@ export function createModels({
                   },
                 },
                 ...(requireResult ? { tool_choice: 'none' } : {}),
-                tools: Object.entries(tools).map(
+                tools: Object.entries(availableTools).map(
                   ([name, { description, input }]) => ({
                     type: 'function',
                     name,
@@ -606,7 +629,7 @@ export function createModels({
                 max_tokens: limits.outputTokens,
                 output_config: { format: { type: 'json_schema', schema } },
                 ...(requireResult ? { tool_choice: { type: 'none' } } : {}),
-                tools: Object.entries(tools).map(
+                tools: Object.entries(availableTools).map(
                   ([name, { description, input }]) => ({
                     name,
                     description,
@@ -673,7 +696,7 @@ export function createModels({
             throw new ModelError('Codex 응답이 완료되지 않았습니다.');
           const calls = output.filter(({ type }) => type === 'function_call');
           if (calls.length) {
-            if (correction && correction !== 'edits')
+            if (!readUiSpec && correction && correction !== 'edits')
               throw new ModelError('결과 교정 중 도구 호출이 반환되었습니다.');
             input.push(
               ...output,
@@ -692,7 +715,7 @@ export function createModels({
             .join('');
         } else {
           if (data.stop_reason === 'tool_use') {
-            if (correction && correction !== 'edits')
+            if (!readUiSpec && correction && correction !== 'edits')
               throw new ModelError('결과 교정 중 도구 호출이 반환되었습니다.');
             const calls = output.filter(({ type }) => type === 'tool_use');
             if (!calls.length)
@@ -767,18 +790,17 @@ export function createModels({
             ['completed', 'pass'].includes(verified.status) &&
             needsUiSpec?.(verified.edits?.map(({ path }) => path))
           ) {
-            const message =
-              '관련 UI 테스트 본문을 확인하지 않아 개발 완료 또는 리뷰 승인을 기록할 수 없습니다.';
-            if (promptedForSpec || requireResult || correction) {
+            if (uiSpecReadTurn) {
               return {
                 status: 'needs_human',
-                summary: message,
+                summary: uiSpecUnreadMessage,
+                blockedOnUiSpec: true,
                 ...(mode === 'review'
                   ? { findings: [] }
                   : { title: '', edits: [] }),
               };
             }
-            promptedForSpec = true;
+            uiSpecReadTurn = turn + 1;
             input.push(
               ...(isCodex
                 ? output
@@ -790,8 +812,7 @@ export function createModels({
                   ]),
               {
                 role: 'user',
-                content:
-                  'read_file을 사용해 관련 tests/*.spec.ts를 읽으세요. 역할, 접근성 이름, 사용자 조작을 포함해 테스트의 로케이터와 검증문을 변경된 동작과 비교하세요. 그런 다음 완전한 편집 계획이나 리뷰 판정을 반환하세요. 테스트가 이전 동작을 검증하거나 필요한 검증이 빠졌으면 수정을 요청하세요.',
+                content: uiSpecInstruction,
               },
             );
             continue;

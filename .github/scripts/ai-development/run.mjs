@@ -15,6 +15,7 @@ import {
   safeText,
   selectCurrentCI,
   Stop,
+  UiSpecUnread,
 } from './github.mjs';
 
 const env = process.env;
@@ -173,6 +174,7 @@ async function develop() {
   models.verify();
 
   const restartingValidation = restarting && state.code === 'validation_failed';
+  const restartingUiSpec = restarting && state.code === 'ui_spec_unread';
   state = {
     version: 1,
     issue: issueNumber,
@@ -185,9 +187,11 @@ async function develop() {
     attempts: 0,
     preflightRestarts:
       state?.preflightRestarts ||
-      Number(Boolean(restarting && !restartingValidation)),
+      Number(Boolean(restarting && !restartingValidation && !restartingUiSpec)),
     validationRestarts:
       (state?.validationRestarts ?? 0) + Number(Boolean(restartingValidation)),
+    uiSpecRestarts:
+      (state?.uiSpecRestarts ?? 0) + Number(Boolean(restartingUiSpec)),
   };
   await gh.record(state, 'developing', '격리 검증 환경을 준비합니다.');
   prepareValidation();
@@ -219,6 +223,7 @@ ${snapshot(base, base).read('AGENTS.md')}`;
       needsUiSpec: work.needsUiSpec,
       prepareChanges: (edits) => formatChanges(resolveEdits(edits, work), work),
     });
+    if (plan.blockedOnUiSpec) throw new UiSpecUnread();
     if (plan.status !== 'completed' || !plan.changes.length)
       throw new Stop(
         safeText(plan.summary) || '게시할 완성된 변경이 없습니다.',
@@ -497,7 +502,11 @@ try {
           ? 'needs_human'
           : 'failed';
     const code =
-      error instanceof ValidationFailure ? 'validation_failed' : 'run_error';
+      error instanceof ValidationFailure
+        ? 'validation_failed'
+        : error instanceof UiSpecUnread
+          ? 'ui_spec_unread'
+          : 'run_error';
     if (error instanceof ValidationFailure)
       state.validationStage = error.stage ?? null;
     await gh.record(state, status, message, code).catch(() => {});

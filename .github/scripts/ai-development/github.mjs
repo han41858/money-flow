@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
+import { uiSpecUnreadMessage } from './config.mjs';
 
 export const repository = 'han41858/money-flow';
 export const baseBranch = 'dev';
@@ -25,6 +26,12 @@ const legacyValidationMessage =
   '후보 코드의 격리 검사가 실패했습니다. 실행 로그에서 실패 단계를 확인하세요.';
 
 export class Stop extends Error {}
+
+export class UiSpecUnread extends Stop {
+  constructor() {
+    super(uiSpecUnreadMessage);
+  }
+}
 
 export function fingerprint(issue) {
   return createHash('sha256')
@@ -69,6 +76,12 @@ export function readState(comments, issue) {
       body.split('\n\n')[1] === legacyValidationMessage
     )
       state.code = 'validation_failed';
+    if (
+      state.status === 'needs_human' &&
+      state.code === 'run_error' &&
+      body.split('\n\n')[1] === uiSpecUnreadMessage
+    )
+      state.code = 'ui_spec_unread';
     if (
       state.code === 'validation_failed' &&
       state.validationStage === undefined &&
@@ -121,7 +134,11 @@ export function canRestartUnpublished(state, event, approval) {
         state.code === 'validation_failed' &&
         state.attempts >= 1 &&
         (!state.validationRestarts ||
-          (state.validationRestarts === 1 && state.legacyTestFailure)))) &&
+          (state.validationRestarts === 1 && state.legacyTestFailure))) ||
+      (state.status === 'needs_human' &&
+        state.code === 'ui_spec_unread' &&
+        state.attempts >= 1 &&
+        !state.uiSpecRestarts)) &&
     state.head === state.base &&
     !state.published &&
     !state.pr &&

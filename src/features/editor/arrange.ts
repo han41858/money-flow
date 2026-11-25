@@ -279,14 +279,11 @@ function arrangeGroups(
     const nodes = arrangeNodes(contents);
     const nested = children.get(group.id)!;
     if (!nested.length) {
-      const bounds = nodes.length
-        ? paddedGroupBounds(nodeBounds(nodes, sizes))
-        : {
-            position: { x: 0, y: -group.height / 2 },
-            width: group.width,
-            height: group.height,
-          };
-      layouts.set(group.id, { bounds, nodes, children: [] });
+      layouts.set(group.id, {
+        bounds: paddedGroupBounds(nodeBounds(nodes, sizes)),
+        nodes,
+        children: [],
+      });
       continue;
     }
     const regions: { id?: string; position: Position; bounds: Bounds }[] =
@@ -317,6 +314,115 @@ function arrangeGroups(
 }
 
 export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
+  const deepestFirst = groupsInLayerOrder(diagram.groups).reverse();
+  const populated = new Set<string>();
+  for (const { groupId } of diagram.nodes) {
+    if (groupId) populated.add(groupId);
+  }
+  for (const { id, parentId } of deepestFirst) {
+    if (parentId && populated.has(id)) populated.add(parentId);
+  }
+
+  const groups = diagram.groups.filter(({ id }) => populated.has(id));
+  if (groups.length === diagram.groups.length)
+    return arrangeContent(diagram, sizes);
+
+  const layout = arrangeContent({ ...diagram, groups }, sizes);
+  return appendEmptyGroups(diagram.groups, deepestFirst, layout, sizes);
+}
+
+function appendEmptyGroups(
+  groups: Group[],
+  deepestFirst: Group[],
+  layout: Pick<Diagram, 'nodes' | 'groups'>,
+  sizes: NodeSizes,
+) {
+  type Scope = { occupied: Bounds[]; empty: Group[] };
+  const scopes = new Map<string | undefined, Scope>();
+  const bounds = new Map<string, Bounds>(
+    layout.groups.map((group) => [group.id, group]),
+  );
+
+  function scopeFor(id: string | undefined) {
+    const scope = scopes.get(id) ?? { occupied: [], empty: [] };
+    scopes.set(id, scope);
+    return scope;
+  }
+
+  for (const node of layout.nodes) {
+    const parent =
+      node.groupId && bounds.has(node.groupId) ? node.groupId : undefined;
+    scopeFor(parent).occupied.push(nodeBounds([node], sizes));
+  }
+
+  function placeColumn({ occupied, empty }: Scope, origin: Position) {
+    if (!empty.length) return;
+    const content = occupied.length ? enclosingBounds(occupied) : undefined;
+    const x = content
+      ? content.position.x + content.width + columnGap
+      : origin.x;
+    let y = content?.position.y ?? origin.y;
+    for (const { id } of empty.sort(byPosition)) {
+      const { width, height } = bounds.get(id)!;
+      const placed = { position: { x, y }, width, height };
+      bounds.set(id, placed);
+      occupied.push(placed);
+      y += height + regionGap;
+    }
+  }
+
+  // Size empty subtrees bottom-up. Populated groups can grow to contain
+  // their children, but they do not move or take part in packing again.
+  for (const group of deepestFirst) {
+    const scope = scopeFor(group.id);
+    const parent = scopeFor(group.parentId);
+    const current = bounds.get(group.id);
+    if (current) {
+      placeColumn(scope, current.position);
+      const expanded = enclosingBounds([
+        current,
+        paddedGroupBounds(enclosingBounds(scope.occupied)),
+      ]);
+      bounds.set(group.id, expanded);
+      parent.occupied.push(expanded);
+    } else {
+      placeColumn(scope, { x: 0, y: 0 });
+      const size = scope.occupied.length
+        ? paddedGroupBounds(enclosingBounds(scope.occupied))
+        : group;
+      if (scope.occupied.length) {
+        for (const { position } of scope.occupied) {
+          position.x -= size.position.x;
+          position.y -= size.position.y;
+        }
+      }
+      bounds.set(group.id, {
+        position: { x: 0, y: 0 },
+        width: size.width,
+        height: size.height,
+      });
+      parent.empty.push(group);
+    }
+  }
+  placeColumn(scopeFor(undefined), enclosingBounds(groups).position);
+
+  // Only children of empty groups were placed in parent-local coordinates.
+  const populated = new Set(layout.groups.map(({ id }) => id));
+  for (const { id, parentId } of [...deepestFirst].reverse()) {
+    if (!parentId || populated.has(parentId)) continue;
+    const { position } = bounds.get(id)!;
+    const { position: parent } = bounds.get(parentId)!;
+    position.x += parent.x;
+    position.y += parent.y;
+  }
+
+  return {
+    nodes: layout.nodes,
+    groups: groups.map((group) => ({ ...group, ...bounds.get(group.id)! })),
+  };
+}
+
+function arrangeContent(diagram: Diagram, sizes: NodeSizes) {
   const ordered = [...diagram.nodes].sort(byPosition);
   const { outgoing, indegree, soleParent } = countLinks(diagram, ordered);
   const nodeSizes = new Map<string, Size>(

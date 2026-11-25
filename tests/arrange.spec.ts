@@ -145,3 +145,113 @@ test('자동 정렬에서 두 수입의 합류와 별도 지출 분기를 유지
     }
   }
 });
+
+test('빈 그룹을 추가해도 노드와 연결선은 그대로이고 빈 그룹은 각 범위의 마지막 열 뒤에 놓인다', async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  const viewport = { width: 1600, height: 1000 };
+  await page.setViewportSize(viewport);
+  const withEmpty = await browser.newPage({ baseURL, viewport });
+  const [seed, , parent] = example.groups;
+  const empty = {
+    ...seed,
+    id: 'empty-first',
+    name: '빈 그룹 A',
+    position: { x: -250, y: -180 },
+    width: 220,
+    height: 140,
+  };
+  const cardSelector = (id: string) => `[data-id="${id}"] .money-node`;
+  const groupSelector = (id: string) => `[data-id="group:${id}"]`;
+
+  async function snapshot(canvas: typeof page) {
+    await expect(canvas.locator('.react-flow__edge-path')).toHaveCount(
+      example.edges.length,
+    );
+    return canvas.locator('.react-flow__viewport').evaluate(
+      (viewport, cards) => {
+        const zoom = new DOMMatrix(getComputedStyle(viewport).transform).a;
+        const boxes = cards.map((card) =>
+          viewport.querySelector(card)!.getBoundingClientRect(),
+        );
+        const [anchor] = boxes;
+        return {
+          nodes: boxes.map(({ x, y }) => ({
+            x: (x - anchor.x) / zoom,
+            y: (y - anchor.y) / zoom,
+          })),
+          paths: Array.from(
+            viewport.querySelectorAll('.react-flow__edge-path'),
+            (path) => path.getAttribute('d'),
+          ),
+        };
+      },
+      example.nodes.map(({ id }) => cardSelector(id)),
+    );
+  }
+
+  try {
+    await openExample(page);
+    await page.getByRole('button', { name: '자동 정렬' }).click();
+    const before = await snapshot(page);
+
+    await openExample(withEmpty, {
+      ...example,
+      groups: [
+        ...example.groups,
+        empty,
+        {
+          ...empty,
+          id: 'empty-second',
+          name: '빈 그룹 B',
+          position: { x: -250, y: 40 },
+          height: 100,
+        },
+        {
+          ...empty,
+          id: 'empty-child',
+          name: '빈 하위 그룹',
+          parentId: parent.id,
+          position: { x: 400, y: 10 },
+        },
+      ],
+    });
+    await withEmpty.getByRole('button', { name: '자동 정렬' }).click();
+    const after = await snapshot(withEmpty);
+    for (const [index, node] of after.nodes.entries()) {
+      expect(node.x).toBeCloseTo(before.nodes[index].x, 1);
+      expect(node.y).toBeCloseTo(before.nodes[index].y, 1);
+    }
+    expect(after.paths).toEqual(before.paths);
+
+    const group = (id: string) => bounds(withEmpty.locator(groupSelector(id)));
+    const first = await group(empty.id);
+    const second = await group('empty-second');
+    const populated = await Promise.all(
+      example.groups.map(({ id }) => group(id)),
+    );
+    expect(first.x).toBeGreaterThan(
+      Math.max(...populated.map((box) => box.x + box.width)),
+    );
+    expect(second.x).toBeCloseTo(first.x, 1);
+    expect(second.y).toBeGreaterThan(first.y + first.height);
+
+    const child = await group('empty-child');
+    const parentBox = await group(parent.id);
+    const members = await Promise.all(
+      example.nodes
+        .filter(({ groupId }) => groupId === parent.id)
+        .map(({ id }) => bounds(withEmpty.locator(cardSelector(id)))),
+    );
+    expect(child.x).toBeGreaterThan(
+      Math.max(...members.map((box) => box.x + box.width)),
+    );
+    expect(child.x + child.width).toBeLessThan(parentBox.x + parentBox.width);
+    expect(child.y).toBeGreaterThan(parentBox.y);
+    expect(child.y + child.height).toBeLessThan(parentBox.y + parentBox.height);
+  } finally {
+    await withEmpty.close();
+  }
+});

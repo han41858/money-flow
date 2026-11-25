@@ -285,16 +285,20 @@ export function Canvas({
       const groupPositions = new Map<string, XYPosition>();
       const nodePositions = new Map<string, XYPosition>();
       for (const [id, point] of finished) {
-        const group = regions.get(id);
-        if (group) groupPositions.set(group.id, point);
-        else {
-          const parentId = getInternalNode(id)?.parentId;
-          const parent = parentId ? regions.get(parentId) : undefined;
-          nodePositions.set(
-            id,
-            parent ? absoluteFrom(point, parent.position) : point,
+        let absolute = point;
+        let parentId = getInternalNode(id)?.parentId;
+        while (parentId) {
+          const parent = getInternalNode(parentId);
+          if (!parent) break;
+          absolute = absoluteFrom(
+            absolute,
+            finished.get(parentId) ?? parent.position,
           );
+          parentId = parent.parentId;
         }
+        const group = regions.get(id);
+        if (group) groupPositions.set(group.id, absolute);
+        else nodePositions.set(id, absolute);
       }
       editor.move(
         nodePositions,

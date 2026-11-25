@@ -1,11 +1,13 @@
 import type { Diagram, MoneyNode } from '../../types/diagram';
 import {
-  newGroupBounds,
+  enclosingBounds,
+  paddedGroupBounds,
   nodeBounds,
   type Group,
   type NodeSizes,
   type Size,
 } from '../groups/geometry';
+import { groupsInLayerOrder } from '../groups/hierarchy';
 import { amountLabel } from '../edges/money';
 import { cardSize, estimatedTextWidth } from '../nodes/sizing';
 
@@ -19,7 +21,7 @@ const regionGap = 24;
 
 type Position = MoneyNode['position'];
 type Bounds = Pick<Group, 'position' | 'width' | 'height'>;
-type Region = Bounds & { nodeIds: string[] };
+type Region = Bounds & { nodeIds: string[]; descendantPositions: Position[] };
 type Metrics = {
   columnX: (id: string) => number;
   heightOf: (id: string) => number;
@@ -186,7 +188,11 @@ function arrangeColumns(contents: MoneyNode[], { columnX, heightOf }: Metrics) {
 // Places regions top to bottom, below any earlier region they would overlap.
 function createPacker() {
   const placed: Region[] = [];
-  function pack(bounds: Bounds, nodeIds: string[]) {
+  function pack(
+    bounds: Bounds,
+    nodeIds: string[] = [],
+    descendantPositions: Position[] = [],
+  ) {
     const { x } = bounds.position;
     const y = placed.reduce((bottom, region) => {
       const left = region.position.x;
@@ -198,7 +204,7 @@ function createPacker() {
         : bottom;
     }, bounds.position.y);
     const result = { ...bounds, position: { x, y } };
-    placed.push({ ...result, nodeIds });
+    placed.push({ ...result, nodeIds, descendantPositions });
     return result;
   }
   return { placed, pack };
@@ -233,9 +239,71 @@ function recenterBands(
       bottom = Math.max(bottom, y + heightOf(id));
     }
     const offset = (top + bottom) / 2;
-    for (const region of band) region.position.y -= offset;
+    for (const region of band) {
+      region.position.y -= offset;
+      for (const position of region.descendantPositions) position.y -= offset;
+    }
     for (const id of ids) positions.get(id)!.y -= offset;
   }
+}
+
+type GroupLayout = {
+  bounds: Bounds;
+  nodes: MoneyNode[];
+  children: { id: string; offsetY: number }[];
+};
+
+function arrangeGroups(
+  groups: Group[],
+  members: Map<string, MoneyNode[]>,
+  arrangeNodes: (contents: MoneyNode[]) => MoneyNode[],
+  sizes: NodeSizes,
+) {
+  const children = new Map(groups.map(({ id }) => [id, [] as Group[]]));
+  for (const group of groups)
+    if (group.parentId) children.get(group.parentId)!.push(group);
+
+  const layouts = new Map<string, GroupLayout>();
+  for (const group of groupsInLayerOrder(groups).reverse()) {
+    const contents = members.get(group.id)!;
+    const nodes = arrangeNodes(contents);
+    const nested = children.get(group.id)!;
+    if (!nested.length) {
+      const bounds = nodes.length
+        ? paddedGroupBounds(nodeBounds(nodes, sizes))
+        : {
+            position: { x: 0, y: -group.height / 2 },
+            width: group.width,
+            height: group.height,
+          };
+      layouts.set(group.id, { bounds, nodes, children: [] });
+      continue;
+    }
+    const regions: { id?: string; position: Position; bounds: Bounds }[] =
+      nested.map(({ id, position }) => ({
+        id,
+        position,
+        bounds: layouts.get(id)!.bounds,
+      }));
+    if (nodes.length)
+      regions.push({
+        position: contents[0].position,
+        bounds: nodeBounds(nodes, sizes),
+      });
+    const { placed, pack } = createPacker();
+    const childLayouts: GroupLayout['children'] = [];
+    for (const { id, bounds } of regions.sort(byPosition)) {
+      const offsetY = pack(bounds).position.y - bounds.position.y;
+      if (id) childLayouts.push({ id, offsetY });
+      else for (const node of nodes) node.position.y += offsetY;
+    }
+    layouts.set(group.id, {
+      bounds: paddedGroupBounds(enclosingBounds(placed)),
+      nodes,
+      children: childLayouts,
+    });
+  }
+  return layouts;
 }
 
 export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
@@ -289,15 +357,32 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     looseRegions.set(id, region);
   }
 
+  function arrangeNodes(contents: MoneyNode[]) {
+    const useBranches = contents.some(({ id }) =>
+      splitRoots.has(roots.get(id)!),
+    );
+    return useBranches
+      ? arrangeBranches(contents, branches, metrics)
+      : arrangeColumns(contents, metrics);
+  }
+
+  const groupLayouts = arrangeGroups(
+    diagram.groups,
+    members,
+    arrangeNodes,
+    nodeSizes,
+  );
   const { placed, pack } = createPacker();
   const positions = new Map<string, Position>();
   const groupBounds = new Map<string, Bounds>();
   const regions = [
-    ...diagram.groups.map((group) => ({
-      group,
-      position: group.position,
-      contents: members.get(group.id)!,
-    })),
+    ...diagram.groups
+      .filter((group) => !group.parentId)
+      .map((group) => ({
+        group,
+        position: group.position,
+        contents: members.get(group.id)!,
+      })),
     ...Array.from(looseRegions, ([root, contents]) => ({
       group: undefined,
       position: byId.get(root)!.position,
@@ -305,7 +390,37 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
     })),
   ].sort(byPosition);
   for (const { group, contents } of regions) {
-    if (!group && contents.length === 1) {
+    if (group) {
+      const layout = groupLayouts.get(group.id)!;
+      const nodeIds: string[] = [];
+      const descendantPositions: Position[] = [];
+      const packed = pack(layout.bounds, nodeIds, descendantPositions);
+      groupBounds.set(group.id, packed);
+      const stack = [
+        { layout, offsetY: packed.position.y - layout.bounds.position.y },
+      ];
+      while (stack.length) {
+        const next = stack.pop()!;
+        for (const { id, position } of next.layout.nodes) {
+          positions.set(id, { x: position.x, y: position.y + next.offsetY });
+          nodeIds.push(id);
+        }
+        for (const child of next.layout.children) {
+          const childLayout = groupLayouts.get(child.id)!;
+          const { bounds } = childLayout;
+          const offsetY = next.offsetY + child.offsetY;
+          const position = {
+            x: bounds.position.x,
+            y: bounds.position.y + offsetY,
+          };
+          descendantPositions.push(position);
+          groupBounds.set(child.id, { ...bounds, position });
+          stack.push({ layout: childLayout, offsetY });
+        }
+      }
+      continue;
+    }
+    if (contents.length === 1) {
       const node = contents[0];
       const size = nodeSizes.get(node.id)!;
       const bounds = pack(
@@ -318,32 +433,17 @@ export function arrangeDiagram(diagram: Diagram, sizes: NodeSizes) {
       positions.set(node.id, { ...bounds.position });
       continue;
     }
-    const useBranches = contents.some(({ id }) =>
-      splitRoots.has(roots.get(id)!),
-    );
-    const nodes = useBranches
-      ? arrangeBranches(contents, branches, metrics)
-      : arrangeColumns(contents, metrics);
-    const bounds = group
-      ? nodes.length
-        ? newGroupBounds(nodes, nodeSizes, { x: 0, y: 0 })
-        : {
-            position: { x: 0, y: -group.height / 2 },
-            width: group.width,
-            height: group.height,
-          }
-      : nodeBounds(nodes, nodeSizes);
+    const nodes = arrangeNodes(contents);
+    const bounds = nodeBounds(nodes, nodeSizes);
     const packed = pack(
       bounds,
       contents.map((node) => node.id),
     );
-    for (const node of nodes) {
-      positions.set(node.id, {
-        x: node.position.x,
-        y: node.position.y + packed.position.y - bounds.position.y,
+    for (const { id, position } of nodes)
+      positions.set(id, {
+        x: position.x,
+        y: position.y + packed.position.y - bounds.position.y,
       });
-    }
-    if (group) groupBounds.set(group.id, packed);
   }
 
   recenterBands(placed, positions, metrics.heightOf);

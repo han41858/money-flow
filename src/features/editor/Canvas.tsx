@@ -83,6 +83,7 @@ export function Canvas({
   const [resizing, setResizing] = useState<{ id: string; size: Size } | null>(
     null,
   );
+  const resizePositions = useRef(new Map<string, XYPosition>());
   const [shouldFit] = useState(
     () =>
       (fit || readOnly) &&
@@ -257,20 +258,50 @@ export function Canvas({
     if (measured.size)
       setMeasurements((previous) => new Map([...previous, ...measured]));
     if (readOnly) return;
-    for (const c of changes) {
-      if (c.type !== 'dimensions' || c.resizing === undefined || !c.dimensions)
-        continue;
-      const group = regions.get(c.id);
-      if (!group) continue;
-      if (c.resizing) setResizing({ id: c.id, size: c.dimensions });
-      else {
+    const resize = changes.find(
+      (change) =>
+        change.type === 'dimensions' &&
+        change.resizing !== undefined &&
+        change.dimensions &&
+        regions.has(change.id),
+    );
+    if (resize?.type === 'dimensions' && resize.dimensions) {
+      const group = regions.get(resize.id)!;
+      if (resize.resizing) {
+        // Keep the moving origin and the children's compensating positions
+        // in the preview; these position changes are not separate moves.
+        const next = new Map(resizePositions.current);
+        for (const change of changes) {
+          if (change.type === 'position' && change.position)
+            next.set(change.id, change.position);
+        }
+        resizePositions.current = next;
+        setPositions((previous) => new Map([...previous, ...next]));
+        setResizing({ id: resize.id, size: resize.dimensions });
+      } else {
+        const preview = resizePositions.current;
+        const local = preview.get(resize.id);
+        const parentId = getInternalNode(resize.id)?.parentId;
+        const parent = parentId ? getInternalNode(parentId) : undefined;
+        const position =
+          local && parent
+            ? absoluteFrom(local, parent.internals.positionAbsolute)
+            : local;
         editor.resizeGroup(
           group.id,
-          c.dimensions,
+          resize.dimensions,
           measuredSizes(diagram.nodes, getInternalNode),
+          position,
         );
+        resizePositions.current = new Map();
+        setPositions((previous) => {
+          const next = new Map(previous);
+          for (const id of preview.keys()) next.delete(id);
+          return next;
+        });
         setResizing(null);
       }
+      return;
     }
     const moving = new Map<string, XYPosition>();
     const finished = new Map<string, XYPosition>();

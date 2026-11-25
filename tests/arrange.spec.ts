@@ -255,3 +255,50 @@ test('빈 그룹을 추가해도 노드와 연결선은 그대로이고 빈 그�
     await withEmpty.close();
   }
 });
+
+test('앞쪽 부모 그룹이 빈 하위 그룹을 감싸도록 넓어지면 오른쪽 그룹과 노드를 함께 민다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const [parent, , downstream] = example.groups;
+  const child = {
+    ...parent,
+    id: 'empty-child-before-downstream',
+    name: '빈 하위 그룹',
+    parentId: parent.id,
+    position: { x: -200, y: 0 },
+    width: 220,
+    height: 100,
+  };
+  await openExample(page, { ...example, groups: [...example.groups, child] });
+  await page.getByRole('button', { name: '자동 정렬' }).click();
+
+  const group = (id: string) => bounds(page.locator(`[data-id="group:${id}"]`));
+  const card = (id: string) =>
+    bounds(page.locator(`[data-id="${id}"] .money-node`));
+  const [parentBox, childBox, downstreamBox, source] = await Promise.all([
+    group(parent.id),
+    group(child.id),
+    group(downstream.id),
+    card(example.nodes[0].id),
+  ]);
+  expect(childBox.x).toBeGreaterThan(source.x + source.width);
+  expect(childBox.x + childBox.width).toBeLessThan(
+    parentBox.x + parentBox.width,
+  );
+  expect(childBox.y).toBeGreaterThan(parentBox.y);
+  expect(childBox.y + childBox.height).toBeLessThan(
+    parentBox.y + parentBox.height,
+  );
+  expect(downstreamBox.x).toBeGreaterThanOrEqual(parentBox.x + parentBox.width);
+  for (const node of example.nodes.filter(
+    ({ groupId }) => groupId === downstream.id,
+  )) {
+    const box = await card(node.id);
+    expect(overlaps(box, parentBox)).toBe(false);
+    expect(box.x).toBeGreaterThan(downstreamBox.x);
+    expect(box.x + box.width).toBeLessThan(
+      downstreamBox.x + downstreamBox.width,
+    );
+  }
+});

@@ -13,6 +13,11 @@ import {
   selectCurrentCI,
 } from './github.mjs';
 import { createModels, validateReview } from './models.mjs';
+import {
+  appendProgress,
+  progressHistory,
+  renderProgress,
+} from './progress.mjs';
 import { createFeedback, ValidationFailure } from './validation.mjs';
 import { resolveEdits } from './workspace.mjs';
 
@@ -549,8 +554,13 @@ test('실패와 재실행·병합을 한 댓글에 기록하고 이전 실행은
     first.record(state, 'developing', '내부 단계입니다.', 'developing', {
       visible: false,
     }),
-    first.record(state, 'ci_failed', '타입 검사 실패'),
   ]);
+  state.validationStage = 'typecheck';
+  await first.record(state, 'developing', '내부 단계입니다.', 'developing', {
+    visible: false,
+  });
+  assert.equal((await first.state(10)).validationStage, 'typecheck');
+  await first.record(state, 'ci_failed', '타입 검사 실패');
   const second = client(101);
   const resumed = { ...(await second.state(10)), pr: 20, head: 'new-head' };
   await second.record(
@@ -580,6 +590,38 @@ test('실패와 재실행·병합을 한 댓글에 기록하고 이전 실행은
   assert.doesNotMatch(body, /내부 단계입니다|<details>/);
   assert.equal((await second.state(10)).head, 'new-head');
   assert.equal((await second.state(10)).status, 'completed');
+});
+
+test('긴 진행 기록은 이전 실행부터 줄이고 현재 상태와 회차를 보존한다', () => {
+  const history = { runs: [] };
+  const state = { version: 1, issue: 10, status: 'developing' };
+  for (let id = 1; id <= 80; id++) {
+    const execution = { id, attempt: 1 };
+    for (let step = 1; step <= 10; step++) {
+      appendProgress(
+        history,
+        execution,
+        state,
+        `${id}/${step} ${'검사 결과 '.repeat(24)}`,
+        true,
+      );
+    }
+  }
+  const marker = '<!-- money-flow-ai-state:';
+  const body = renderProgress(history, state, 'han41858/money-flow', marker);
+  assert(body.length <= 65_536);
+  assert.match(body, /80차 실행 · 개발 중/);
+  const restored = progressHistory(body);
+  assert(restored.archived.count > 0);
+  assert.match(
+    body,
+    new RegExp(`actions/runs/${restored.archived.through.id}/`),
+  );
+  assert.equal(
+    appendProgress(restored, { id: 1, attempt: 1 }, state, '늦은 결과', true),
+    null,
+  );
+  assert.equal(restored.runs.at(-1).entries.length, 10);
 });
 
 test('기존 봇 댓글을 재사용하고 펼친 기록과 종료 사유를 가져온다', async () => {

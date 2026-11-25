@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
+import { isDeepStrictEqual } from 'node:util';
 import { uiSpecUnreadMessage } from './config.mjs';
 import {
   appendProgress,
@@ -234,6 +235,15 @@ export function createGitHub({
       visible,
     );
     if (!event) return;
+    if (
+      event.duplicate &&
+      (!event.latest ||
+        isDeepStrictEqual(
+          { ...state, updatedAt: existing.state.updatedAt },
+          existing.state,
+        ))
+    )
+      return;
     const text = renderProgress(
       history,
       event.latest ? state : existing.state,

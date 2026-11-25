@@ -532,6 +532,10 @@ async function complete() {
         'waiting_ci',
         '필수 CI가 아직 대기 중입니다. CI 완료 후 이 이슈 번호로 워크플로를 수동 재실행할 수 있습니다.',
       );
+      console.error(
+        '::error::필수 CI 대기 시간이 초과됐습니다. 이슈의 진행 댓글을 확인하세요.',
+      );
+      process.exitCode = 1;
       return;
     }
     await sleep(20_000);

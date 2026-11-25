@@ -129,12 +129,14 @@ test('Playwright 보고서에서 실제 결과와 단언의 기대값·실제값
   assert.deepEqual(browserResults(report), [failed]);
 });
 
-test('새 UI 재현 테스트만 기준 트리에 적용하고 후보의 실제 통과를 확인한다', () => {
+test('재현 테스트와 지원 파일을 기준 트리에 적용하고 후보의 실제 통과를 확인한다', () => {
   const newTest = { path: spec.file, text: 'test(...)' };
+  const fixture = { path: 'tests/exampleFixture.ts', text: 'fixture' };
   const changes = [
     newTest,
     { path: 'src/features/editor/arrange.ts', text: 'layout' },
-    { path: 'tests/exampleFixture.ts', text: 'fixture' },
+    fixture,
+    { path: 'tests/storage.spec.ts', text: 'unrelated test' },
   ];
   const cases = candidateReproduction({
     base: 'base',
@@ -143,7 +145,7 @@ test('새 UI 재현 테스트만 기준 트리에 적용하고 후보의 실제 
     initialResults: [],
     createCheckpoint(head, edits) {
       assert.equal(head, 'base');
-      assert.deepEqual(edits, [newTest]);
+      assert.deepEqual(edits, [newTest, fixture]);
       return 'tests-only';
     },
     probe(head, targets) {
@@ -164,6 +166,38 @@ test('새 UI 재현 테스트만 기준 트리에 적용하고 후보의 실제 
       () => assertUiReproductionFixed(result, cases),
       ReproductionFailure,
     );
+});
+
+test('재현용 기준 트리의 빌드 오류와 후보의 빌드 오류를 구분한다', () => {
+  const build = new ValidationFailure(
+    24,
+    'tests/groups.spec.ts(35,5): error TS2554',
+  );
+  assert.throws(
+    () =>
+      candidateReproduction({
+        base: 'base',
+        changes: [{ path: spec.file, text: 'test(...)' }],
+        targets: [spec],
+        createCheckpoint: () => 'tests-only',
+        probe: () => {
+          throw build;
+        },
+      }),
+    (error) => {
+      assert(error instanceof ReproductionFailure);
+      assert.equal(error.stage, 'UI 재현');
+      assert.match(error.message, /수정 전 코드/);
+      assert.match(
+        error.diagnostics,
+        /tests\/groups\.spec\.ts\(35,5\): error TS2554/,
+      );
+      retryValidationStage('candidate', error, () =>
+        assert.fail('재현 단계는 별도로 다시 검사합니다.'),
+      );
+      return true;
+    },
+  );
 });
 
 test('단언 오류를 재현하지 못하거나 지정 검사 일부만 실패한 UI 후보를 거부한다', () => {

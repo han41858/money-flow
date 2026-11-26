@@ -1,11 +1,6 @@
 import { BaselineFailure, ValidationFailure } from './validation.mjs';
 import { ClaudeThinkingRejection } from './config.mjs';
-import {
-  cleanupBranch,
-  deleteBranchAtHead,
-  isTrackedDevMerge,
-  mergedIntoDev,
-} from './completion.mjs';
+import { ciIssue, createCompletion } from './completion.mjs';
 import {
   canResumeDependency,
   dependencyRetry,
@@ -28,7 +23,6 @@ import {
   issueMarker,
   repository,
   safeText,
-  selectCurrentCI,
   Stop,
   UiSpecUnread,
 } from './github.mjs';
@@ -39,8 +33,11 @@ const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
 const pullIssue = /^ai\/issue-([1-9]\d*)$/.exec(
   event.pull_request?.head.ref ?? '',
 )?.[1];
+const ciEvent = env.GITHUB_EVENT_NAME === 'workflow_run';
 const issueNumber = Number(
-  event.issue?.number ?? event.inputs?.issue ?? pullIssue,
+  ciEvent
+    ? ciIssue(event.workflow_run)
+    : (event.issue?.number ?? event.inputs?.issue ?? pullIssue),
 );
 const gh = createGitHub({
   token: env.GH_TOKEN,
@@ -684,167 +681,6 @@ async function resumeReview() {
     throw new Stop('Claude가 변경을 요청했습니다. 기존 PR 리뷰를 확인하세요.');
 }
 
-async function trustedCI() {
-  const query = new URLSearchParams({
-    event: 'pull_request',
-    head_sha: state.head,
-    branch: state.branch,
-    per_page: '20',
-  });
-  const result = await gh.repo(`/actions/workflows/ci.yml/runs?${query}`);
-  const run = selectCurrentCI(result.workflow_runs, state);
-  if (!run || run.status !== 'completed') return null;
-  const jobs = await gh.repo(
-    `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
-  );
-  const verify = jobs.jobs.find(({ name }) => name === 'verify');
-  if (run.conclusion === 'success' && verify?.conclusion === 'success')
-    return run;
-  await gh.record(
-    state,
-    'ci_failed',
-    `현재 HEAD의 verify 검사에 실패했습니다. [CI 실행](${run.html_url})을 확인하세요.`,
-  );
-  throw new Stop('현재 HEAD의 필수 CI를 통과하지 못했습니다.');
-}
-
-async function closeIssue(pull) {
-  assertPull(pull, state);
-  if (!pull.merged || !sha.test(pull.merge_commit_sha ?? ''))
-    throw new Stop('dev 머지 커밋을 확인할 수 없습니다.');
-  if (!(await mergedIntoDev(gh, pull.merge_commit_sha)))
-    throw new Stop('확인된 머지 커밋이 dev에 없습니다.');
-  await gh.record(
-    state,
-    'merged',
-    `PR #${state.pr}의 dev 머지를 확인했습니다.`,
-  );
-  let issue = await gh.repo(issuePath);
-  if (issue.state === 'open') {
-    if (!authorized(issue) || fingerprint(issue) !== state.issueHash)
-      throw new Stop(
-        '머지 후 이슈의 승인 또는 범위가 바뀌어 닫을 수 없습니다.',
-      );
-    await assertApproval();
-    try {
-      await gh.repo(issuePath, {
-        method: 'PATCH',
-        data: { state: 'closed', state_reason: 'completed' },
-      });
-    } catch (error) {
-      issue = await gh.repo(issuePath);
-      if (issue.state !== 'closed' || issue.state_reason !== 'completed')
-        throw error;
-    }
-    issue = await gh.repo(issuePath);
-  }
-  if (issue.state !== 'closed' || issue.state_reason !== 'completed')
-    throw new Stop('이슈가 완료 사유로 닫혔는지 확인할 수 없습니다.');
-  const cleanup = await cleanupBranch(gh, pull, state, (branch, head) =>
-    deleteBranchAtHead(branch, head, env.GH_TOKEN),
-  );
-  await gh.record(
-    state,
-    'completed',
-    `PR #${state.pr}를 dev에 squash merge했고 이슈 완료를 확인했습니다. ${cleanup}`,
-  );
-}
-
-async function complete() {
-  if (state?.status === 'completed') return;
-  if (
-    !state ||
-    !Number.isSafeInteger(state.pr) ||
-    state.head !== state.reviewedHead ||
-    !['waiting_ci', 'ci_failed', 'merged'].includes(state.status)
-  )
-    throw new Stop('현재 HEAD에 자동 머지에 사용할 리뷰 승인이 없습니다.');
-  const path = `/pulls/${state.pr}`;
-  let pull = await gh.repo(path);
-  assertPull(pull, state);
-  if (pull.merged) return closeIssue(pull);
-  await gh.assertProtection();
-  for (let attempt = 0; attempt < 55; attempt++) {
-    await guard();
-    const result = await trustedCI();
-    if (result) break;
-    if (attempt === 54) {
-      await gh.record(
-        state,
-        'waiting_ci',
-        '필수 CI가 아직 대기 중입니다. CI 완료 후 이 이슈 번호로 워크플로를 수동 재실행할 수 있습니다.',
-      );
-      console.error(
-        '::error::필수 CI 대기 시간이 초과됐습니다. 이슈의 진행 댓글을 확인하세요.',
-      );
-      process.exitCode = 1;
-      return;
-    }
-    await sleep(20_000);
-  }
-  await guard();
-  pull = await gh.repo(path);
-  assertPull(pull, state);
-  if (pull.draft) {
-    const result = await gh.call('/graphql', {
-      method: 'POST',
-      data: {
-        query:
-          'mutation ($id: ID!) { markPullRequestReadyForReview(input: {pullRequestId: $id}) { pullRequest { isDraft } } }',
-        variables: { id: pull.node_id },
-      },
-    });
-    if (
-      result.data?.markPullRequestReadyForReview?.pullRequest?.isDraft !== false
-    )
-      throw new Stop('PR 준비 완료 상태를 확인하지 못했습니다.');
-  }
-  await guard();
-  await gh.assertProtection();
-  try {
-    await gh.repo(`${path}/merge`, {
-      method: 'PUT',
-      data: {
-        sha: state.reviewedHead,
-        merge_method: 'squash',
-        commit_title: pull.title,
-        commit_message: `Closes #${issueNumber}\n\n${pull.body.split('\n\n')[2] ?? ''}\n\nCo-authored-by: Codex <noreply@openai.com>`,
-      },
-    });
-  } catch (error) {
-    pull = await gh.repo(path);
-    if (!pull.merged) throw error;
-  }
-  await closeIssue(await gh.repo(path));
-}
-
-async function syncManualMerge() {
-  if (!state?.pr || state.status === 'completed') return;
-  if (
-    env.GITHUB_EVENT_NAME !== 'workflow_dispatch' &&
-    (env.GITHUB_EVENT_NAME !== 'pull_request_target' ||
-      state.pr !== event.pull_request?.number ||
-      !event.pull_request.merged)
-  )
-    return;
-  const pull = await gh.repo(`/pulls/${state.pr}`);
-  if (!(await isTrackedDevMerge(gh, pull, state))) return;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const issue = await gh.repo(issuePath);
-    if (issue.state === 'closed' && issue.state_reason === 'completed') {
-      const completed = { ...state, head: pull.head.sha };
-      await gh.record(
-        completed,
-        'completed',
-        `PR #${state.pr}의 dev 병합과 이슈 완료를 확인했습니다.`,
-      );
-      return;
-    }
-    if (issue.state !== 'open') return;
-    if (attempt < 4) await sleep(2_000);
-  }
-}
-
 async function main() {
   if (
     env.GITHUB_REPOSITORY !== repository ||
@@ -853,6 +689,7 @@ async function main() {
     throw new Stop('실행 저장소 또는 브랜치가 잘못됐습니다.');
   if (mode === 'schedule-dependencies' && env.GITHUB_EVENT_NAME === 'schedule')
     return dispatchReadyDependencies(gh);
+  if (ciEvent && (mode !== 'complete' || !issueNumber)) return;
   if (
     event.repository?.full_name !== repository ||
     !Number.isSafeInteger(issueNumber) ||
@@ -864,16 +701,36 @@ async function main() {
     env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
     event.inputs?.phase === 'dependency' &&
     event.sender.login === 'github-actions[bot]';
-  if (!schedulerDispatch) await gh.assertMaintainer(event.sender.login);
+  if (!schedulerDispatch && !ciEvent)
+    await gh.assertMaintainer(event.sender.login);
   if (
+    !ciEvent &&
     env.GITHUB_TRIGGERING_ACTOR &&
     env.GITHUB_TRIGGERING_ACTOR !== event.sender.login
   )
     await gh.assertMaintainer(env.GITHUB_TRIGGERING_ACTOR);
   state = await gh.state(issueNumber);
-  if (mode === 'sync') return syncManualMerge();
   if (mode === 'resume-review') return resumeReview();
-  await (mode === 'develop' ? develop() : complete());
+  if (mode === 'develop') return develop();
+  const completion = createCompletion({
+    gh,
+    state,
+    issueNumber,
+    token: env.GH_TOKEN,
+    guard,
+    assertApproval,
+  });
+  if (mode === 'sync') {
+    if (
+      env.GITHUB_EVENT_NAME !== 'workflow_dispatch' &&
+      (env.GITHUB_EVENT_NAME !== 'pull_request_target' ||
+        state?.pr !== event.pull_request?.number ||
+        !event.pull_request?.merged)
+    )
+      return;
+    return completion.syncManualMerge();
+  }
+  return completion.complete(ciEvent ? event.workflow_run : undefined);
 }
 
 try {

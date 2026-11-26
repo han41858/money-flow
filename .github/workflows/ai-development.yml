@@ -1,11 +1,20 @@
 name: AI development
-run-name: "${{ (github.event.issue.number || inputs.issue) && format('AI development for Issue #{0}', github.event.issue.number || inputs.issue) || format('AI development · {0}', github.event.pull_request.head.ref || github.event_name) }}"
+run-name: >-
+  AI development ·
+  ${{ github.event_name == 'schedule' && 'Check dependencies' ||
+      github.event_name == 'workflow_run' && format('Finish after CI · {0}', github.event.workflow_run.head_branch) ||
+      github.event_name == 'pull_request_target' && format('Sync merge · PR #{0}', github.event.pull_request.number) ||
+      format('{0} · Issue #{1}', inputs.phase || 'Develop and review', github.event.issue.number || inputs.issue) }}
 
 on:
   issues:
     types: [labeled]
   pull_request_target:
     types: [closed]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: ['ai/issue-*']
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
@@ -26,7 +35,16 @@ on:
 permissions: {}
 
 concurrency:
-  group: ai-development-${{ github.event.pull_request.head.ref || ((github.event.issue.number || inputs.issue) && format('ai/issue-{0}', github.event.issue.number || inputs.issue)) || 'dependencies' }}
+  group: >-
+    ai-development-${{ github.event_name == 'schedule' && 'dependencies' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch) ||
+      (github.event.pull_request.merged && github.event.pull_request.base.ref == 'dev' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref) ||
+      ((github.event.label.name == 'ai:develop' || inputs.issue) &&
+       format('ai/issue-{0}', github.event.issue.number || inputs.issue)) ||
+      github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -73,9 +91,12 @@ jobs:
       always() && !cancelled() &&
       github.repository == 'han41858/money-flow' &&
       github.ref == 'refs/heads/dev' &&
-      ((github.event_name == 'workflow_dispatch' && inputs.phase == 'complete') || needs.develop.outputs.ready == 'true')
+      ((github.event_name == 'workflow_dispatch' && inputs.phase == 'complete') ||
+       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       needs.develop.outputs.ready == 'true')
     runs-on: ubuntu-24.04
-    timeout-minutes: 23
+    timeout-minutes: 5
     permissions:
       actions: read
       contents: write

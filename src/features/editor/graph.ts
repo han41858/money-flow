@@ -1,12 +1,13 @@
 import type { MeasureText, NodeTotal } from '../nodes/sizing';
 import { type Node, type Edge } from '@xyflow/react';
 import { amountLabel, exactAmount, sum } from '../edges/money';
-import { portFraction, type Box } from '../edges/geometry';
+import { portFraction } from '../edges/geometry';
+import type { TransferRouteInput } from '../edges/route';
 import { cardSize } from '../nodes/sizing';
 import { strokeColor } from '../../lib/brands/palette';
 import type { Diagram, MoneyEdge, MoneyNode } from '../../types/diagram';
 import { describe } from '../nodes/presentation';
-import { relativeTo } from '../groups/geometry';
+import { relativeTo, type NodeSizes } from '../groups/geometry';
 import { groupsInLayerOrder } from '../groups/hierarchy';
 import type { RegionNode } from '../groups/GroupRegion';
 export type FlowNode = Node<
@@ -23,19 +24,15 @@ export type FlowNode = Node<
   'money'
 >;
 export type FlowEdge = Edge<
-  {
-    edge: MoneyEdge;
-    color: string;
-    sourcePort: number;
-    targetPort: number;
-    targetPortCount: number;
-    obstacles: Box[];
-    readOnly?: boolean;
-  },
+  TransferRouteInput & { color: string; readOnly?: boolean },
   'transfer'
 >;
 
-export function buildGraph(diagram: Diagram, measure?: MeasureText) {
+export function buildGraph(
+  diagram: Diagram,
+  measure?: MeasureText,
+  sizes?: NodeSizes,
+) {
   let prefix = 'group:';
   while (diagram.nodes.some((n) => n.id.startsWith(prefix))) prefix += ':';
   const groups = new Map(diagram.groups.map((group) => [group.id, group]));
@@ -124,10 +121,16 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
     };
   });
   const byNodeId = new Map(nodes.map((n) => [n.id, n.data]));
-  const obstacles = diagram.nodes.map((node) => ({
-    ...node.position,
-    ...cardSize(node.name, measure),
-  }));
+  const cards = new Map(
+    diagram.nodes.map((node) => [
+      node.id,
+      {
+        ...node.position,
+        ...(sizes?.get(node.id) ?? cardSize(node.name, measure)),
+      },
+    ]),
+  );
+  const obstacles = [...cards.values()];
   const edges: FlowEdge[] = diagram.edges.map((edge) => {
     const color = strokeColor(describe(byId.get(edge.source)!, diagram).color);
     const outputs = byNodeId.get(edge.source)!.outputs;
@@ -143,11 +146,13 @@ export function buildGraph(diagram: Diagram, measure?: MeasureText) {
         sourcePort: portFraction(outputs.indexOf(edge.id), outputs.length),
         targetPort: portFraction(inputs.indexOf(edge.id), inputs.length),
         targetPortCount: inputs.length,
+        sourceCard: cards.get(edge.source)!,
+        targetCard: cards.get(edge.target)!,
         obstacles,
       },
       ariaLabel:
         byId.get(edge.source)!.name + ' → ' + byId.get(edge.target)!.name,
     };
   });
-  return { nodes, edges, groupNodes };
+  return { nodes, edges, groupNodes, cards };
 }

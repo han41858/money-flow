@@ -75,7 +75,10 @@ export function Canvas({
     new Map(),
   );
   const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
-  const graph = useMemo(() => buildGraph(diagram, browserTextWidth), [diagram]);
+  const graph = useMemo(
+    () => buildGraph(diagram, browserTextWidth, measurements),
+    [diagram, measurements],
+  );
   const regions = useMemo(
     () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
     [graph],

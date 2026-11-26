@@ -1,4 +1,4 @@
-name: Vercel preview
+name: Vercel PR Preview
 
 on:
   pull_request_target:
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   eligible:
+    name: Check preview eligibility
     if: >-
       github.repository == 'han41858/money-flow' &&
       (github.event.action != 'labeled' || github.event.label.name == 'preview')
@@ -20,56 +21,17 @@ jobs:
     outputs:
       prs: ${{ steps.select.outputs.result }}
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - id: select
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { owner, repo } = context.repo;
-            const variables = { owner, repo };
-            const label = 'preview';
-            async function allNodes(query, number, connection) {
-              const nodes = [];
-              let cursor = null;
-              do {
-                const { repository } = await github.graphql(query, { ...variables, number, cursor });
-                const page = connection(repository);
-                if (!page) break;
-                nodes.push(...page.nodes.filter(Boolean));
-                cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
-              } while (cursor);
-              return nodes;
-            }
-
-            const pullRequest = context.payload.pull_request;
-            const candidates = pullRequest
-              ? [pullRequest.number]
-              : (await allNodes(
-                  'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { issue(number: $number) { closedByPullRequestsReferences(first: 50, after: $cursor) { nodes { number repository { nameWithOwner } } pageInfo { hasNextPage endCursor } } } } }',
-                  context.payload.issue.number,
-                  (repository) => repository.issue?.closedByPullRequestsReferences,
-                ))
-                  .filter((pr) => pr.repository.nameWithOwner === `${owner}/${repo}`)
-                  .map((pr) => pr.number);
-            const result = [];
-            for (const number of candidates) {
-              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-              if (
-                pr.state !== 'open' ||
-                pr.head.repo?.full_name !== `${owner}/${repo}` ||
-                ['main', 'dev'].includes(pr.head.ref)
-              ) continue;
-              const directlyLabeled = pr.labels.some(({ name }) => name === label);
-              if (!directlyLabeled) {
-                const issues = await allNodes(
-                  'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
-                  number,
-                  (repository) => repository.pullRequest?.closingIssuesReferences,
-                );
-                if (!issues.some((issue) => issue.labels?.nodes.some(({ name }) => name === label))) continue;
-              }
-              result.push({ number, sha: pr.head.sha, ref: pr.head.ref });
-            }
-            return result;
+            const { pathToFileURL } = require('node:url');
+            const { previewCandidates } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/.github/scripts/vercel-preview.mjs`).href);
+            return previewCandidates(github, context);
 
   preview:
     name: Preview PR #${{ matrix.pr.number }}
@@ -88,6 +50,10 @@ jobs:
       issues: read
       deployments: write
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG || 'han41858' }}
@@ -95,29 +61,15 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PR_NUMBER: ${{ matrix.pr.number }}
           PR_SHA: ${{ matrix.pr.sha }}
-          PR_REF: ${{ matrix.pr.ref }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const sha = process.env.PR_SHA;
             const number = Number(process.env.PR_NUMBER);
-            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-            if (pr.state !== 'open' || pr.head.sha !== sha) return;
-            let eligible = pr.labels.some(({ name }) => name === 'preview');
-            let cursor = null;
-            while (!eligible) {
-              const { repository } = await github.graphql(
-                'query($owner: String!, $repo: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { closingIssuesReferences(first: 50, after: $cursor) { nodes { labels(first: 100) { nodes { name } } } pageInfo { hasNextPage endCursor } } } } }',
-                { owner, repo, number, cursor },
-              );
-              const issues = repository.pullRequest?.closingIssuesReferences;
-              eligible = issues?.nodes.some(
-                (issue) => issue?.labels?.nodes.some(({ name }) => name === 'preview'),
-              );
-              if (!issues?.pageInfo.hasNextPage) break;
-              cursor = issues.pageInfo.endCursor;
-            }
-            if (!eligible) return;
+            const { pathToFileURL } = require('node:url');
+            const { eligiblePreview } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/.github/scripts/vercel-preview.mjs`).href);
+            const pr = await eligiblePreview(github, context.repo, number, sha);
+            if (!pr) return;
 
             const environment = 'Preview';
             const description = 'Money Flow label-gated Vercel preview';
@@ -157,7 +109,7 @@ jobs:
             try {
               const preview = await vercel('/v13/deployments', {
                 name: process.env.VERCEL_PROJECT, project: process.env.VERCEL_PROJECT,
-                gitSource: { type: 'github', repoId: pr.base.repo.id, ref: process.env.PR_REF, sha },
+                gitSource: { type: 'github', repoId: pr.base.repo.id, ref: pr.head.ref, sha },
               });
               const url = `https://${preview.url}`;
               await status('in_progress', url);

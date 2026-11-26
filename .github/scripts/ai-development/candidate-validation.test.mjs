@@ -269,7 +269,7 @@ test('복구 시 실패한 검사나 브라우저 사례를 먼저 다시 실행
     [new ValidationFailure(21), { stages: ['typecheck'], targets: [] }],
     [
       new ValidationFailure(25, '', undefined, [failed]),
-      { stages: ['build', 'test:e2e'], targets: [spec] },
+      { stages: ['typecheck', 'build', 'test:e2e'], targets: [spec] },
     ],
   ];
   for (const [error, options] of cases)

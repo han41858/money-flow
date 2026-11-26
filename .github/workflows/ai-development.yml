@@ -55,7 +55,9 @@ jobs:
         with:
           node-version: 24
       - name: Install trusted formatting tools
-        run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+        run: |
+          manager=$(node -p 'require("./package.json").packageManager')
+          npx --yes "$manager" install --frozen-lockfile --ignore-scripts
       - name: Develop and review
         id: develop
         run: node .github/scripts/ai-development/run.mjs ${{ inputs.phase == 'review' && 'resume-review' || 'develop' }}

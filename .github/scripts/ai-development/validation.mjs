@@ -1,3 +1,4 @@
+import { browserStage, packageScript, stages } from '../verification.mjs';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
@@ -19,15 +20,6 @@ import {
 } from './reproduction.mjs';
 
 const image = 'money-flow-ai-validation';
-const stages = [
-  'format:check',
-  'typecheck',
-  'lint',
-  'test',
-  'build',
-  'test:e2e',
-];
-
 export function reviewValidation(head, runUrl, browser, reproduced, changed) {
   const files = new Set([...changed, ...reproduced.map(({ file }) => file)]);
   const results = targetResults(browser, reproduced);
@@ -141,8 +133,8 @@ export function prepareValidation() {
       `FROM node:24-bookworm
 WORKDIR /app
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright CI=true LANG=C.UTF-8 LC_ALL=C.UTF-8
-RUN npm install --global pnpm@11.25.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
 RUN pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
 RUN chown -R node:node /app && chmod -R a+rX /opt/playwright
 USER node
@@ -184,15 +176,15 @@ export function validateCandidate(
       const status = stages.indexOf(stage) + 20;
       if (status < 20) throw new Stop('알 수 없는 격리 검사 단계입니다.');
       const command =
-        stage === 'test:e2e'
+        stage === browserStage
           ? `status=0
-        PLAYWRIGHT_JSON_OUTPUT_FILE=/tmp/money-flow-browser.json pnpm test:e2e --reporter=dot,json "$@" || status=${status}
+        PLAYWRIGHT_JSON_OUTPUT_FILE=/tmp/money-flow-browser.json pnpm ${browserStage} --reporter=dot,json "$@" || status=${status}
         if [ -f /tmp/money-flow-browser.json ]; then
           printf '\nMONEY_FLOW_BROWSER_REPORT\n'
           cat /tmp/money-flow-browser.json
         fi
         exit "$status"`
-          : `pnpm "${stage}" || exit ${status}`;
+          : `pnpm "${packageScript(stage)}" || exit ${status}`;
       return `printf 'Running isolated check %s\n' "${stage}"\n${command}`;
     });
     // Candidate processes have no tokens, host network, writable binds or Docker socket.
@@ -247,9 +239,12 @@ export function validateCandidate(
 
 export function probeBrowser(head, targets, validate = validateCandidate) {
   try {
-    return validate(head, { stages: ['build', 'test:e2e'], targets });
+    return validate(head, {
+      stages: ['typecheck', 'build', browserStage],
+      targets,
+    });
   } catch (error) {
-    if (error instanceof ValidationFailure && error.stage === 'test:e2e')
+    if (error instanceof ValidationFailure && error.stage === browserStage)
       return error.browser;
     throw error;
   }
@@ -273,7 +268,9 @@ export function retryValidationStage(
 ) {
   if (failure instanceof ReproductionFailure) return;
   const selected =
-    failure.stage === 'test:e2e' ? ['build', 'test:e2e'] : [failure.stage];
+    failure.stage === browserStage
+      ? ['typecheck', 'build', browserStage]
+      : [failure.stage];
   const targets = failure.browser
     .filter(
       ({ file, title, status }) =>
@@ -301,7 +298,7 @@ export function confirmBaselineFailure(
   reproduction,
   probe = probeBrowser,
 ) {
-  if (!(error instanceof ValidationFailure) || error.stage !== 'test:e2e')
+  if (!(error instanceof ValidationFailure) || error.stage !== browserStage)
     return;
   const edited = new Set(candidateChanges.map(({ path }) => path));
   const failures = error.browser.filter(

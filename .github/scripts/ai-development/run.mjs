@@ -689,6 +689,7 @@ async function main() {
     throw new Stop('실행 저장소 또는 브랜치가 잘못됐습니다.');
   if (mode === 'schedule-dependencies' && env.GITHUB_EVENT_NAME === 'schedule')
     return dispatchReadyDependencies(gh);
+  if (ciEvent && (mode !== 'complete' || !issueNumber)) return;
   if (
     event.repository?.full_name !== repository ||
     !Number.isSafeInteger(issueNumber) ||
@@ -700,7 +701,6 @@ async function main() {
     env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
     event.inputs?.phase === 'dependency' &&
     event.sender.login === 'github-actions[bot]';
-  if (ciEvent && (mode !== 'complete' || !event.workflow_run)) return;
   if (!schedulerDispatch && !ciEvent)
     await gh.assertMaintainer(event.sender.login);
   if (

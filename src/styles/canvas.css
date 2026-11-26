@@ -1,0 +1,268 @@
+.canvas-shell {
+  background: white;
+  border: 1px solid #d6d9df;
+  border-radius: 14px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 440px;
+}
+.flow-area {
+  flex: 1;
+  position: relative;
+  background: #f8f9fa;
+  min-height: 380px;
+}
+.money-node {
+  position: relative;
+  border-radius: 8px;
+}
+.money-node > svg {
+  display: block;
+}
+.card-name-trigger,
+.card-name-input,
+.card-kind-trigger,
+.card-kinds {
+  position: absolute;
+}
+.card-name-trigger,
+.card-name-input {
+  inset: 5px 8px 5px 29px;
+  border-radius: 5px;
+}
+.card-name-trigger,
+.card-kind-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.card-name-trigger:hover,
+.card-kind-trigger:hover {
+  background: #21356410;
+}
+.card-name-trigger {
+  cursor: text;
+}
+.card-name-input {
+  width: calc(100% - 37px);
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid #a7acb7;
+  background: white;
+  color: #1c2029;
+  font-size: 15px;
+  font-weight: 700;
+}
+.card-kind-trigger {
+  top: 5px;
+  left: 3px;
+  width: 28px;
+  height: 30px;
+  border-radius: 5px;
+}
+.card-kinds {
+  z-index: 1;
+  top: 5px;
+  inset-inline: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  min-width: 140px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.card-kinds button {
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid #a7acb7;
+  border-radius: 5px;
+  background: white;
+  color: #313849;
+  font-size: 12px;
+  cursor: pointer;
+}
+.card-kinds button[aria-pressed='true'] {
+  border-color: #1c3a82;
+  background: #e1e5f0;
+  color: #11234c;
+  font-weight: 700;
+}
+.card-kinds [role='alert'] {
+  position: absolute;
+  bottom: 100%;
+  inset-inline: 0;
+  padding: 5px 7px;
+  border: 1px solid #943c22;
+  border-radius: 6px;
+  background: white;
+}
+.money-node .node-port-anchor.react-flow__handle-right {
+  right: 0;
+  transform: translate(100%, -50%);
+}
+.money-node .node-port-anchor.react-flow__handle-left {
+  left: 0;
+  transform: translate(-100%, -50%);
+}
+.money-node.active {
+  outline: 3px solid #213564;
+  outline-offset: 4px;
+}
+.flow-area .node-port-anchor {
+  visibility: hidden;
+  pointer-events: none;
+}
+.flow-area .react-flow__edgelabel-renderer {
+  z-index: 3;
+}
+.flow-area .react-flow__viewport-portal {
+  z-index: 4;
+  pointer-events: none;
+}
+.flow-area .node-port {
+  right: auto;
+  transform: none;
+  background: white;
+  border: 2px solid;
+  opacity: 0;
+  pointer-events: none;
+}
+[data-port-mode='idle'] .node-port.source.connectionindicator {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+[data-port-mode='idle'] .node-port.source.connectionindicator:hover,
+[data-port-mode='idle'] .node-port.source.connectionindicator[data-revealed],
+[data-port-mode='connecting']
+  .node-port.target.connectionindicator[data-revealed],
+[data-port-mode='connecting'] .node-port.connectingfrom,
+[data-port-mode='connecting'] .node-port.clickconnecting {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.transfer-visual {
+  position: absolute;
+  inset: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.edge-label {
+  cursor: pointer;
+  position: absolute;
+  background: transparent;
+  border: 0;
+  padding: 2px 6px;
+  -webkit-text-stroke: 3px white;
+  paint-order: stroke fill;
+  color: #353a47;
+  font-size: 13px;
+  font-weight: 650;
+  pointer-events: all;
+  z-index: 1;
+}
+.edge-amount-editor {
+  border: 1px solid #d6d9df;
+  border-radius: 6px;
+  background: white;
+  -webkit-text-stroke: 0;
+  padding: 0;
+  cursor: text;
+  z-index: 2;
+}
+.edge-amount-editor input {
+  width: calc(10ch + 12px);
+  border: 0;
+  border-radius: inherit;
+  padding: 4px 6px;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.edge-amount-editor [role='alert'] {
+  position: absolute;
+  top: 100%;
+  inset-inline: 0;
+  background: white;
+  border: 1px solid #943c22;
+  border-radius: 6px;
+  padding: 5px;
+}
+
+.canvas-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: white;
+  border: 1px solid #d5d8df;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px #20242f10;
+}
+#editor-main:has(.editor-area > .detail-wrap) .canvas-controls {
+  right: var(--inspector-width);
+}
+.canvas-controls button {
+  position: relative;
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+.canvas-controls button:hover,
+.canvas-controls button[aria-pressed='true'] {
+  background: #e8ebf1;
+}
+.canvas-controls button::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #0c2459;
+  color: white;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 1;
+}
+.canvas-controls button:last-child::after {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+.canvas-controls button:focus-visible::after {
+  visibility: visible;
+}
+@media (hover: hover) {
+  .canvas-controls button:hover::after {
+    visibility: visible;
+  }
+}
+.canvas-controls .zoom-reset {
+  width: auto;
+  padding-inline: 5px;
+  font-size: 12px;
+}
+.canvas-controls output {
+  font-size: 12px;
+  min-width: 38px;
+  text-align: center;
+}
+.canvas-controls i {
+  height: 13px;
+  width: 1px;
+  background: #d6d9df;
+}

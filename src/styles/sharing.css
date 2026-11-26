@@ -1,0 +1,120 @@
+.share-dialog section + section {
+  margin-top: 22px;
+  border-top: 1px solid #dcdfe5;
+  padding-top: 18px;
+}
+.share-dialog h3 {
+  margin: 8px 0;
+  font-weight: 700;
+}
+.share-dialog p,
+.share-dialog details {
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.share-dialog summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.share-dialog ul {
+  padding-left: 22px;
+  list-style: disc;
+}
+.share-dialog [role='alert'] {
+  color: #99382d;
+}
+.shared-page {
+  max-width: 1440px;
+  margin: auto;
+  padding: clamp(12px, 3vw, 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100dvh;
+}
+.shared-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.shared-heading p {
+  color: #495163;
+  font-size: 13px;
+}
+.shared-heading h1 {
+  font-size: clamp(20px, 4vw, 30px);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.shared-heading button {
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: #122c69;
+  color: white;
+}
+.shared-page .canvas-shell {
+  flex: 1;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.shared-page .flow-area {
+  flex: 1;
+  min-height: 0;
+}
+.shared-page .group-title {
+  cursor: pointer;
+}
+.shared-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .share-trigger span {
+    display: none;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 30;
+  top: 6px;
+  left: 8px;
+  padding: 9px 14px;
+  border-radius: 6px;
+  color: #122041;
+  background: white;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+:where(
+  a,
+  input,
+  select,
+  summary,
+  .react-flow__node,
+  .react-flow__edge
+):focus-visible {
+  outline: 3px solid #1c3a82;
+  outline-offset: 2px;
+}
+.outgoing {
+  margin-block: 12px;
+  padding-block: 6px 12px;
+  border-block: 1px solid #dee2eb;
+}
+.outgoing button {
+  background: #e6e9f1;
+  color: #152956;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 10px;
+}

@@ -13,7 +13,8 @@ import {
   safeText,
   selectCurrentCI,
 } from './github.mjs';
-import { createModels, validateReview } from './models.mjs';
+import { createModels } from './models.mjs';
+import { validateReview } from './model-results.mjs';
 import {
   appendProgress,
   progressHistory,

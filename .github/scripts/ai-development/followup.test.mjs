@@ -1,7 +1,12 @@
-import { ciIssue, readyToComplete } from './completion.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cleanupBranch, isTrackedDevMerge } from './completion.mjs';
+import {
+  ciIssue,
+  cleanupBranch,
+  createCompletion,
+  isTrackedDevMerge,
+  readyToComplete,
+} from './completion.mjs';
 import {
   canResumeDependency,
   dependencyRetry,
@@ -9,14 +14,19 @@ import {
   dispatchReadyDependencies,
   pendingDependencies,
 } from './dependencies.mjs';
-import { canResumeReview, fingerprint, repository } from './github.mjs';
+import {
+  canResumeReview,
+  fingerprint,
+  issueMarker,
+  repository,
+} from './github.mjs';
 
 const head = 'a'.repeat(40);
 const base = 'b'.repeat(40);
 const branch = 'ai/issue-10';
 const pull = {
   merged: true,
-  base: { ref: 'dev' },
+  base: { ref: 'dev', repo: { full_name: repository } },
   head: { ref: branch, sha: head, repo: { full_name: repository } },
 };
 
@@ -293,4 +303,62 @@ test('CI 완료는 동일 PR에서 리뷰 승인된 HEAD만 재개한다', () =>
     undefined,
   );
   assert.equal(ciIssue({ ...run, event: 'push' }), undefined);
+});
+
+test('CI 실행 중에는 바로 반환하고 완료된 현재 시도의 verify만 확인한다', async () => {
+  const state = {
+    issue: 10,
+    pr: 26,
+    branch,
+    head,
+    reviewedHead: head,
+    status: 'waiting_ci',
+  };
+  const reads = [];
+  const actions = [];
+  let settled = false;
+  const run = {
+    event: 'pull_request',
+    head_branch: branch,
+    head_sha: head,
+    head_repository: { full_name: repository },
+    id: 44,
+    run_attempt: 2,
+    conclusion: 'failure',
+    html_url: 'https://github.com/check',
+  };
+  const gh = {
+    assertProtection: async () => {},
+    repo: async (path) => {
+      reads.push(path);
+      if (path === '/pulls/26')
+        return {
+          number: 26,
+          base: { ref: 'dev', repo: { full_name: repository } },
+          head: { ref: branch, sha: head, repo: { full_name: repository } },
+          body: issueMarker(10),
+        };
+      if (path.startsWith('/actions/workflows/ci.yml/runs?'))
+        return {
+          workflow_runs: [
+            { ...run, status: settled ? 'completed' : 'in_progress' },
+          ],
+        };
+      assert.equal(path, '/actions/runs/44/attempts/2/jobs?per_page=100');
+      return { jobs: [{ name: 'verify', conclusion: 'failure' }] };
+    },
+    record: async (_, status) => actions.push(status),
+  };
+  const completion = createCompletion({
+    gh,
+    state,
+    issueNumber: 10,
+    guard: async () => {},
+  });
+  await completion.complete();
+  assert.equal(reads.length, 2);
+  assert.deepEqual(actions, []);
+  settled = true;
+  await assert.rejects(completion.complete(run), /필수 CI를 통과하지/);
+  assert.deepEqual(actions, ['ci_failed']);
 });

@@ -8,6 +8,7 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useShortcuts } from './useShortcuts';
 import { ShareDialog } from '../features/sharing/ShareDialog';
+import { revealOffset } from '../features/editor/viewport';
 import { visibleArea } from '../features/editor/visibleArea';
 import { Canvas } from '../features/editor/Canvas';
 import { Inspector } from '../features/editor/Inspector';
@@ -110,6 +111,42 @@ function Workspace({
     setMobile('details');
   };
 
+  function revealAdded(
+    canvas: Element,
+    position: { x: number; y: number },
+    size: { width: number; height: number },
+    group = false,
+  ) {
+    requestAnimationFrame(() => {
+      const area = visibleArea(canvas, group);
+      const top = flowToScreenPosition(position);
+      const viewport = getViewport();
+      const padding = group ? 0 : 10;
+      const dx = revealOffset(
+        top.x,
+        size.width * viewport.zoom,
+        group ? area.left : -Infinity,
+        area.right,
+        padding,
+        group,
+      );
+      const dy = revealOffset(
+        top.y,
+        size.height * viewport.zoom,
+        area.top,
+        area.bottom,
+        padding,
+        group,
+      );
+      if (dx || dy)
+        void setViewport({
+          ...viewport,
+          x: viewport.x + dx,
+          y: viewport.y + dy,
+        });
+    });
+  }
+
   function addGroup() {
     const canvas = document.querySelector('.flow-area')!;
     const area = visibleArea(canvas, true);
@@ -121,35 +158,7 @@ function Workspace({
     const id = editor.addGroup(newGroupBounds([], sizes, center), sizes);
     const group = editor.current().groups.find((item) => item.id === id)!;
     select({ nodes: [], edges: [], groups: [id] });
-    requestAnimationFrame(() => {
-      const visible = visibleArea(canvas, true);
-      const top = flowToScreenPosition(group.position);
-      const viewport = getViewport();
-      const reveal = (
-        start: number,
-        length: number,
-        min: number,
-        max: number,
-      ) => Math.max(min - start, Math.min(0, max - start - length));
-      const dx = reveal(
-        top.x,
-        group.width * viewport.zoom,
-        visible.left,
-        visible.right,
-      );
-      const dy = reveal(
-        top.y,
-        group.height * viewport.zoom,
-        visible.top,
-        visible.bottom,
-      );
-      if (dx || dy)
-        void setViewport({
-          ...viewport,
-          x: viewport.x + dx,
-          y: viewport.y + dy,
-        });
-    });
+    revealAdded(canvas, group.position, group, true);
   }
 
   function add(kind: Kind) {
@@ -167,25 +176,7 @@ function Workspace({
     );
     const id = editor.addNode(kind, point);
     select({ groups: [], nodes: [id], edges: [] });
-    requestAnimationFrame(() => {
-      const area = visibleArea(canvas);
-      const top = flowToScreenPosition(point);
-      const viewport = getViewport();
-      const dx = Math.min(
-        0,
-        area.right - 10 - top.x - size.width * viewport.zoom,
-      );
-      const dy =
-        top.y < area.top
-          ? area.top + 10 - top.y
-          : Math.min(0, area.bottom - 10 - top.y - size.height * viewport.zoom);
-      if (dx || dy)
-        void setViewport({
-          ...viewport,
-          x: viewport.x + dx,
-          y: viewport.y + dy,
-        });
-    });
+    revealAdded(canvas, point, size);
   }
 
   return (

@@ -223,17 +223,47 @@ test('그룹 내부 빈 곳과 제목에서 이동하고 내부 요소의 조작
   expect((await child.boundingBox())!.x - childBox.x).toBeGreaterThan(15);
   expect((await root.boundingBox())!.x).toBeCloseTo(beforeChild.x, 0);
 
-  const edgePoint = await page
-    .locator('.react-flow__edge-path')
-    .evaluate((path: SVGPathElement) => {
-      const local = path.getPointAtLength(path.getTotalLength() * 0.35);
-      const client = local.matrixTransform(path.getScreenCTM()!);
-      return { x: client.x, y: client.y };
-    });
-  expect(edgePoint.x).toBeGreaterThan(beforeChild.x);
-  expect(edgePoint.x).toBeLessThan(beforeChild.x + beforeChild.width);
-  expect(edgePoint.y).toBeGreaterThan(beforeChild.y);
-  expect(edgePoint.y).toBeLessThan(beforeChild.y + beforeChild.height);
+  const path = page.locator('.react-flow__edge-path');
+  async function exposedEdgePoint() {
+    return path.evaluate((edge: SVGPathElement, group) => {
+      const transform = edge.getScreenCTM()!;
+      const length = edge.getTotalLength();
+      for (let fraction = 0.1; fraction < 0.9; fraction += 0.025) {
+        const { x, y } = edge
+          .getPointAtLength(length * fraction)
+          .matrixTransform(transform);
+        if (
+          x <= group.x ||
+          x >= group.x + group.width ||
+          y <= group.y ||
+          y >= group.y + group.height
+        )
+          continue;
+        const hit = document.elementFromPoint(x, y);
+        if (
+          hit?.closest('.react-flow__edge') ===
+          edge.closest('.react-flow__edge')
+        )
+          return { x, y };
+      }
+      return null;
+    }, beforeChild);
+  }
+  const sampled: { point: Awaited<ReturnType<typeof exposedEdgePoint>> } = {
+    point: null,
+  };
+  // An editable amount label can cover the line at different positions as fonts vary.
+  await expect
+    .poll(
+      async () => {
+        sampled.point = await exposedEdgePoint();
+        return sampled.point;
+      },
+      { message: '그룹 안에서 클릭할 수 있는 연결선 구간을 찾는다' },
+    )
+    .not.toBeNull();
+  const edgePoint = sampled.point;
+  if (!edgePoint) throw new Error('그룹 안의 연결선에 포인터가 닿지 않습니다.');
   expect(await cursorAt(page, edgePoint)).not.toBe('grab');
   await page.mouse.click(edgePoint.x, edgePoint.y);
   await expect(

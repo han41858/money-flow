@@ -1,3 +1,4 @@
+import { ciIssue, readyToComplete } from './completion.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cleanupBranch, isTrackedDevMerge } from './completion.mjs';
@@ -254,4 +255,42 @@ test('수동 병합은 추적 중인 PR과 dev 병합 커밋을 대조한다', a
     )),
   );
   await assert.rejects(isTrackedDevMerge(gh, { ...merged, number: 21 }, state));
+});
+
+test('CI 완료는 동일 PR에서 리뷰 승인된 HEAD만 재개한다', () => {
+  const repository = 'han41858/money-flow';
+  const run = {
+    event: 'pull_request',
+    head_branch: 'ai/issue-12',
+    head_sha: 'a'.repeat(40),
+    head_repository: { full_name: repository },
+    pull_requests: [{ number: 26, base: { ref: 'dev' } }],
+  };
+  const state = {
+    status: 'waiting_ci',
+    head: run.head_sha,
+    reviewedHead: run.head_sha,
+    branch: run.head_branch,
+    pr: 26,
+  };
+  assert.equal(ciIssue(run), '12');
+  assert.equal(readyToComplete(state, run), true);
+  assert.equal(readyToComplete(state), true);
+  assert.equal(readyToComplete({ ...state, status: 'reviewing' }, run), false);
+  assert.equal(readyToComplete({ ...state, reviewedHead: null }, run), false);
+  assert.equal(readyToComplete({ ...state, status: 'ci_failed' }, run), true);
+  assert.equal(
+    readyToComplete(state, { ...run, head_sha: 'b'.repeat(40) }),
+    false,
+  );
+  assert.equal(readyToComplete({ ...state, pr: 999 }, run), false);
+  assert.equal(
+    ciIssue({ ...run, head_repository: { full_name: 'fork/money-flow' } }),
+    undefined,
+  );
+  assert.equal(
+    ciIssue({ ...run, head_branch: 'ai/issue-12-extra' }),
+    undefined,
+  );
+  assert.equal(ciIssue({ ...run, event: 'push' }), undefined);
 });

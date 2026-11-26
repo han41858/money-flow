@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { assertPull, baseBranch, repository } from './github.mjs';
+import {
+  assertPull,
+  baseBranch,
+  repository,
+  selectCurrentCI,
+  Stop,
+} from './github.mjs';
 
 export async function mergedIntoDev(gh, commit) {
   if (!/^[a-f0-9]{40}$/.test(commit ?? '')) return false;
@@ -77,4 +83,47 @@ export async function cleanupBranch(gh, pull, state, remove) {
   } catch {
     return '작업 브랜치 정리 조건을 확인하지 못해 삭제를 건너뛰었습니다.';
   }
+}
+
+export function ciIssue(run) {
+  if (
+    run?.event !== 'pull_request' ||
+    run.head_repository?.full_name !== repository
+  )
+    return undefined;
+  return /^ai\/issue-([1-9]\d*)$/.exec(run.head_branch ?? '')?.[1];
+}
+
+export function readyToComplete(state, run) {
+  return Boolean(
+    state &&
+    Number.isSafeInteger(state.pr) &&
+    state.head === state.reviewedHead &&
+    ['waiting_ci', 'ci_failed', 'merged'].includes(state.status) &&
+    (!run || selectCurrentCI([run], state)),
+  );
+}
+
+export async function trustedCI(gh, state) {
+  const query = new URLSearchParams({
+    event: 'pull_request',
+    head_sha: state.head,
+    branch: state.branch,
+    per_page: '20',
+  });
+  const result = await gh.repo(`/actions/workflows/ci.yml/runs?${query}`);
+  const run = selectCurrentCI(result.workflow_runs, state);
+  if (!run || run.status !== 'completed') return null;
+  const jobs = await gh.repo(
+    `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
+  );
+  const verify = jobs.jobs.find(({ name }) => name === 'verify');
+  if (run.conclusion === 'success' && verify?.conclusion === 'success')
+    return run;
+  await gh.record(
+    state,
+    'ci_failed',
+    `현재 HEAD의 verify 검사에 실패했습니다. [CI 실행](${run.html_url})을 확인하세요.`,
+  );
+  throw new Stop('현재 HEAD의 필수 CI를 통과하지 못했습니다.');
 }

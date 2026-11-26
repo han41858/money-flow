@@ -1,10 +1,13 @@
 import { BaselineFailure, ValidationFailure } from './validation.mjs';
 import { ClaudeThinkingRejection } from './config.mjs';
 import {
+  ciIssue,
   cleanupBranch,
   deleteBranchAtHead,
   isTrackedDevMerge,
   mergedIntoDev,
+  readyToComplete,
+  trustedCI,
 } from './completion.mjs';
 import {
   canResumeDependency,
@@ -28,7 +31,6 @@ import {
   issueMarker,
   repository,
   safeText,
-  selectCurrentCI,
   Stop,
   UiSpecUnread,
 } from './github.mjs';
@@ -39,8 +41,11 @@ const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
 const pullIssue = /^ai\/issue-([1-9]\d*)$/.exec(
   event.pull_request?.head.ref ?? '',
 )?.[1];
+const ciEvent = env.GITHUB_EVENT_NAME === 'workflow_run';
 const issueNumber = Number(
-  event.issue?.number ?? event.inputs?.issue ?? pullIssue,
+  ciEvent
+    ? ciIssue(event.workflow_run)
+    : (event.issue?.number ?? event.inputs?.issue ?? pullIssue),
 );
 const gh = createGitHub({
   token: env.GH_TOKEN,
@@ -684,30 +689,6 @@ async function resumeReview() {
     throw new Stop('Claude가 변경을 요청했습니다. 기존 PR 리뷰를 확인하세요.');
 }
 
-async function trustedCI() {
-  const query = new URLSearchParams({
-    event: 'pull_request',
-    head_sha: state.head,
-    branch: state.branch,
-    per_page: '20',
-  });
-  const result = await gh.repo(`/actions/workflows/ci.yml/runs?${query}`);
-  const run = selectCurrentCI(result.workflow_runs, state);
-  if (!run || run.status !== 'completed') return null;
-  const jobs = await gh.repo(
-    `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
-  );
-  const verify = jobs.jobs.find(({ name }) => name === 'verify');
-  if (run.conclusion === 'success' && verify?.conclusion === 'success')
-    return run;
-  await gh.record(
-    state,
-    'ci_failed',
-    `현재 HEAD의 verify 검사에 실패했습니다. [CI 실행](${run.html_url})을 확인하세요.`,
-  );
-  throw new Stop('현재 HEAD의 필수 CI를 통과하지 못했습니다.');
-}
-
 async function closeIssue(pull) {
   assertPull(pull, state);
   if (!pull.merged || !sha.test(pull.merge_commit_sha ?? ''))
@@ -752,36 +733,17 @@ async function closeIssue(pull) {
 
 async function complete() {
   if (state?.status === 'completed') return;
-  if (
-    !state ||
-    !Number.isSafeInteger(state.pr) ||
-    state.head !== state.reviewedHead ||
-    !['waiting_ci', 'ci_failed', 'merged'].includes(state.status)
-  )
+  if (!readyToComplete(state, ciEvent ? event.workflow_run : undefined)) {
+    if (ciEvent) return;
     throw new Stop('현재 HEAD에 자동 머지에 사용할 리뷰 승인이 없습니다.');
+  }
   const path = `/pulls/${state.pr}`;
   let pull = await gh.repo(path);
   assertPull(pull, state);
   if (pull.merged) return closeIssue(pull);
   await gh.assertProtection();
-  for (let attempt = 0; attempt < 55; attempt++) {
-    await guard();
-    const result = await trustedCI();
-    if (result) break;
-    if (attempt === 54) {
-      await gh.record(
-        state,
-        'waiting_ci',
-        '필수 CI가 아직 대기 중입니다. CI 완료 후 이 이슈 번호로 워크플로를 수동 재실행할 수 있습니다.',
-      );
-      console.error(
-        '::error::필수 CI 대기 시간이 초과됐습니다. 이슈의 진행 댓글을 확인하세요.',
-      );
-      process.exitCode = 1;
-      return;
-    }
-    await sleep(20_000);
-  }
+  await guard();
+  if (!(await trustedCI(gh, state))) return;
   await guard();
   pull = await gh.repo(path);
   assertPull(pull, state);
@@ -864,8 +826,11 @@ async function main() {
     env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
     event.inputs?.phase === 'dependency' &&
     event.sender.login === 'github-actions[bot]';
-  if (!schedulerDispatch) await gh.assertMaintainer(event.sender.login);
+  if (ciEvent && (mode !== 'complete' || !event.workflow_run)) return;
+  if (!schedulerDispatch && !ciEvent)
+    await gh.assertMaintainer(event.sender.login);
   if (
+    !ciEvent &&
     env.GITHUB_TRIGGERING_ACTOR &&
     env.GITHUB_TRIGGERING_ACTOR !== event.sender.login
   )

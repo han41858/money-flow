@@ -65,7 +65,10 @@ export function Canvas({
   const { positions, measurements, resizing, changeNodes } =
     useCanvasNodeInteractions(diagram, readOnly, selectionChanges);
   const labels = useMemo(() => canvasLabels(readOnly), [readOnly]);
-  const graph = useMemo(() => buildGraph(diagram, browserTextWidth), [diagram]);
+  const graph = useMemo(
+    () => buildGraph(diagram, browserTextWidth, measurements),
+    [diagram, measurements],
+  );
   const regions = useMemo(
     () => new Map(graph.groupNodes.map((n) => [n.id, n.data.group])),
     [graph],

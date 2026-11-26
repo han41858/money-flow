@@ -1,11 +1,6 @@
 import type { Diagram } from '../../types/diagram';
-import {
-  amountLabelBox,
-  labelBlocker,
-  transferGeometry,
-  type Box,
-} from '../edges/geometry';
-import { amountLabel, edgeWidth } from '../edges/money';
+import { amountLabelBox, type Box } from '../edges/geometry';
+import { transferRoute } from '../edges/route';
 import { rectsOverlap, type NodeSizes } from '../groups/geometry';
 import {
   estimatedTextWidth,
@@ -16,7 +11,7 @@ import { buildGraph } from './graph';
 
 type Transfer = {
   label: Box;
-  geometry: ReturnType<typeof transferGeometry>;
+  geometry: ReturnType<typeof transferRoute>['geometry'];
   stroke: number;
 };
 
@@ -63,16 +58,10 @@ export function amountConflicts(
   const crowded = [...columns].filter(([, ids]) => ids.size > 1);
   if (!crowded.length) return new Map<number, number>();
 
-  const graph = buildGraph(diagram);
-  const nodes = new Map(diagram.nodes.map((node) => [node.id, node.position]));
+  const graph = buildGraph(diagram, estimatedTextWidth, sizes);
   const edges = new Map(graph.edges.map((edge) => [edge.id, edge]));
-  const cards = diagram.nodes.map(({ id, position }) => ({
-    ...position,
-    ...sizes.get(id)!,
-  }));
   const totals = graph.nodes.flatMap(({ id, data }) => {
-    const { x, y } = data.node.position;
-    const { width, height } = sizes.get(id)!;
+    const { x, y, width, height } = graph.cards.get(id)!;
     return layoutTotals(data.totals, width, estimatedTextWidth).map(
       (total) => ({
         x: x + total.x - (total.side === 'right' ? total.labelWidth : 0),
@@ -82,30 +71,16 @@ export function amountConflicts(
       }),
     );
   });
-  const labelObstacles = [...cards, ...totals];
+  const labelObstacles = [...graph.cards.values(), ...totals];
   return new Map(
     crowded.map(([rank, ids]) => {
       const transfers: Transfer[] = [];
       for (const id of ids) {
-        const { source, target, data } = edges.get(id)!;
+        const { data } = edges.get(id)!;
         if (!data) continue;
-        const from = nodes.get(source)!;
-        const to = nodes.get(target)!;
-        const fromSize = sizes.get(source)!;
-        const toSize = sizes.get(target)!;
-        const text = amountLabel(data.edge.min, data.edge.max);
-        const stroke = edgeWidth(data.edge);
-        const geometry = transferGeometry(
-          from.x + fromSize.width,
-          from.y + fromSize.height * data.sourcePort,
-          to.x,
-          to.y + toSize.height * data.targetPort,
-          stroke,
-          data.targetPortCount,
-          labelBlocker(text, cards),
-        );
+        const { label, stroke, geometry } = transferRoute(data);
         transfers.push({
-          label: amountLabelBox(text, geometry),
+          label: amountLabelBox(label, geometry),
           stroke,
           geometry,
         });

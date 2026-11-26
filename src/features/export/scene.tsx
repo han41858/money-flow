@@ -1,14 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Diagram } from '../../types/diagram';
 import { buildGraph, type FlowNode, type FlowEdge } from '../editor/graph';
-import { amountLabel, edgeWidth } from '../edges/money';
-import { labelBlocker, transferGeometry } from '../edges/geometry';
+import { transferRoute } from '../edges/route';
+import type { Box } from '../edges/geometry';
 import type { NodeSizes, Group } from '../groups/geometry';
 import {
   cardLabel,
   layoutTotals,
   totalLineHeight,
-  cardSize,
   cardFont,
   estimatedTextWidth,
   type MeasureText,
@@ -86,13 +85,11 @@ function groupShape(group: Group, bounds: Bounds, measure: MeasureText) {
 
 function nodeShape(
   node: FlowNode,
-  sizes: NodeSizes,
+  { x, y, width, height }: Box,
   bounds: Bounds,
   measure: MeasureText,
 ) {
-  const { x, y } = node.data.node.position;
   const { name } = node.data.node;
-  const { width, height } = sizes.get(node.id) ?? cardSize(name, measure);
   const label = cardLabel(name);
   bounds.include(x - 1, y - 1, width + 2, height + 2);
   for (const total of layoutTotals(node.data.totals, width, measure)) {
@@ -117,53 +114,16 @@ function nodeShape(
   );
 }
 
-function anchor(
-  node: FlowNode,
-  fraction: number,
-  outgoing: boolean,
-  sizes: NodeSizes,
-  measure: MeasureText,
-) {
-  const { x, y } = node.data.node.position;
-  const { width, height } =
-    sizes.get(node.id) ?? cardSize(node.data.node.name, measure);
-  return {
-    x: x + (outgoing ? width : 0),
-    y: y + height * fraction,
-  };
-}
-
-function edgeShape(
-  flow: FlowEdge,
-  nodes: Map<string, FlowNode>,
-  sizes: NodeSizes,
-  bounds: Bounds,
-  measure: MeasureText,
-) {
-  const { edge, color, sourcePort, targetPort, targetPortCount, obstacles } =
-    flow.data!;
-  const from = anchor(
-    nodes.get(flow.source)!,
-    sourcePort,
-    true,
-    sizes,
-    measure,
-  );
-  const to = anchor(nodes.get(flow.target)!, targetPort, false, sizes, measure);
-  const stroke = edgeWidth(edge);
-  const { body, shaft, arrow, x, y } = transferGeometry(
-    from.x,
-    from.y,
-    to.x,
-    to.y,
+function edgeShape(flow: FlowEdge, bounds: Bounds, measure: MeasureText) {
+  const { color } = flow.data!;
+  const {
+    label: value,
     stroke,
-    targetPortCount,
-    labelBlocker(amountLabel(edge.min, edge.max), obstacles),
-  );
+    geometry: { body, shaft, arrow, x, y },
+  } = transferRoute(flow.data!);
   bounds.path(body, stroke / 2);
   bounds.path(shaft, 0);
   bounds.path(arrow, 0);
-  const value = amountLabel(edge.min, edge.max);
   const width = measure(value, 13, true) + 4;
   bounds.include(x - width / 2, y - 12, width, 24);
   return {
@@ -206,16 +166,15 @@ export function renderSvg(
   sizes: NodeSizes,
   measure: MeasureText = estimatedTextWidth,
 ) {
-  const graph = buildGraph(diagram, measure);
-  const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
+  const graph = buildGraph(diagram, measure, sizes);
   const bounds = new Bounds();
   const groups = graph.groupNodes.map(({ data }) =>
     groupShape(data.group, bounds, measure),
   );
-  const edges = graph.edges.map((e) =>
-    edgeShape(e, nodes, sizes, bounds, measure),
+  const edges = graph.edges.map((e) => edgeShape(e, bounds, measure));
+  const cards = graph.nodes.map((n) =>
+    nodeShape(n, graph.cards.get(n.id)!, bounds, measure),
   );
-  const cards = graph.nodes.map((n) => nodeShape(n, sizes, bounds, measure));
   const frame = bounds.frame();
   const svg = renderToStaticMarkup(
     <svg

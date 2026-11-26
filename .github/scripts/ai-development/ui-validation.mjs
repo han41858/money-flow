@@ -47,11 +47,11 @@ export function candidateReproduction({
       if (
         !testEdits.length ||
         !(error instanceof ValidationFailure) ||
-        error.stage !== 'build'
+        !['typecheck', 'build'].includes(error.stage)
       )
         throw error;
       throw new ReproductionFailure(
-        '수정 전 코드에 후보 테스트와 지원 파일만 적용한 트리에서 빌드가 실패했습니다. 재현 테스트가 후보 제품 코드의 API에 의존하는지 확인하세요.',
+        '수정 전 코드에 후보 테스트와 지원 파일만 적용한 트리에서 타입 검사 또는 번들 빌드가 실패했습니다. 재현 테스트가 후보 제품 코드의 API에 의존하는지 확인하세요.',
         error,
       );
     }

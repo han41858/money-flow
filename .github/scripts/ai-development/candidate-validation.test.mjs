@@ -199,37 +199,43 @@ test('재현 테스트와 지원 파일을 기준 트리에 적용하고 후보�
     );
 });
 
-test('재현용 기준 트리의 빌드 오류와 후보의 빌드 오류를 구분한다', () => {
-  const build = new ValidationFailure(
-    24,
-    'tests/groups.spec.ts(35,5): error TS2554',
-  );
-  assert.throws(
-    () =>
-      candidateReproduction({
-        base: 'base',
-        changes: [{ path: spec.file, text: 'test(...)' }],
-        targets: [spec],
-        createCheckpoint: () => 'tests-only',
-        probe: () => {
-          throw build;
-        },
-      }),
-    (error) => {
-      assert(error instanceof ReproductionFailure);
-      assert.equal(error.stage, 'UI 재현');
-      assert.match(error.message, /수정 전 코드/);
-      assert.match(
-        error.diagnostics,
-        /tests\/groups\.spec\.ts\(35,5\): error TS2554/,
-      );
-      retryValidationStage('candidate', error, () =>
-        assert.fail('재현 단계는 별도로 다시 검사합니다.'),
-      );
-      return true;
-    },
-  );
-});
+for (const [stage, status] of [
+  ['typecheck', 21],
+  ['build', 24],
+]) {
+  test(`재현용 기준 트리의 ${stage} 오류를 UI 재현 실패로 기록한다`, () => {
+    const failure = new ValidationFailure(
+      status,
+      'tests/groups.spec.ts(35,5): error TS2554',
+    );
+    assert.equal(failure.stage, stage);
+    assert.throws(
+      () =>
+        candidateReproduction({
+          base: 'base',
+          changes: [{ path: spec.file, text: 'test(...)' }],
+          targets: [spec],
+          createCheckpoint: () => 'tests-only',
+          probe: () => {
+            throw failure;
+          },
+        }),
+      (error) => {
+        assert(error instanceof ReproductionFailure);
+        assert.equal(error.stage, 'UI 재현');
+        assert.match(error.message, /수정 전 코드/);
+        assert.match(
+          error.diagnostics,
+          /tests\/groups\.spec\.ts\(35,5\): error TS2554/,
+        );
+        retryValidationStage('candidate', error, () =>
+          assert.fail('재현 단계는 별도로 다시 검사합니다.'),
+        );
+        return true;
+      },
+    );
+  });
+}
 
 test('단언 오류를 재현하지 못하거나 지정 검사 일부만 실패한 UI 후보를 거부한다', () => {
   const changes = [{ path: 'src/features/editor/arrange.ts', text: 'layout' }];
